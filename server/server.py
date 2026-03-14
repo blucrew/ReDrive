@@ -96,7 +96,8 @@ def _inject_prefix(html: str, prefix: str) -> str:
             .replace("'/command'",  f"'{prefix}/command'")
             .replace('"/state"',    f'"{prefix}/state"')
             .replace("'/state'",    f"'{prefix}/state'")
-            .replace('fetch("/touch"', f'fetch("{prefix}/touch"'))
+            .replace('fetch("/touch"', f'fetch("{prefix}/touch"')
+            .replace('href="/touch"', f'href="{prefix}/touch"'))
 
 
 _LANDING_HTML = """<!DOCTYPE html>
@@ -195,7 +196,7 @@ async def handle_room_driver(req):
   padding:6px 16px;display:flex;align-items:center;gap:12px;font-size:13px">
   <span style="color:#999">Room&nbsp;</span>
   <code id="rc" style="color:#5fa3ff;letter-spacing:.12em;font-size:15px;font-weight:700">{code}</code>
-  <button onclick="navigator.clipboard.writeText('{code}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)"
+  <button onclick="navigator.clipboard.writeText(location.origin+'{prefix}/touch');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)"
           style="padding:3px 10px;background:#222;border:1px solid #444;color:#ccc;
                  border-radius:4px;cursor:pointer;font-size:12px">Copy</button>
   <span id="rider-ct" style="color:#666;margin-left:auto">0 riders</span>
