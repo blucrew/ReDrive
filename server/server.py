@@ -87,6 +87,128 @@ class Room:
         return len(self.rider_wss)
 
 
+# ── Rider info page ──────────────────────────────────────────────────────────
+
+_RIDER_PAGE_HTML = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ReDrive &middot; Rider</title>
+<style>
+  :root {{ --bg:#111; --bg2:#1a1a1a; --bg3:#222; --border:#2a2a2a;
+           --fg:#fff; --fg2:#999; --accent:#5fa3ff; --ok:#4caf50; --err:#f44336; --warn:#ff9800; }}
+  * {{ box-sizing:border-box; margin:0; padding:0 }}
+  body {{ background:var(--bg); color:var(--fg); font:15px/1.6 system-ui,sans-serif;
+          max-width:480px; margin:0 auto; padding:1.5rem; }}
+  h1 {{ color:var(--accent); font-size:1.6rem; margin-bottom:.2rem }}
+  .sub {{ color:var(--fg2); font-size:.9rem; margin-bottom:1.8rem }}
+  .card {{ background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+           padding:1.2rem 1.4rem; margin-bottom:1rem }}
+  .card h2 {{ font-size:.8rem; text-transform:uppercase; letter-spacing:.08em;
+               color:var(--fg2); margin-bottom:.9rem; font-weight:600 }}
+  code {{ background:var(--bg3); padding:.15em .45em; border-radius:3px;
+          font-family:monospace; font-size:.92em; color:var(--accent) }}
+  .step {{ display:flex; gap:.8rem; align-items:baseline; margin-bottom:.6rem }}
+  .step-n {{ color:var(--accent); font-weight:700; font-size:.85rem; flex-shrink:0 }}
+  .step p {{ color:var(--fg2); font-size:.9rem }}
+  /* live status */
+  #status-dot {{ display:inline-block; width:9px; height:9px; border-radius:50%;
+                  background:var(--err); margin-right:6px; vertical-align:middle }}
+  #status-txt {{ color:var(--fg2); font-size:.85rem; vertical-align:middle }}
+  .stat-row {{ display:flex; justify-content:space-between; align-items:center;
+               padding:.55rem 0; border-bottom:1px solid var(--border) }}
+  .stat-row:last-child {{ border-bottom:none }}
+  .stat-label {{ color:var(--fg2); font-size:.85rem }}
+  .stat-value {{ color:var(--fg); font-size:.95rem; font-weight:600 }}
+  #vol-bar-wrap {{ background:var(--bg3); border-radius:4px; height:8px;
+                   flex:1; margin:0 .8rem; overflow:hidden }}
+  #vol-bar {{ height:100%; border-radius:4px; background:var(--accent);
+               width:0%; transition:width .4s }}
+  #ramp-row {{ display:none }}
+  #ramp-bar-wrap {{ background:var(--bg3); border-radius:4px; height:6px;
+                    flex:1; margin:0 .8rem; overflow:hidden }}
+  #ramp-bar {{ height:100%; border-radius:4px; background:var(--warn); width:0% }}
+</style>
+</head>
+<body>
+<h1>ReDrive</h1>
+<p class="sub">Room <strong style="color:var(--accent);letter-spacing:.1em">{code}</strong></p>
+
+<div class="card">
+  <h2>How to connect</h2>
+  <div class="step"><span class="step-n">1</span>
+    <p>Make sure <strong>ReStim</strong> is open on your device with WebSocket enabled.</p></div>
+  <div class="step"><span class="step-n">2</span>
+    <p>Run the rider app or: <code>python rider_client.py {code}</code></p></div>
+  <div class="step"><span class="step-n">3</span>
+    <p>Keep this page open to see live output. Your device's own power limits always apply.</p></div>
+</div>
+
+<div class="card">
+  <h2>Live output &nbsp;<span id="status-dot"></span><span id="status-txt">connecting…</span></h2>
+  <div class="stat-row">
+    <span class="stat-label">Pattern</span>
+    <span class="stat-value" id="s-pattern">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Intensity</span>
+    <span class="stat-value" id="s-intensity">—</span>
+  </div>
+  <div class="stat-row">
+    <span class="stat-label">Output</span>
+    <div id="vol-bar-wrap"><div id="vol-bar"></div></div>
+    <span class="stat-value" id="s-vol">—</span>
+  </div>
+  <div class="stat-row" id="ramp-row">
+    <span class="stat-label">Ramp</span>
+    <div id="ramp-bar-wrap"><div id="ramp-bar"></div></div>
+    <span class="stat-value" id="s-ramp">—</span>
+  </div>
+</div>
+
+<script>
+const STATE_URL = '{prefix}/state';
+let errCount = 0;
+async function poll() {{
+  try {{
+    const d = await (await fetch(STATE_URL)).json();
+    errCount = 0;
+    document.getElementById('status-dot').style.background = 'var(--ok)';
+    document.getElementById('status-txt').textContent = 'live';
+    document.getElementById('s-pattern').textContent   = d.pattern  ?? '—';
+    document.getElementById('s-intensity').textContent = d.intensity != null
+      ? Math.round(d.intensity * 100) + '%' : '—';
+    const volPct = d.vol != null ? Math.round(d.vol * 100) : 0;
+    document.getElementById('vol-bar').style.width = volPct + '%';
+    document.getElementById('s-vol').textContent   = volPct + '%';
+    const rampRow = document.getElementById('ramp-row');
+    if (d.ramp_active) {{
+      rampRow.style.display = 'flex';
+      const pct = Math.round((d.ramp_progress ?? 0) * 100);
+      document.getElementById('ramp-bar').style.width = pct + '%';
+      document.getElementById('s-ramp').textContent   =
+        pct + '% → ' + Math.round((d.ramp_target ?? 0) * 100) + '%';
+    }} else {{
+      rampRow.style.display = 'none';
+    }}
+  }} catch(e) {{
+    errCount++;
+    if (errCount > 2) {{
+      document.getElementById('status-dot').style.background = 'var(--err)';
+      document.getElementById('status-txt').textContent = 'disconnected';
+    }}
+  }}
+}}
+poll();
+setInterval(poll, 1500);
+</script>
+</body>
+</html>
+"""
+
+
 # ── HTML helpers ─────────────────────────────────────────────────────────────
 
 def _inject_prefix(html: str, prefix: str) -> str:
@@ -152,14 +274,14 @@ _LANDING_HTML = """<!DOCTYPE html>
   <button onclick="joinRider()">Connect as Rider</button>
   <p class="note">
     Run <code>python rider_client.py &lt;ROOMCODE&gt;</code> on the machine connected
-    to your ReStim device, then open <code>/room/&lt;ROOMCODE&gt;/touch</code> on your phone.
+    to your ReStim device. Ask the driver to share your room link.
   </p>
 </div>
 
 <script>
 function joinRider(){
   const c = document.getElementById('code-in').value.trim();
-  if(c.length === 10) window.location = '/room/' + c + '/touch';
+  if(c.length === 10) window.location = '/room/' + c + '/join';
   else alert('Enter a 10-character room code');
 }
 </script>
@@ -196,7 +318,7 @@ async def handle_room_driver(req):
   padding:6px 16px;display:flex;align-items:center;gap:12px;font-size:13px">
   <span style="color:#999">Room&nbsp;</span>
   <code id="rc" style="color:#5fa3ff;letter-spacing:.12em;font-size:15px;font-weight:700">{code}</code>
-  <button onclick="navigator.clipboard.writeText(location.origin+'{prefix}/touch');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)"
+  <button onclick="navigator.clipboard.writeText(location.origin+'{prefix}/join');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy link',1500)"
           style="padding:3px 10px;background:#222;border:1px solid #444;color:#ccc;
                  border-radius:4px;cursor:pointer;font-size:12px">Copy</button>
   <span id="rider-ct" style="color:#666;margin-left:auto">0 riders</span>
@@ -219,6 +341,15 @@ async def handle_room_touch(req):
         raise web.HTTPNotFound(text="Room not found or expired")
     prefix = f"/room/{code}"
     html   = _inject_prefix(TOUCH_HTML, prefix)
+    return web.Response(text=html, content_type="text/html")
+
+
+async def handle_room_join(req):
+    code = req.match_info["code"]
+    if code not in _rooms:
+        raise web.HTTPNotFound(text="Room not found or expired")
+    prefix = f"/room/{code}"
+    html = _RIDER_PAGE_HTML.format(code=code, prefix=prefix)
     return web.Response(text=html, content_type="text/html")
 
 
@@ -314,6 +445,7 @@ def build_app() -> web.Application:
     app.router.add_post("/create",                    handle_create)
     app.router.add_get("/room/{code}",                handle_room_driver)
     app.router.add_get("/room/{code}/touch",          handle_room_touch)
+    app.router.add_get("/room/{code}/join",           handle_room_join)
     app.router.add_post("/room/{code}/command",       handle_room_command)
     app.router.add_get("/room/{code}/state",          handle_room_state)
     app.router.add_get("/room/{code}/rider",          handle_rider_ws)
