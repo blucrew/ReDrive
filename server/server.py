@@ -53,8 +53,9 @@ class Room:
     """One driver session with N riders."""
 
     def __init__(self, code: str, main_loop: asyncio.AbstractEventLoop):
-        self.code        = code
-        self.created_at  = time.monotonic()
+        self.code         = code
+        self.created_at   = time.monotonic()
+        self.bottle_until: float = 0.0
         self.rider_wss:  set[web.WebSocketResponse] = set()
         self._main_loop  = main_loop
         self._log_q      = queue.Queue()
@@ -168,6 +169,11 @@ _RIDER_PAGE_HTML = """\
   </div>
 </div>
 
+<div id="bottle-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:1rem">
+  <img src="/bottle.png" style="max-width:80vmin;max-height:72vmin;object-fit:contain;border-radius:8px">
+  <div id="bottle-cd" style="color:#fff;font-size:1.1rem;font-family:monospace;opacity:0.7"></div>
+</div>
+
 <script>
 const STATE_URL = '{prefix}/state';
 let errCount = 0;
@@ -193,6 +199,13 @@ async function poll() {{
     }} else {{
       rampRow.style.display = 'none';
     }}
+    const overlay = document.getElementById('bottle-overlay');
+    if (d.bottle_active) {{
+      overlay.style.display = 'flex';
+      document.getElementById('bottle-cd').textContent = d.bottle_remaining + 's';
+    }} else {{
+      overlay.style.display = 'none';
+    }}
   }} catch(e) {{
     errCount++;
     if (errCount > 2) {{
@@ -203,6 +216,15 @@ async function poll() {{
 }}
 poll();
 setInterval(poll, 1500);
+</script>
+<script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
+<script>
+  kofiWidgetOverlay.draw('stimstation', {{
+    'type': 'floating-chat',
+    'floating-chat.donateButton.text': 'Support Us',
+    'floating-chat.donateButton.background-color': '#d9534f',
+    'floating-chat.donateButton.text-color': '#fff'
+  }});
 </script>
 </body>
 </html>
@@ -219,7 +241,8 @@ def _inject_prefix(html: str, prefix: str) -> str:
             .replace('"/state"',    f'"{prefix}/state"')
             .replace("'/state'",    f"'{prefix}/state'")
             .replace('fetch("/touch"', f'fetch("{prefix}/touch"')
-            .replace('href="/touch"', f'href="{prefix}/touch"'))
+            .replace('href="/touch"', f'href="{prefix}/touch"')
+            .replace("'/bottle?duration='", f"'{prefix}/bottle?duration='"))
 
 
 _LANDING_HTML = """<!DOCTYPE html>
@@ -284,6 +307,15 @@ function joinRider(){
   if(c.length === 10) window.location = '/room/' + c + '/join';
   else alert('Enter a 10-character room code');
 }
+</script>
+<script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
+<script>
+  kofiWidgetOverlay.draw('stimstation', {
+    'type': 'floating-chat',
+    'floating-chat.donateButton.text': 'Support Us',
+    'floating-chat.donateButton.background-color': '#d9534f',
+    'floating-chat.donateButton.text-color': '#fff'
+  });
 </script>
 </body>
 </html>
@@ -370,10 +402,24 @@ async def handle_room_state(req):
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
     state = await room.engine._handle_state(req)
-    # Inject rider count into the state JSON
     d = json.loads(state.text)
-    d["rider_count"] = room.rider_count
+    d["rider_count"]      = room.rider_count
+    d["bottle_active"]    = time.monotonic() < room.bottle_until
+    d["bottle_remaining"] = max(0.0, round(room.bottle_until - time.monotonic(), 1))
     return web.Response(text=json.dumps(d), content_type="application/json")
+
+
+async def handle_room_bottle(req):
+    code = req.match_info["code"]
+    room = _rooms.get(code)
+    if room is None:
+        raise web.HTTPNotFound(text="Room not found or expired")
+    try:
+        duration = max(5, min(15, int(req.rel_url.query.get("duration", "10"))))
+    except ValueError:
+        duration = 10
+    room.bottle_until = time.monotonic() + duration
+    return web.Response(text="{}", content_type="application/json")
 
 
 async def handle_rider_ws(req):
@@ -426,6 +472,13 @@ async def handle_assets_file(req):
     return web.Response(body=path.read_bytes(), content_type=ct)
 
 
+async def handle_bottle_png(_req):
+    path = Path(__file__).parent.parent / "bottle.png"
+    if not path.is_file():
+        raise web.HTTPNotFound(text="bottle.png not found")
+    return web.Response(body=path.read_bytes(), content_type="image/png")
+
+
 # ── Room expiry cleanup ──────────────────────────────────────────────────────
 
 async def _cleanup_loop():
@@ -448,7 +501,9 @@ def build_app() -> web.Application:
     app.router.add_get("/room/{code}/join",           handle_room_join)
     app.router.add_post("/room/{code}/command",       handle_room_command)
     app.router.add_get("/room/{code}/state",          handle_room_state)
+    app.router.add_post("/room/{code}/bottle",        handle_room_bottle)
     app.router.add_get("/room/{code}/rider",          handle_rider_ws)
+    app.router.add_get("/bottle.png",                 handle_bottle_png)
     app.router.add_get("/touch_assets/list",          handle_assets_list)
     app.router.add_get("/touch_assets/{type}/{name}", handle_assets_file)
     async def _start_cleanup(_app):

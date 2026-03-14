@@ -398,6 +398,14 @@ DRIVER_HTML = r"""<!DOCTYPE html>
     transition:width .35s; }
   #ramp-pct { font-size:11px; color:var(--fg2); min-width:80px; text-align:right; }
 
+  /* Bottle */
+  #bottle-btn {
+    width:100%; padding:12px; background:var(--bg3); color:var(--fg2);
+    border:1px solid var(--border); border-radius:6px; font-size:14px;
+    font-weight:bold; cursor:pointer; margin-bottom:14px; letter-spacing:.05em;
+  }
+  #bottle-btn.active { background:#2a1e00; border-color:var(--warn); color:var(--warn); }
+
   /* Live */
   #live { color:var(--fg2); font-size:11px; font-family:monospace; min-height:18px; }
 </style>
@@ -419,6 +427,17 @@ DRIVER_HTML = r"""<!DOCTYPE html>
 </div>
 
 <button id="stop-btn" onclick="sendStop()">⬛  STOP</button>
+
+<div class="section-label" style="margin-top:4px">Bottle Prompt</div>
+<div class="slider-row" style="margin-bottom:6px">
+  <div class="slider-header">
+    <span class="slider-label">Duration</span>
+    <span class="slider-val" id="bottle-dur-val">10s</span>
+  </div>
+  <input type="range" id="bottle-dur" min="5" max="15" value="10"
+         oninput="document.getElementById('bottle-dur-val').textContent=this.value+'s'">
+</div>
+<button id="bottle-btn" onclick="sendBottle()">🍾  Bottle Prompt</button>
 
 <div class="section-label">Live</div>
 <div id="viz-row">
@@ -853,6 +872,16 @@ function sendStop() {
   sendCmd({ stop: true });
 }
 
+let _bottleTimer = null;
+function sendBottle() {
+  const dur = document.getElementById('bottle-dur').value;
+  fetch('/bottle?duration=' + dur, {method:'POST'});
+  const btn = document.getElementById('bottle-btn');
+  btn.classList.add('active');
+  if (_bottleTimer) clearTimeout(_bottleTimer);
+  _bottleTimer = setTimeout(() => btn.classList.remove('active'), dur * 1000);
+}
+
 async function sendCmd(cmd) {
   try {
     const r = await fetch("/command", {
@@ -1006,6 +1035,15 @@ async function pollState() {
 setInterval(pollState, 350);
 pollState();
 </script>
+<script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
+<script>
+  kofiWidgetOverlay.draw('stimstation', {
+    'type': 'floating-chat',
+    'floating-chat.donateButton.text': 'Support Us',
+    'floating-chat.donateButton.background-color': '#d9534f',
+    'floating-chat.donateButton.text-color': '#fff'
+  });
+</script>
 </body>
 </html>
 """
@@ -1110,6 +1148,13 @@ TOUCH_HTML = r"""
   .legend { display: flex; gap: 8px; }
   .leg { font-size: 10px; color: var(--fg2); display: flex; align-items: center; gap: 3px; }
   .ldot { width: 8px; height: 8px; border-radius: 50%; }
+  #bottle-btn {
+    padding: 8px 10px; background: var(--bg3); color: var(--fg2);
+    border: 1px solid var(--border); border-radius: 5px;
+    font-size: 16px; cursor: pointer; flex-shrink: 0;
+  }
+  #bottle-btn.active { background: #2a1e00; border-color: var(--warn); }
+  #bottle-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -1117,7 +1162,14 @@ TOUCH_HTML = r"""
 <div class="top-row">
   <div id="conn"><div id="cdot"></div><span id="ctxt">Connecting&#8230;</span></div>
   <button id="stop-btn" onclick="doStop()">&#9632; STOP</button>
+  <button id="bottle-btn" onclick="sendBottle()">🍾</button>
   <a id="nav-link" href="/">Main &#8599;</a>
+</div>
+<div id="bottle-row">
+  <span style="font-size:10px;color:var(--fg2);white-space:nowrap">Bottle</span>
+  <input type="range" id="bottle-dur" min="5" max="15" value="10" style="flex:1"
+         oninput="document.getElementById('bottle-dur-val').textContent=this.value+'s'">
+  <span id="bottle-dur-val" style="font-size:10px;color:var(--warn);min-width:22px">10s</span>
 </div>
 
 <div class="main-area">
@@ -1443,6 +1495,15 @@ async function sendCmd(cmd) {
   } catch(_) { setConn(false); }
 }
 function doStop()    { sendCmd({stop:true}); setLooping(false); setStatus('Stopped'); }
+let _bottleTimer = null;
+function sendBottle() {
+  const dur = document.getElementById('bottle-dur').value;
+  fetch('/bottle?duration=' + dur, {method:'POST'});
+  const btn = document.getElementById('bottle-btn');
+  btn.classList.add('active');
+  if (_bottleTimer) clearTimeout(_bottleTimer);
+  _bottleTimer = setTimeout(() => btn.classList.remove('active'), dur * 1000);
+}
 function setConn(ok) {
   document.getElementById('cdot').style.background = ok ? 'var(--ok)' : 'var(--err)';
   document.getElementById('ctxt').textContent = ok ? 'Connected' : 'Disconnected';
@@ -1635,6 +1696,15 @@ setInterval(async()=>{
 },1500);
 
 initRadios(); loadAnatomyList(); loadToolImages(); draw();
+</script>
+<script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
+<script>
+  kofiWidgetOverlay.draw('stimstation', {
+    'type': 'floating-chat',
+    'floating-chat.donateButton.text': 'Support Us',
+    'floating-chat.donateButton.background-color': '#d9534f',
+    'floating-chat.donateButton.text-color': '#fff'
+  });
 </script>
 </body>
 </html>
