@@ -1245,6 +1245,9 @@ let gestureRec  = [];
 let gestureStart= 0;
 let looping     = false;
 let _trail      = [];   // [{x,y,t}] ghostly trail points
+let _gesturePath= [];   // [{t,x,y}] canvas path recorded during draw (ms)
+let _loopStart  = 0;    // performance.now() when looping began
+let _loopDur    = 0;    // duration of one loop cycle (ms)
 
 // Electrode assignment: tip/balls/anus -> A/B/C label
 // A = beta 0 (one physical end), B = beta 9999 (other end), C = beta 5000 (neutral)
@@ -1423,9 +1426,11 @@ document.addEventListener('touchcancel', onUp);
 function onDown(e) {
   e.preventDefault();
   pointerDown = true; gestureRec = []; gestureStart = performance.now();
+  _gesturePath = [];
   const pos = getPos(e);
   lastBeta = betaFromY(pos.y); lastX = pos.x; lastY = pos.y;
   _trail = []; _trail.push({x:lastX, y:lastY, t:Date.now()});
+  _gesturePath.push({t:0, x:lastX, y:lastY});
   gestureRec.push({t:0, beta:lastBeta, intensity:intensityFromX(pos.x)});
   sendCmd({ gesture_stop:true, beta_mode:'hold', beta:lastBeta, intensity:intensityFromX(pos.x) });
   setLooping(false); draw();
@@ -1437,7 +1442,9 @@ function onMove(e) {
   const pos = getPos(e);
   lastBeta = betaFromY(pos.y); lastX = pos.x; lastY = pos.y;
   _trail.push({x:lastX, y:lastY, t:Date.now()}); if (_trail.length>60) _trail.shift();
-  gestureRec.push({t:(performance.now()-gestureStart)/1000, beta:lastBeta, intensity:intensityFromX(pos.x)});
+  const _gt = (performance.now()-gestureStart);
+  _gesturePath.push({t:_gt, x:lastX, y:lastY});
+  gestureRec.push({t:_gt/1000, beta:lastBeta, intensity:intensityFromX(pos.x)});
   sendCmd({ beta:lastBeta, intensity:intensityFromX(pos.x) });
   draw();
 }
@@ -1449,6 +1456,7 @@ function onUp() {
 
   if (dur >= 0.5 && gestureRec.length >= 6) {
     sendCmd({ gesture_record: subsample(gestureRec, 150) });
+    _loopStart = performance.now(); _loopDur = dur * 1000;
     setLooping(true);
     setStatus('Looping ' + dur.toFixed(1) + 's  drag to replace');
     draw(); return;
@@ -1727,10 +1735,35 @@ function draw() {
   if (pointerDown) drawToolCursor(ctx,W,H);
 }
 
-// Fade trail over time while not touching
+// Interpolate position along gesture path at time t (ms into loop)
+function _pathAt(t) {
+  const path = _gesturePath;
+  if (!path.length) return null;
+  if (t <= path[0].t) return path[0];
+  if (t >= path[path.length-1].t) return path[path.length-1];
+  for (let i = 0; i < path.length-1; i++) {
+    if (t >= path[i].t && t <= path[i+1].t) {
+      const f = (t - path[i].t) / (path[i+1].t - path[i].t);
+      return { x: path[i].x + f*(path[i+1].x - path[i].x),
+               y: path[i].y + f*(path[i+1].y - path[i].y) };
+    }
+  }
+  return path[path.length-1];
+}
+
 (function trailTick() {
-  if (_trail.length) {
-    const now = Date.now();
+  const now = Date.now();
+  if (looping && _gesturePath.length > 1 && _loopDur > 0) {
+    // Advance dot position along recorded path, looping continuously
+    const elapsed = (performance.now() - _loopStart) % _loopDur;
+    const pos = _pathAt(elapsed);
+    if (pos) {
+      lastX = pos.x; lastY = pos.y;
+      _trail.push({x:pos.x, y:pos.y, t:now});
+      if (_trail.length > 80) _trail.shift();
+    }
+    draw();
+  } else if (_trail.length) {
     _trail = _trail.filter(p => now - p.t < 1800);
     draw();
   }
