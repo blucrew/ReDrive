@@ -66,9 +66,16 @@ PRESETS: dict[str, dict] = {
         "hz":            0.05,         # pattern speed (irrelevant for Hold, but saved)
         "depth":         0.12,         # 12% depth
         "alpha":         False,        # alpha oscillation off
-        # Beta sweep: slow, centred toward B (shaft/tip), moderate width, B-biased dwell
+        # Beta sweep: envelope ramps hz 0.34→5 Hz quickly, holds 10s, ramps back down 5s, loops
         "beta_mode":     "sweep",
-        "beta_sweep":    {"hz": 0.34, "centre": 7700, "width": 2450, "skew": 0.17},
+        "beta_sweep":    {"centre": 7700, "width": 2450, "skew": 0.17},
+        "sweep_hz_envelope": {
+            "base_hz":   0.34,   # slow creep speed
+            "peak_hz":   5.0,    # max frenzy
+            "ramp_up":   2.0,    # seconds to reach peak
+            "hold":      10.0,   # seconds at peak
+            "ramp_down": 5.0,    # seconds back to base
+        },
         # Ramp config (pre-loaded but NOT auto-started — driver clicks Start Ramp)
         "ramp_target":   1.0,
         "ramp_duration": 60.0,
@@ -1832,6 +1839,8 @@ class DriveEngine:
         self._beta_sweep_width:   int   = 4000    # each side — total swing = 2×width
         self._beta_sweep_phase:   float = 0.0
         self._beta_sweep_skew:    float = 0.0     # -1..1: bias toward A (<0) or B (>0) end
+        # Sweep Hz envelope — ramps hz through a cycle (None = off)
+        self._sweep_hz_env: dict | None = None  # {base,peak,up,hold,down,t,total}
         # Spiral state — coordinated beta (sine) + alpha (cosine) quadrature sweep
         self._spiral_phase:       float = 0.0
         self._spiral_hz:          float = 0.15
@@ -1976,6 +1985,20 @@ class DriveEngine:
                     self._ramp_target   = max(0.0, min(1.0, float(p["ramp_target"])))
                 if "ramp_duration" in p:
                     self._ramp_duration = max(1.0, float(p["ramp_duration"]))
+                # Sweep Hz envelope
+                if "sweep_hz_envelope" in p:
+                    e = p["sweep_hz_envelope"]
+                    up   = max(0.1, float(e.get("ramp_up",   2.0)))
+                    hold = max(0.1, float(e.get("hold",     10.0)))
+                    down = max(0.1, float(e.get("ramp_down",  5.0)))
+                    self._sweep_hz_env = {
+                        "base":  max(0.01, float(e.get("base_hz",  0.34))),
+                        "peak":  max(0.01, float(e.get("peak_hz",  5.0))),
+                        "up": up, "hold": hold, "down": down,
+                        "t": 0.0, "total": up + hold + down,
+                    }
+                else:
+                    self._sweep_hz_env = None
         elif "ramp" in cmd:
             r = cmd["ramp"]
             self._ramp_target   = max(0.0, min(1.0, float(r.get("target",   1.0))))
@@ -2145,6 +2168,18 @@ class DriveEngine:
                     self._current_beta = desired
 
             elif self._beta_mode == "sweep":
+                # Sweep Hz envelope: ramp up → hold → ramp down → repeat
+                if self._sweep_hz_env is not None:
+                    e = self._sweep_hz_env
+                    e['t'] = (e['t'] + dt) % e['total']
+                    t = e['t']
+                    if t < e['up']:
+                        self._beta_sweep_hz = e['base'] + (e['peak'] - e['base']) * (t / e['up'])
+                    elif t < e['up'] + e['hold']:
+                        self._beta_sweep_hz = e['peak']
+                    else:
+                        td = t - e['up'] - e['hold']
+                        self._beta_sweep_hz = e['peak'] - (e['peak'] - e['base']) * (td / e['down'])
                 # Continuous sweep between centre ± width
                 # Skew > 0 → spends more time near B end; skew < 0 → near A end
                 # Uses adjusted-sine: sin(θ + k·sin(θ)) which biases dwell time asymmetrically
