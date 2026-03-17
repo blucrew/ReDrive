@@ -3,27 +3,43 @@
 
 import asyncio
 import argparse
+import json
+import platform
 import sys
 import threading
 import tkinter as tk
 from tkinter import ttk
 import urllib.request
 import urllib.error
-import json
 import webbrowser
+
 import aiohttp
 
-APP_VERSION = "0.1.0"
-DEFAULT_RELAY   = "wss://redrive.estimstation.com"
-DEFAULT_RESTIM  = "ws://localhost:12346"
-VERSION_URL     = "https://redrive.estimstation.com/version.json"
+APP_VERSION  = "0.1.0"
+UPDATE_URL   = "https://redrive.estimstation.com/version.json"
+RELAY_HOST   = "redrive.estimstation.com"
+
+IS_MAC = platform.system() == "Darwin"
+IS_WIN = platform.system() == "Windows"
+
+# ── Colours ───────────────────────────────────────────────────────────────────
+BG     = "#111111"
+BG2    = "#1a1a1a"
+BORDER = "#2a2a2a"
+FG     = "#ffffff"
+FG2    = "#999999"
+ACC    = "#5fa3ff"
+OK     = "#4caf50"
+ERR    = "#f44336"
+WARN   = "#ff9800"
+
 
 class RiderApp:
     def __init__(self, root: tk.Tk, room_code: str = ""):
         self.root = root
         self.root.title("ReDrive Rider")
         self.root.resizable(False, False)
-        self.root.configure(bg="#111")
+        self.root.configure(bg=BG)
 
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
@@ -32,101 +48,111 @@ class RiderApp:
 
         self._build_ui(room_code)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        # Version check runs in a daemon thread — silently ignored on failure
         threading.Thread(target=self._check_update, daemon=True).start()
 
+    # ── UI construction ───────────────────────────────────────────────────────
+
     def _build_ui(self, room_code: str):
-        PAD = dict(padx=12, pady=6)
-        BG, BG2, FG, FG2, ACC = "#111", "#1a1a1a", "#fff", "#999", "#5fa3ff"
-        ENTRY_STYLE = dict(bg="#222", fg=FG, insertbackground=FG,
-                           relief="flat", font=("Helvetica", 15),
-                           highlightthickness=1, highlightbackground="#333",
-                           highlightcolor=ACC)
+        ENTRY_KW = dict(
+            bg="#222222", fg=FG, insertbackground=FG,
+            relief="flat", font=("Helvetica", 12),
+            highlightthickness=1,
+            highlightbackground=BORDER,
+            highlightcolor=ACC,
+        )
 
-        # Title
-        tk.Label(self.root, text="ReDrive Rider", bg=BG, fg=FG,
-                 font=("Helvetica", 18, "bold")).pack(pady=(16, 4))
-        tk.Label(self.root, text=f"v{APP_VERSION}", bg=BG, fg=FG2,
-                 font=("Helvetica", 10)).pack(pady=(0, 8))
+        # ── Title bar ─────────────────────────────────────────────────────────
+        title_row = tk.Frame(self.root, bg=BG)
+        title_row.pack(fill="x", padx=16, pady=(14, 0))
+        tk.Label(title_row, text="ReDrive Rider", bg=BG, fg=FG,
+                 font=("Helvetica", 17, "bold")).pack(side="left")
+        tk.Label(title_row, text=f"v{APP_VERSION}", bg=BG, fg=FG2,
+                 font=("Helvetica", 10)).pack(side="right", anchor="s", pady=(0, 2))
 
-        # Update banner (hidden until an update is found)
+        # ── Update banner (hidden until a newer version is found) ─────────────
         self._update_banner = tk.Frame(self.root, bg="#7c4d00", cursor="hand2")
-        self._update_lbl = tk.Label(self._update_banner, text="",
-                                    bg="#7c4d00", fg="#ffe082",
+        # pack() is called lazily inside _check_update → show_update_banner
+        inner = tk.Frame(self._update_banner, bg="#7c4d00")
+        inner.pack(fill="x", padx=10, pady=6)
+        self._update_lbl = tk.Label(inner, text="", bg="#7c4d00", fg="#ffe082",
                                     font=("Helvetica", 10, "bold"))
-        self._update_lbl.pack(pady=6, padx=12)
+        self._update_lbl.pack(side="left")
+        self._dl_btn = tk.Button(inner, text="Download", relief="flat",
+                                 bg=WARN, fg="#000",
+                                 font=("Helvetica", 9, "bold"),
+                                 cursor="hand2",
+                                 command=self._open_download)
+        self._dl_btn.pack(side="right")
         self._update_url = ""
-        self._update_banner.bind("<Button-1>", lambda _: webbrowser.open(self._update_url))
-        self._update_lbl.bind("<Button-1>",   lambda _: webbrowser.open(self._update_url))
 
-        # Room code
-        tk.Label(self.root, text="Room Code", bg=BG, fg=FG2,
-                 font=("Helvetica", 11)).pack(anchor="w", padx=16)
+        # ── Room code ─────────────────────────────────────────────────────────
+        self._add_label("Room Code:")
+        rc_row = tk.Frame(self.root, bg=BG)
+        rc_row.pack(fill="x", padx=16, pady=(2, 10))
         self._room_var = tk.StringVar(value=room_code.upper())
-        room_entry = tk.Entry(self.root, textvariable=self._room_var,
-                              width=18, justify="center", **ENTRY_STYLE)
-        room_entry.pack(padx=16, pady=(2, 10), ipady=8, fill="x")
+        room_entry = tk.Entry(rc_row, textvariable=self._room_var,
+                              width=14, justify="center", **ENTRY_KW)
+        room_entry.pack(side="left", ipady=6, fill="x", expand=True)
+        self._connect_btn = tk.Button(rc_row, text="Connect",
+                                      bg=ACC, fg="#000",
+                                      activebackground="#4090ee",
+                                      font=("Helvetica", 11, "bold"),
+                                      relief="flat", cursor="hand2",
+                                      command=self._toggle_connect)
+        self._connect_btn.pack(side="right", padx=(8, 0), ipady=6, ipadx=10)
 
-        # Advanced (collapsible)
-        adv_frame = tk.Frame(self.root, bg=BG)
-        adv_frame.pack(fill="x", padx=16)
-        self._adv_open = False
-        adv_toggle = tk.Label(adv_frame, text="▶ Advanced", bg=BG, fg=FG2,
-                              font=("Helvetica", 10), cursor="hand2")
-        adv_toggle.pack(anchor="w")
-        self._adv_body = tk.Frame(self.root, bg=BG2, bd=0)
+        # ── ReStim URL ────────────────────────────────────────────────────────
+        self._add_label("ReStim:")
+        self._restim_var = tk.StringVar(value="ws://localhost:12346")
+        tk.Entry(self.root, textvariable=self._restim_var, **ENTRY_KW).pack(
+            fill="x", padx=16, ipady=5, pady=(2, 8))
 
-        for label, default, attr in [
-            ("Relay Server", DEFAULT_RELAY,  "_relay_var"),
-            ("ReStim URL",   DEFAULT_RESTIM, "_restim_var"),
-        ]:
-            tk.Label(self._adv_body, text=label, bg=BG2, fg=FG2,
-                     font=("Helvetica", 10)).pack(anchor="w", padx=8, pady=(6,0))
-            var = tk.StringVar(value=default)
-            setattr(self, attr, var)
-            tk.Entry(self._adv_body, textvariable=var, width=32,
-                     bg="#2a2a2a", fg=FG, insertbackground=FG,
-                     relief="flat", font=("Helvetica", 11)).pack(
-                         padx=8, pady=(0,4), fill="x")
+        # ── Server URL ────────────────────────────────────────────────────────
+        self._add_label("Server:")
+        self._relay_var = tk.StringVar(value=f"wss://{RELAY_HOST}")
+        tk.Entry(self.root, textvariable=self._relay_var, **ENTRY_KW).pack(
+            fill="x", padx=16, ipady=5, pady=(2, 10))
 
-        def toggle_adv(_=None):
-            self._adv_open = not self._adv_open
-            adv_toggle.config(text=("▼ Advanced" if self._adv_open else "▶ Advanced"))
-            if self._adv_open:
-                self._adv_body.pack(fill="x", padx=16, pady=(2,8))
-            else:
-                self._adv_body.pack_forget()
-        adv_toggle.bind("<Button-1>", toggle_adv)
-
-        # Status row
+        # ── Status row ────────────────────────────────────────────────────────
         status_row = tk.Frame(self.root, bg=BG)
-        status_row.pack(fill="x", padx=16, pady=(4,0))
-        self._dot = tk.Label(status_row, text="●", bg=BG, fg="#444",
-                             font=("Helvetica", 14))
-        self._dot.pack(side="left")
-        self._status_lbl = tk.Label(status_row, text="Not connected", bg=BG, fg=FG2,
+        status_row.pack(fill="x", padx=16, pady=(2, 10))
+        tk.Label(status_row, text="Status:", bg=BG, fg=FG2,
+                 font=("Helvetica", 11)).pack(side="left")
+        self._dot = tk.Label(status_row, text="●", bg=BG, fg=FG2,
+                             font=("Helvetica", 13))
+        self._dot.pack(side="left", padx=(8, 4))
+        self._status_lbl = tk.Label(status_row, text="Not connected",
+                                    bg=BG, fg=FG2,
                                     font=("Helvetica", 11))
-        self._status_lbl.pack(side="left", padx=(6,0))
+        self._status_lbl.pack(side="left")
 
-        # Connect button
-        self._btn = tk.Button(self.root, text="Connect",
-                              bg=ACC, fg="#000", activebackground="#4090ee",
-                              font=("Helvetica", 13, "bold"),
-                              relief="flat", cursor="hand2",
-                              command=self._toggle_connect)
-        self._btn.pack(padx=16, pady=10, fill="x", ipady=8)
-
-        # Log
-        log_frame = tk.Frame(self.root, bg="#000", bd=1, relief="sunken")
-        log_frame.pack(padx=16, pady=(0,16), fill="both", expand=True)
-        self._log = tk.Text(log_frame, bg="#000", fg="#888", font=("Courier", 9),
-                            state="disabled", height=10, width=46,
-                            relief="flat", wrap="word")
-        sb = tk.Scrollbar(log_frame, command=self._log.yview)
+        # ── Log area ──────────────────────────────────────────────────────────
+        log_outer = tk.Frame(self.root, bg=BORDER, bd=1, relief="flat")
+        log_outer.pack(fill="both", expand=True, padx=16, pady=(0, 4))
+        self._log = tk.Text(log_outer, bg="#0d0d0d", fg=FG2,
+                            font=("Courier", 9), state="disabled",
+                            height=10, width=48, relief="flat", wrap="word")
+        sb = tk.Scrollbar(log_outer, command=self._log.yview)
         self._log.configure(yscrollcommand=sb.set)
         sb.pack(side="right", fill="y")
         self._log.pack(side="left", fill="both", expand=True)
 
-        self.root.minsize(340, 460)
+        # ── Clear Log button ──────────────────────────────────────────────────
+        tk.Button(self.root, text="Clear Log", relief="flat",
+                  bg=BG2, fg=FG2, activebackground=BORDER,
+                  font=("Helvetica", 9), cursor="hand2",
+                  command=self._clear_log).pack(
+            anchor="e", padx=16, pady=(0, 14))
+
+        self.root.minsize(360, 500)
+
+    def _add_label(self, text: str):
+        tk.Label(self.root, text=text, bg=BG, fg=FG2,
+                 font=("Helvetica", 10)).pack(anchor="w", padx=16)
+
+    # ── Log helpers ───────────────────────────────────────────────────────────
 
     def _log_line(self, msg: str):
         def _do():
@@ -136,19 +162,23 @@ class RiderApp:
             self._log.configure(state="disabled")
         self.root.after(0, _do)
 
+    def _clear_log(self):
+        self._log.configure(state="normal")
+        self._log.delete("1.0", "end")
+        self._log.configure(state="disabled")
+
+    # ── Status helpers ────────────────────────────────────────────────────────
+
     def _set_status(self, text: str, color: str):
         def _do():
             self._dot.config(fg=color)
             self._status_lbl.config(text=text)
         self.root.after(0, _do)
 
-    def _set_btn(self, text: str, bg: str):
-        def _do():
-            self._btn.config(text=text, bg=bg)
-        self.root.after(0, _do)
+    # ── Connect / disconnect ──────────────────────────────────────────────────
 
     def _toggle_connect(self):
-        if self._connected:
+        if self._connected or (self._thread and self._thread.is_alive()):
             self._disconnect()
         else:
             self._connect()
@@ -156,49 +186,52 @@ class RiderApp:
     def _connect(self):
         room = self._room_var.get().strip().upper()
         if not room:
-            self._log_line("⚠ Enter a room code first.")
+            self._log_line("Enter a room code first.")
             return
         relay  = self._relay_var.get().strip().rstrip("/")
         restim = self._restim_var.get().strip()
-        self._set_btn("Disconnect", "#c0392b")
-        self._set_status("Connecting…", "#f39c12")
-        self._loop = asyncio.new_event_loop()
+        self._set_status("Connecting...", WARN)
+        self.root.after(0, lambda: self._connect_btn.config(
+            text="Disconnect", bg=ERR, activebackground="#b71c1c"))
+        self._loop   = asyncio.new_event_loop()
         self._stop_ev = asyncio.Event()
         self._thread = threading.Thread(
             target=self._run_loop,
             args=(room, relay, restim),
-            daemon=True)
+            daemon=True,
+        )
         self._thread.start()
 
     def _disconnect(self):
-        if self._stop_ev:
+        if self._stop_ev and self._loop:
             self._loop.call_soon_threadsafe(self._stop_ev.set)
         self._connected = False
-        self._set_btn("Connect", "#5fa3ff")
-        self._set_status("Disconnected", "#444")
+        self._set_status("Not connected", FG2)
+        self.root.after(0, lambda: self._connect_btn.config(
+            text="Connect", bg=ACC, activebackground="#4090ee"))
+
+    # ── Async rider loop (runs in background thread) ──────────────────────────
 
     def _run_loop(self, room: str, relay: str, restim: str):
         self._loop.run_until_complete(self._rider_loop(room, relay, restim))
 
     async def _rider_loop(self, room: str, relay: str, restim: str):
-        relay_url  = f"{relay}/ws/rider/{room}"
+        relay_url       = f"{relay}/ws/rider/{room}"
         RECONNECT_DELAY = 5.0
+
         while not self._stop_ev.is_set():
-            # Connect to relay
-            self._log_line(f"Connecting to relay…")
-            self._set_status("Connecting to relay…", "#f39c12")
+            self._log_line("Connecting to relay…")
+            self._set_status("Connecting...", WARN)
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.ws_connect(relay_url) as relay_ws:
-                        self._log_line("Connected to relay.  Connecting to ReStim…")
-                        self._set_status("Connecting to ReStim…", "#f39c12")
+                        self._log_line("Connected to relay. Connecting to ReStim…")
+                        self._set_status("Connected to relay", ACC)
                         try:
                             async with session.ws_connect(restim) as restim_ws:
                                 self._connected = True
-                                self._log_line("Connected to ReStim.  Forwarding T-code.")
-                                self._set_status("Live", "#2ecc71")
-                                self.root.after(0, lambda: self._btn.config(
-                                    text="Disconnect", bg="#c0392b"))
+                                self._log_line("Connected to ReStim. Forwarding T-code.")
+                                self._set_status("Live — forwarding T-code", OK)
                                 async for msg in relay_ws:
                                     if self._stop_ev.is_set():
                                         break
@@ -212,38 +245,56 @@ class RiderApp:
                                         break
                         except Exception as e:
                             self._log_line(f"ReStim error: {e}")
+                            self._set_status(f"Error: {e}", ERR)
             except Exception as e:
                 self._log_line(f"Relay error: {e}")
+                self._set_status(f"Error: {e}", ERR)
+
             if self._stop_ev.is_set():
                 break
             self._connected = False
-            self._set_status(f"Reconnecting in {int(RECONNECT_DELAY)}s…", "#e74c3c")
+            self._set_status(f"Reconnecting in {int(RECONNECT_DELAY)}s…", ERR)
             try:
                 await asyncio.wait_for(self._stop_ev.wait(), timeout=RECONNECT_DELAY)
             except asyncio.TimeoutError:
                 pass
+
         self._connected = False
-        self._set_status("Disconnected", "#444")
-        self.root.after(0, lambda: self._btn.config(text="Connect", bg="#5fa3ff"))
+        self._set_status("Not connected", FG2)
+        self.root.after(0, lambda: self._connect_btn.config(
+            text="Connect", bg=ACC, activebackground="#4090ee"))
+
+    # ── Update check ──────────────────────────────────────────────────────────
 
     def _check_update(self):
         try:
-            with urllib.request.urlopen(VERSION_URL, timeout=5) as r:
+            with urllib.request.urlopen(UPDATE_URL, timeout=5) as r:
                 data = json.loads(r.read())
             latest = data.get("version", "0.0.0")
-            if tuple(int(x) for x in latest.split(".")) > \
-               tuple(int(x) for x in APP_VERSION.split(".")):
-                import platform
-                key = "download_mac" if platform.system() == "Darwin" else "download_windows"
-                url = data.get(key, data.get("download_windows", ""))
-                self._update_url = url
-                def _show():
-                    self._update_lbl.config(
-                        text=f"Update available: v{latest} — click to download")
-                    self._update_banner.pack(fill="x", padx=16, pady=(0, 8))
-                self.root.after(0, _show)
+            if (tuple(int(x) for x in latest.split(".")) >
+                    tuple(int(x) for x in APP_VERSION.split("."))):
+                key = "download_mac" if IS_MAC else "download_windows"
+                url = data.get(key) or data.get("download_windows", "")
+                self._show_update_banner(latest, url)
         except Exception:
-            pass  # silently ignore — no update check on network error
+            pass  # silently ignore if can't reach server
+
+    def _show_update_banner(self, version: str, url: str):
+        self._update_url = url
+
+        def _do():
+            self._update_lbl.config(text=f"New version v{version} available")
+            # Insert banner between title and room-code row
+            self._update_banner.pack(fill="x", padx=16, pady=(6, 0))
+            # Re-pack the banner just after the title widgets
+            self._update_banner.pack_configure(before=self.root.winfo_children()[1])
+        self.root.after(0, _do)
+
+    def _open_download(self):
+        if self._update_url:
+            webbrowser.open(self._update_url)
+
+    # ── Close ─────────────────────────────────────────────────────────────────
 
     def _on_close(self):
         self._disconnect()
@@ -251,12 +302,13 @@ class RiderApp:
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="ReDrive Rider")
     parser.add_argument("room", nargs="?", default="",
-                        help="Room code (optional, can be typed in the app)")
+                        help="Room code (optional — can be typed in the app)")
     args = parser.parse_args()
+
     root = tk.Tk()
-    app = RiderApp(root, room_code=args.room)
+    RiderApp(root, room_code=args.room)
     root.mainloop()
 
 

@@ -1,0 +1,6 @@
+{
+  "version": "0.1.0",
+  "download_windows": "https://redrive.estimstation.com/download/rider/windows",
+  "download_mac": "https://redrive.estimstation.com/download/rider/mac",
+  "changelog": "Initial release"
+}

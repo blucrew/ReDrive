@@ -469,46 +469,49 @@ async def handle_room_driver(req):
     room.touch_driver()
     prefix = f"/room/{code}"
     html   = _inject_prefix(DRIVER_HTML, prefix, driver_key=room.driver_key)
-    # Inject room code banner + copy button near top of body
+    # Inject room code sharing panel + copy buttons near top of body
     banner = f"""
 <div id="room-banner" style="
   position:fixed;top:0;left:0;right:0;z-index:9999;
   background:#1a1a1a;border-bottom:1px solid #2a2a2a;
-  padding:6px 12px;display:flex;align-items:center;gap:8px;font-size:13px">
-  <code id="rc" style="color:#5fa3ff;letter-spacing:.12em;font-size:15px;font-weight:700;cursor:pointer"
-        title="Click to copy code" onclick="rdCopy('code')">{code}</code>
-  <div style="display:flex;gap:4px;flex-shrink:0">
-    <button onclick="rdCopy('code')"  title="Copy room code only"
-            style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">Code</button>
-    <button onclick="rdCopy('link')"  title="Copy join link"
-            style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">Link</button>
-    <button onclick="rdCopy('msg')"   title="Copy friendly message"
-            style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">Msg</button>
-    <button id="share-btn" onclick="rdShare()" title="Share…"
-            style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px;display:none">Share</button>
+  padding:6px 12px;font-size:13px">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span style="color:#999;font-size:11px;white-space:nowrap">Room:</span>
+    <code id="rc" style="color:#5fa3ff;letter-spacing:.12em;font-size:15px;font-weight:700">{code}</code>
+    <div style="display:flex;gap:4px;flex-shrink:0">
+      <button id="btn-code"  onclick="rdCopy('code')"  title="Copy room code only"
+              style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">&#128203; Code only</button>
+      <button id="btn-rider" onclick="rdCopy('rider')" title="Copy rider join link"
+              style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">&#128279; Rider link</button>
+      <button id="btn-touch" onclick="rdCopy('touch')" title="Copy touch link"
+              style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">&#127918; Touch link</button>
+    </div>
+    <span id="rider-ct" style="color:#666;margin-left:auto;font-size:12px;white-space:nowrap">0 riders</span>
   </div>
-  <span id="copy-toast" style="color:#4caf50;font-size:11px;opacity:0;transition:opacity .3s"></span>
-  <span id="rider-ct" style="color:#666;margin-left:auto;font-size:12px">0 riders</span>
 </div>
-<div style="height:38px"></div>
+<div style="height:44px"></div>
 <script>
-const _RC="{code}", _JOIN=location.origin+"{prefix}/join";
-function rdToast(t){{
-  const el=document.getElementById('copy-toast');
-  el.textContent=t; el.style.opacity=1;
-  clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity=0, 1800);
+const _RC="{code}";
+const _BASE=location.origin+"{prefix}";
+const _RIDER_URL=_BASE;
+const _TOUCH_URL=_BASE+"/touch";
+function rdFlash(btnId){{
+  const btn=document.getElementById(btnId);
+  if(!btn) return;
+  const orig=btn.textContent;
+  btn.textContent='Copied!';
+  btn.style.color='#4caf50';
+  btn.style.borderColor='#4caf50';
+  clearTimeout(btn._ft);
+  btn._ft=setTimeout(()=>{{btn.textContent=orig;btn.style.color='';btn.style.borderColor='';}} ,1500);
 }}
 function rdCopy(type){{
-  let text;
-  if(type==='code') text=_RC;
-  else if(type==='link') text=_JOIN;
-  else text='Join my ReDrive session — code: '+_RC+'\\n'+_JOIN;
-  navigator.clipboard.writeText(text).then(()=>rdToast('Copied!'));
+  let text, btnId;
+  if(type==='code')  {{ text=_RC;         btnId='btn-code';  }}
+  else if(type==='rider') {{ text=_RIDER_URL; btnId='btn-rider'; }}
+  else               {{ text=_TOUCH_URL;  btnId='btn-touch'; }}
+  navigator.clipboard.writeText(text).then(()=>rdFlash(btnId));
 }}
-function rdShare(){{
-  navigator.share({{title:'ReDrive',text:'Join my session — code: '+_RC,url:_JOIN}}).catch(()=>{{}});
-}}
-if(navigator.share) document.getElementById('share-btn').style.display='';
 setInterval(async()=>{{
   try{{const d=await(await fetch('{prefix}/state')).json();
   document.getElementById('rider-ct').textContent=d.rider_count+' rider'+(d.rider_count===1?'':'s');}}catch{{}}
@@ -525,6 +528,15 @@ async def handle_room_touch(req):
         raise web.HTTPNotFound(text="Room not found or expired")
     prefix = f"/room/{code}"
     html   = _inject_prefix(TOUCH_HTML, prefix)
+    # Show room code button in touch page
+    code_script = (
+        f'<script>'
+        f'(function(){{'
+        f'var b=document.getElementById("room-code-btn");'
+        f'if(b){{b.textContent="{code}";b.dataset.code="{code}";b.style.display="";}}'
+        f'}})();</script>\n'
+    )
+    html = html.replace("</body>", code_script + "</body>", 1)
     return web.Response(text=html, content_type="text/html")
 
 
@@ -645,11 +657,24 @@ async def handle_assets_file(req):
 
 
 async def handle_version(_req):
-    path = Path(__file__).parent.parent / "version.json"
+    # Prefer server/version.json (rider build info), fall back to root version.json
+    path = Path(__file__).parent / "version.json"
+    if not path.is_file():
+        path = Path(__file__).parent.parent / "version.json"
     if not path.is_file():
         return web.Response(text='{"version":"0.1.0"}', content_type="application/json")
     return web.Response(body=path.read_bytes(), content_type="application/json",
                         headers={"Access-Control-Allow-Origin": "*"})
+
+
+async def handle_rider_download(req):
+    """Placeholder download endpoints for the rider app installer."""
+    platform = req.match_info["platform"]   # "windows" or "mac"
+    if platform == "windows":
+        raise web.HTTPNotFound(text="Windows build coming soon")
+    elif platform == "mac":
+        raise web.HTTPNotFound(text="Mac build coming soon")
+    raise web.HTTPNotFound()
 
 
 async def handle_download(req):
@@ -707,6 +732,7 @@ def build_app() -> web.Application:
     app.router.add_get("/touch_assets/list",          handle_assets_list)
     app.router.add_get("/touch_assets/{type}/{name}", handle_assets_file)
     app.router.add_get("/version.json",               handle_version)
+    app.router.add_get("/download/rider/{platform}",  handle_rider_download)
     app.router.add_get("/download/{platform}",        handle_download)
     async def _start_cleanup(_app):
         asyncio.ensure_future(_cleanup_loop())
