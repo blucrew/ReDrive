@@ -1209,15 +1209,19 @@ function toggleMode() {
     // Apply all fixed-overlay styles via JS — immune to Quirks Mode CSS issues
     tp.style.cssText = [
       'display:flex','flex-direction:column','gap:5px',
-      'position:fixed','top:0','left:0','right:0','bottom:0','z-index:200',
+      'position:fixed','top:0','left:0','right:0','bottom:0','z-index:10001',
       'background:#111','padding:8px',
       'padding-top:calc(8px + env(safe-area-inset-top))',
       'max-width:480px','margin:0 auto','box-sizing:border-box',
       'overflow:hidden',
     ].join(';');
+    const _rb=document.getElementById('room-banner');
+    if (_rb) _rb.style.display='none';
   } else {
     tp.style.cssText = 'display:none';
     tcSetLooping(false);
+    const _rb=document.getElementById('room-banner');
+    if (_rb) _rb.style.display='';
   }
   document.getElementById('mode-toggle-btn').textContent =
     _driverMode === 'controls' ? '\uD83D\uDD90 Touch' : '\uD83C\uDFDB Controls';
