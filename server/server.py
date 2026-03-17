@@ -746,8 +746,8 @@ async def handle_room_driver(req):
 <script>
 const _RC="{code}";
 const _BASE=location.origin+"{prefix}";
-const _RIDER_URL=_BASE;
 const _TOUCH_URL=_BASE+"/touch";
+const _RIDER_URL=_TOUCH_URL;
 let _isPublic = true;
 function rdFlash(btnId){{
   const btn=document.getElementById(btnId);
