@@ -465,16 +465,41 @@ async def handle_room_driver(req):
 <div id="room-banner" style="
   position:fixed;top:0;left:0;right:0;z-index:9999;
   background:#1a1a1a;border-bottom:1px solid #2a2a2a;
-  padding:6px 16px;display:flex;align-items:center;gap:12px;font-size:13px">
-  <span style="color:#999">Room&nbsp;</span>
-  <code id="rc" style="color:#5fa3ff;letter-spacing:.12em;font-size:15px;font-weight:700">{code}</code>
-  <button onclick="navigator.clipboard.writeText(location.origin+'{prefix}/join');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy link',1500)"
-          style="padding:3px 10px;background:#222;border:1px solid #444;color:#ccc;
-                 border-radius:4px;cursor:pointer;font-size:12px">Copy</button>
-  <span id="rider-ct" style="color:#666;margin-left:auto">0 riders</span>
+  padding:6px 12px;display:flex;align-items:center;gap:8px;font-size:13px">
+  <code id="rc" style="color:#5fa3ff;letter-spacing:.12em;font-size:15px;font-weight:700;cursor:pointer"
+        title="Click to copy code" onclick="rdCopy('code')">{code}</code>
+  <div style="display:flex;gap:4px;flex-shrink:0">
+    <button onclick="rdCopy('code')"  title="Copy room code only"
+            style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">Code</button>
+    <button onclick="rdCopy('link')"  title="Copy join link"
+            style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">Link</button>
+    <button onclick="rdCopy('msg')"   title="Copy friendly message"
+            style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">Msg</button>
+    <button id="share-btn" onclick="rdShare()" title="Share…"
+            style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px;display:none">Share</button>
+  </div>
+  <span id="copy-toast" style="color:#4caf50;font-size:11px;opacity:0;transition:opacity .3s"></span>
+  <span id="rider-ct" style="color:#666;margin-left:auto;font-size:12px">0 riders</span>
 </div>
-<div style="height:36px"></div>
+<div style="height:38px"></div>
 <script>
+const _RC="{code}", _JOIN=location.origin+"{prefix}/join";
+function rdToast(t){{
+  const el=document.getElementById('copy-toast');
+  el.textContent=t; el.style.opacity=1;
+  clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity=0, 1800);
+}}
+function rdCopy(type){{
+  let text;
+  if(type==='code') text=_RC;
+  else if(type==='link') text=_JOIN;
+  else text='Join my ReDrive session — code: '+_RC+'\\n'+_JOIN;
+  navigator.clipboard.writeText(text).then(()=>rdToast('Copied!'));
+}}
+function rdShare(){{
+  navigator.share({{title:'ReDrive',text:'Join my session — code: '+_RC,url:_JOIN}}).catch(()=>{{}});
+}}
+if(navigator.share) document.getElementById('share-btn').style.display='';
 setInterval(async()=>{{
   try{{const d=await(await fetch('{prefix}/state')).json();
   document.getElementById('rider-ct').textContent=d.rider_count+' rider'+(d.rider_count===1?'':'s');}}catch{{}}
