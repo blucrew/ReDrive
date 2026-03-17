@@ -277,35 +277,63 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   body {
     background:var(--bg); color:var(--fg);
     font-family:Arial,sans-serif; font-size:14px;
-    padding:12px; max-width:480px; margin:0 auto;
+    padding:8px; height:100dvh; overflow:hidden;
+    display:flex; flex-direction:column; box-sizing:border-box; gap:6px;
   }
-  h1 { font-size:15px; color:var(--fg2); margin-bottom:12px; letter-spacing:.05em; }
 
-  /* Status */
-  #status-bar { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+  /* ── Page header ── */
+  #page-hdr { flex-shrink:0; display:flex; flex-direction:column; gap:5px; }
+  #hdr-row1 { display:flex; align-items:center; gap:8px; }
+  #hdr-row1 h1 { font-size:15px; color:var(--fg2); letter-spacing:.05em; flex:1; margin:0; }
   #dot { width:10px; height:10px; border-radius:50%; background:var(--err); flex-shrink:0; }
-  #status-text { color:var(--fg2); font-size:12px; flex:1; }
-
-  /* Safety note */
-  .safety {
-    background:var(--bg2); border:1px solid var(--border); border-radius:5px;
-    padding:8px 10px; margin-bottom:12px;
-    color:var(--fg2); font-size:11px; line-height:1.5;
+  #status-text { color:var(--fg2); font-size:12px; }
+  #hdr-row2 { display:flex; align-items:center; gap:6px; }
+  #driver-name-input {
+    flex:1; min-width:0; background:var(--bg3); border:1px solid var(--border);
+    border-radius:5px; color:#fff; font-size:12px; padding:5px 8px;
   }
-  .safety strong { color:var(--warn); }
+  #hdr-row3 { display:flex; gap:6px; }
 
-  /* STOP */
-  #stop-btn {
-    width:100%; padding:16px; background:var(--err); color:#fff;
-    border:none; border-radius:6px; font-size:17px; font-weight:bold;
-    cursor:pointer; margin-bottom:14px; letter-spacing:.08em;
+  /* ── Page body ── */
+  #page-body { display:flex; gap:6px; flex:1; min-height:0; overflow:hidden; }
+
+  /* ── Rider column ── */
+  #rider-col {
+    width:64px; flex-shrink:0; display:flex; flex-direction:column;
+    gap:4px; overflow:hidden; padding:2px 0;
   }
-  #stop-btn:active { background:#c62828; }
+  #rider-cards {
+    flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:4px;
+  }
+  #overlay-btn {
+    flex-shrink:0; margin-top:2px; width:58px; padding:5px 2px;
+    background:var(--bg3); border:1px solid var(--border); border-radius:5px;
+    color:var(--fg2); font-size:9px; cursor:pointer; text-align:center;
+    letter-spacing:.04em; font-weight:bold; line-height:1.3;
+  }
+  #overlay-btn.active { background:#182818; border-color:#4a8040; color:#88cc70; }
+  .rider-card {
+    width:58px; height:80px; border-radius:6px; border:1px solid var(--border);
+    overflow:hidden; position:relative; flex-shrink:0; background:#222; cursor:pointer;
+  }
+
+  /* ── Tab area ── */
+  #tab-area { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; overflow:hidden; }
+  #tab-btns { display:flex; gap:4px; flex-shrink:0; }
+  .tab-btn {
+    flex:1; padding:8px; background:var(--bg3); color:var(--fg2);
+    border:1px solid var(--border); border-radius:5px;
+    font-size:13px; font-weight:bold; cursor:pointer;
+  }
+  .tab-btn.active { background:#1e2d3e; border-color:var(--accent); color:var(--fg); }
+
+  /* ── Controls panel ── */
+  #controls-panel { flex:1; overflow-y:auto; min-height:0; }
 
   /* Section labels */
   .section-label {
     color:var(--fg2); font-size:11px; letter-spacing:.06em;
-    text-transform:uppercase; margin-bottom:6px;
+    text-transform:uppercase; margin-bottom:6px; margin-top:14px;
   }
 
   /* Preset row */
@@ -349,6 +377,17 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   #intensity-slider { height:10px; }
   #intensity-slider::-webkit-slider-thumb { width:30px; height:30px; }
 
+  /* STOP button (inside header row3) */
+  #stop-btn {
+    flex:1; height:44px; background:var(--err); color:#fff;
+    border:none; border-radius:6px; font-size:14px; font-weight:bold;
+    cursor:pointer; letter-spacing:.08em;
+  }
+  #stop-btn:active { background:#c62828; }
+
+  /* Bottle */
+  #bottle-btn.active { background:#2a1e00; border-color:var(--warn); color:var(--warn); box-shadow:0 0 0 2px rgba(255,204,20,0.55), 0 0 10px rgba(255,204,20,0.25); }
+
   /* Beta controls */
   #beta-mode-row { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:10px; }
   .mode-btn { padding:9px; background:var(--bg3); color:var(--fg2);
@@ -360,6 +399,7 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   .hold-btn { padding:8px; background:var(--bg3); color:var(--fg2);
     border:1px solid var(--border); border-radius:5px; font-size:12px; cursor:pointer; }
   .hold-btn.active { background:#1e2d3e; border-color:var(--accent); color:var(--fg); }
+
   /* Spiral controls */
   #spiral-controls { margin-top:4px; }
   #spiral-btn-row { display:flex; gap:8px; margin-bottom:10px; }
@@ -378,11 +418,10 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   #alpha-toggle.active { background:#1e2d3e; border-color:var(--accent); color:var(--fg); }
 
   /* Visualization row */
-  .section-label { color:var(--fg2); font-size:11px; letter-spacing:.06em;
-    text-transform:uppercase; margin-bottom:6px; margin-top:14px; }
   #viz-row { display:flex; gap:8px; margin-bottom:8px; align-items:flex-start; }
   #waveform { flex:1; min-width:0; height:72px; border-radius:4px; display:block; }
   #tri-canvas { width:110px; height:90px; flex-shrink:0; border-radius:4px; display:block; }
+
   /* Beta position indicator */
   #beta-pos { margin-bottom:14px; }
   #beta-track { height:6px; background:var(--bg3); border-radius:3px;
@@ -405,259 +444,288 @@ DRIVER_HTML = r"""<!DOCTYPE html>
     transition:width .35s; }
   #ramp-pct { font-size:11px; color:var(--fg2); min-width:80px; text-align:right; }
 
-  /* Bottle */
-  #bottle-btn.active { background:#2a1e00; border-color:var(--warn); color:var(--warn); box-shadow:0 0 0 2px rgba(255,204,20,0.55), 0 0 10px rgba(255,204,20,0.25); }
-
   /* Live */
-  #live { color:var(--fg2); font-size:11px; font-family:monospace; min-height:18px; }
+  #live { color:var(--fg2); font-size:11px; font-family:monospace; min-height:18px; margin-top:6px; }
 
-  /* Touch panel — positioning applied via JS for cross-browser safety */
-  #touch-panel { display:none; flex-direction:column; gap:5px; }
-  #tc-main { flex:1; min-height:0; min-width:0; }
-  #tc-main canvas { display:block; width:100%; height:100%; cursor:none; touch-action:none; }
+  /* ── Touch panel ── */
+  #touch-panel { display:none; flex:1; flex-direction:column; gap:5px; min-height:0; overflow:hidden; }
+  #tc-body { display:flex; gap:5px; flex:1; min-height:0; }
+  #tc-main { flex:1; min-height:0; min-width:0; position:relative; border-radius:6px; background:#1a1a1a; }
+  #tc-main canvas { display:block; width:100%; height:100%; border-radius:6px; cursor:none; touch-action:none; }
   @keyframes tc-loop-pulse {
     0%,100% { box-shadow: 0 0 0 0 rgba(95,163,255,0.5); }
     50%      { box-shadow: 0 0 0 8px rgba(95,163,255,0); }
   }
   #tc-main.looping { animation: tc-loop-pulse 1.1s ease-in-out infinite; }
+
+  /* Category panel */
+  #cat-panel { width:52px; flex-shrink:0; display:flex; flex-direction:column; gap:6px; justify-content:center; }
+  .cat-btn {
+    width:100%; padding:8px 4px; background:var(--bg3); color:var(--fg2);
+    border:1px solid var(--border); border-radius:5px;
+    font-size:11px; font-weight:bold; cursor:pointer; text-align:center;
+    letter-spacing:.04em; writing-mode:horizontal-tb;
+  }
+  .cat-btn.active { background:#1e2d3e; border-color:var(--accent); color:var(--fg); }
 </style>
 </head>
 <body>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px">
-  <h1 style="margin:0;flex:1">RESTIM DRIVE</h1>
-  <button id="mode-toggle-btn" onclick="toggleMode()"
-    style="padding:3px 10px;background:#222;border:1px solid #444;color:#ccc;
-           border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap">&#128400; Touch</button>
-</div>
 
-<div id="common-controls">
-<div id="status-bar">
-  <div id="dot"></div>
-  <span id="status-text">Connecting…</span>
-</div>
-
-<!-- Poppers mode radios -->
-<div id="poppers-mode-row" style="display:flex;gap:14px;margin-bottom:5px;align-items:center">
-  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
-    <input type="radio" name="poppers-mode" value="normal" checked onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
-    <span id="pm-lbl-normal" style="color:#fff">Normal</span>
-  </label>
-  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
-    <input type="radio" name="poppers-mode" value="deep_huff" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
-    <span id="pm-lbl-deep_huff">Deep Huff</span>
-  </label>
-  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
-    <input type="radio" name="poppers-mode" value="double_hit" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
-    <span id="pm-lbl-double_hit">Double Hit</span>
-  </label>
-</div>
-<!-- STOP + Poppers on same row -->
-<div style="display:flex;gap:6px;margin-bottom:6px">
-  <button id="stop-btn" onclick="sendStop()" style="flex:1;height:44px;font-size:14px;font-weight:bold;margin-bottom:0">⬛ STOP</button>
-  <button id="bottle-btn" onclick="sendBottle()" style="flex:1;height:44px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><img src="/bottle.png" style="width:18px;height:18px;object-fit:contain">Poppers</button>
-</div>
-
-<div class="section-label">Live</div>
-<div id="viz-row">
-  <canvas id="waveform" height="72"></canvas>
-  <canvas id="tri-canvas" width="110" height="90"></canvas>
-</div>
-<div id="beta-pos">
-  <div id="beta-track"><div id="beta-dot" style="left:50%"></div></div>
-  <div id="beta-labels"><span>◄ L</span><span>Centre</span><span>R ►</span></div>
-</div>
-</div><!-- end #common-controls -->
-
-<div id="controls-panel">
-<div class="section-label">Presets</div>
-<div id="preset-row"></div>
-
-<div class="section-label">Pattern</div>
-<div id="pattern-grid"></div>
-
-<div class="slider-row">
-  <div class="slider-header">
-    <span class="slider-label">Intensity  <small style="color:var(--fg2)">(% of rider's max)</small></span>
-    <span class="slider-val" id="int-val">0%</span>
+<!-- ── Always-visible header ── -->
+<div id="page-hdr">
+  <div id="hdr-row1">
+    <h1>RESTIM DRIVE</h1>
+    <div id="dot"></div>
+    <span id="status-text">Connecting…</span>
   </div>
-  <input type="range" id="intensity-slider" min="0" max="100" value="0"
-         oninput="onIntensity(this.value)">
-</div>
-
-<div class="slider-row">
-  <div class="slider-header">
-    <span class="slider-label">Speed (Hz)</span>
-    <span class="slider-val" id="hz-val">0.50 Hz</span>
+  <div id="hdr-row2">
+    <input id="driver-name-input" type="text" placeholder="Your driver name…"
+           oninput="setDriverName(this.value)">
+    <button onclick="copyRoomCode(this)"
+      style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#128279; Room</button>
+    <button onclick="copyRiderLink(this)"
+      style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#9654; Rider Link</button>
   </div>
-  <input type="range" id="hz-slider" min="1" max="100" value="10"
-         oninput="onHz(this.value)">
-</div>
-
-<div class="slider-row">
-  <div class="slider-header">
-    <span class="slider-label">Depth  <small style="color:var(--fg2)">how far pattern dips  (0% = flat, 100% = full swing)</small></span>
-    <span class="slider-val" id="depth-val">100%</span>
-  </div>
-  <input type="range" id="depth-slider" min="0" max="100" value="100"
-         oninput="onDepth(this.value)">
-</div>
-
-<div class="section-label">Ramp</div>
-<div class="slider-row">
-  <div class="slider-header">
-    <span class="slider-label">Ramp to</span>
-    <span class="slider-val" id="ramp-target-val">80%</span>
-  </div>
-  <input type="range" id="ramp-target" min="0" max="100" value="80"
-         oninput="document.getElementById('ramp-target-val').textContent=this.value+'%'">
-</div>
-<div class="slider-row">
-  <div class="slider-header">
-    <span class="slider-label">Over</span>
-    <span class="slider-val" id="ramp-dur-val">60s</span>
-  </div>
-  <input type="range" id="ramp-duration" min="5" max="600" value="60"
-         oninput="onRampDur(this.value)">
-</div>
-<div id="ramp-btn-row">
-  <button class="ramp-btn" id="ramp-go" onclick="startRamp()">▶  Start Ramp</button>
-  <button class="ramp-btn" id="ramp-stop-b" onclick="stopRamp()">■  Stop Ramp</button>
-</div>
-<div id="ramp-progress-wrap">
-  <div id="ramp-track"><div id="ramp-bar"></div></div>
-  <span id="ramp-pct">0% → 80%</span>
-</div>
-
-<div class="section-label">Beta  ·  sweep between electrodes</div>
-<div id="beta-mode-row">
-  <button class="mode-btn" data-mode="auto" onclick="setBetaMode(this)">Auto</button>
-  <button class="mode-btn active" data-mode="sweep" onclick="setBetaMode(this)">Sweep ↔</button>
-  <button class="mode-btn" data-mode="spiral" onclick="setBetaMode(this)">Spiral ◎</button>
-  <button class="mode-btn" data-mode="hold" onclick="setBetaMode(this)">Hold</button>
-</div>
-
-<div id="sweep-controls">
-  <div class="slider-row">
-    <div class="slider-header">
-      <span class="slider-label">Sweep speed</span>
-      <span class="slider-val" id="sweep-hz-val">0.15 Hz</span>
-    </div>
-    <input type="range" id="sweep-hz" min="1" max="200" value="15"
-           oninput="onSweepHz(this.value)">
-  </div>
-  <div class="slider-row">
-    <div class="slider-header">
-      <span class="slider-label">Centre position</span>
-      <span class="slider-val" id="sweep-ctr-val">Centre</span>
-    </div>
-    <input type="range" id="sweep-centre" min="0" max="9999" value="5000"
-           oninput="onSweepCentre(this.value)">
-  </div>
-  <div class="slider-row">
-    <div class="slider-header">
-      <span class="slider-label">Sweep width</span>
-      <span class="slider-val" id="sweep-width-val">80%</span>
-    </div>
-    <input type="range" id="sweep-width" min="0" max="4999" value="4000"
-           oninput="onSweepWidth(this.value)">
-  </div>
-  <div class="slider-row">
-    <div class="slider-header">
-      <span class="slider-label">Skew  <small style="color:var(--fg2)">← A dwell · even · B dwell →</small></span>
-      <span class="slider-val" id="sweep-skew-val">even</span>
-    </div>
-    <input type="range" id="sweep-skew" min="-100" max="100" value="0"
-           oninput="onSweepSkew(this.value)">
-  </div>
-</div>
-
-<div id="hold-controls" style="display:none">
-  <div id="hold-beta-row">
-    <button class="hold-btn active" data-beta="8099" onclick="setHoldBeta(this)">◄ A</button>
-    <button class="hold-btn" data-beta="5000" onclick="setHoldBeta(this)">Centre</button>
-    <button class="hold-btn" data-beta="1900" onclick="setHoldBeta(this)">B ►</button>
-  </div>
-  <div class="slider-row">
-    <div class="slider-header">
-      <span class="slider-label">Fine position</span>
-      <span class="slider-val" id="hold-pos-val">Centre</span>
-    </div>
-    <input type="range" id="hold-pos" min="0" max="9999" value="5000"
-           oninput="onHoldPos(this.value)">
-  </div>
-</div>
-
-<div id="spiral-controls" style="display:none">
-  <div class="slider-row">
-    <div class="slider-header">
-      <span class="slider-label">Spiral speed</span>
-      <span class="slider-val" id="spiral-hz-val">0.15 Hz</span>
-    </div>
-    <input type="range" id="spiral-hz" min="1" max="200" value="15"
-           oninput="onSpiralHz(this.value)">
-  </div>
-  <div class="slider-row">
-    <div class="slider-header">
-      <span class="slider-label">Tighten rate  <small style="color:var(--fg2)">how fast spiral shrinks</small></span>
-      <span class="slider-val" id="spiral-rate-val">3%/s</span>
-    </div>
-    <input type="range" id="spiral-rate" min="1" max="50" value="3"
-           oninput="onSpiralRate(this.value)">
-  </div>
-  <div id="spiral-btn-row">
-    <button class="hold-btn" id="spiral-tighten-btn" onclick="toggleSpiralTighten()">Tighten: OFF</button>
-    <button class="hold-btn" onclick="resetSpiral()">Reset ↺</button>
-  </div>
-  <div id="spiral-amp-wrap">
-    <span style="font-size:11px;color:var(--fg2);min-width:60px">Amplitude</span>
-    <div id="spiral-amp-track"><div id="spiral-amp-bar"></div></div>
-    <span id="spiral-amp-pct" style="font-size:11px;color:var(--accent);min-width:35px;text-align:right">100%</span>
-  </div>
-</div>
-
-<div id="alpha-row">
-  <button id="alpha-toggle" class="active" onclick="toggleAlpha()">
-    α  Alpha oscillation: ON
-  </button>
-</div>
-</div><!-- end #controls-panel -->
-
-<div id="touch-panel" style="display:none;flex-direction:column;gap:5px">
-  <!-- Back button only — STOP / status / poppers / live slot in below via DOM move -->
-  <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
-    <button onclick="toggleMode()" title="Back to controls"
-      style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:6px;font-size:13px;cursor:pointer;flex-shrink:0">&#8592; Controls</button>
-    <span id="tc-mode-label" style="color:var(--fg2);font-size:11px;flex:1;text-align:center">Touch Mode</span>
-  </div>
-  <!-- Slot: common-controls (status/safety/STOP/poppers/live) moves here in touch mode -->
-  <div id="tc-top-slot" style="flex-shrink:0"></div>
-  <!-- Body: vertical picker on left + canvas on right -->
-  <div style="display:flex;gap:5px;flex:1;min-height:0">
-    <div id="tc-picker" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;width:54px;flex-shrink:0;align-items:center;padding:2px 0"></div>
-    <div id="tc-main" style="position:relative;border-radius:6px;background:#1a1a1a;min-height:0;flex:1">
-      <canvas id="touch-canvas" style="width:100%;height:100%;display:block;border-radius:6px;cursor:none;touch-action:none"></canvas>
+  <div id="hdr-row3">
+    <!-- Poppers mode radios above the Poppers button -->
+    <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+      <div id="poppers-mode-row" style="display:flex;gap:10px;align-items:center">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#999">
+          <input type="radio" name="poppers-mode" value="normal" checked onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
+          <span id="pm-lbl-normal" style="color:#fff">Normal</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#999">
+          <input type="radio" name="poppers-mode" value="deep_huff" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
+          <span id="pm-lbl-deep_huff">Deep Huff</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#999">
+          <input type="radio" name="poppers-mode" value="double_hit" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
+          <span id="pm-lbl-double_hit">Double Hit</span>
+        </label>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button id="stop-btn" onclick="sendStop()">&#11035; STOP</button>
+        <button id="bottle-btn" onclick="sendBottle()"
+          style="flex:1;height:44px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><img src="/bottle.png" style="width:18px;height:18px;object-fit:contain">Poppers</button>
+      </div>
     </div>
   </div>
-  <!-- Base Power gradient slider (replaces tool buttons) -->
-  <div style="flex-shrink:0;padding:2px 0 0">
-    <div style="font-size:10px;color:var(--fg2);margin-bottom:4px;text-align:center;letter-spacing:.05em">BASE POWER</div>
-    <div style="position:relative;height:34px;border-radius:6px;overflow:hidden;touch-action:none">
-      <div style="position:absolute;inset:0;background:linear-gradient(to right,#44cc70,#ffcc14,#ff8800,#ff4444)"></div>
-      <input type="range" id="tc-power-slider" min="0" max="100" value="50"
-             oninput="_tcPowerSlider=this.value/100;_tcUpdatePowerThumb();tcDraw()"
-             style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;padding:0;-webkit-appearance:none;appearance:none;touch-action:none">
-      <div id="tc-power-thumb" style="position:absolute;top:4px;bottom:4px;width:5px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.95);border-radius:3px;pointer-events:none;box-shadow:0 0 5px rgba(0,0,0,0.8)"></div>
-    </div>
+</div>
+
+<!-- ── Page body ── -->
+<div id="page-body">
+
+  <!-- Left: rider column -->
+  <div id="rider-col">
+    <div id="rider-cards"></div>
+    <button id="overlay-btn" onclick="toggleOverlay(this)" title="Overlay guide: ON">GUIDE<br>ON</button>
   </div>
-  <div id="tc-status" style="color:var(--fg2);font-size:11px;font-family:monospace;min-height:14px;flex-shrink:0">Tap or drag &middot; Y = position &middot; X = intensity</div>
-</div><!-- end #touch-panel -->
 
-<div id="participants-panel" style="display:none;align-items:flex-end;gap:0;margin:8px 0 4px;min-height:0"></div>
+  <!-- Right: tab area -->
+  <div id="tab-area">
+    <div id="tab-btns">
+      <button class="tab-btn active" data-tab="controls" onclick="setTab('controls')">Controls</button>
+      <button class="tab-btn" data-tab="touch" onclick="setTab('touch')">Touch</button>
+    </div>
 
-<div id="live"></div>
+    <!-- Controls tab -->
+    <div id="controls-panel">
+      <div class="section-label" style="margin-top:4px">Live</div>
+      <div id="viz-row">
+        <canvas id="waveform" height="72"></canvas>
+        <canvas id="tri-canvas" width="110" height="90"></canvas>
+      </div>
+      <div id="beta-pos">
+        <div id="beta-track"><div id="beta-dot" style="left:50%"></div></div>
+        <div id="beta-labels"><span>&#9668; L</span><span>Centre</span><span>R &#9658;</span></div>
+      </div>
+      <div id="live"></div>
+
+      <div class="section-label">Presets</div>
+      <div id="preset-row"></div>
+
+      <div class="section-label">Pattern</div>
+      <div id="pattern-grid"></div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-label">Intensity  <small style="color:var(--fg2)">(% of rider's max)</small></span>
+          <span class="slider-val" id="int-val">0%</span>
+        </div>
+        <input type="range" id="intensity-slider" min="0" max="100" value="0"
+               oninput="onIntensity(this.value)">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-label">Speed (Hz)</span>
+          <span class="slider-val" id="hz-val">0.50 Hz</span>
+        </div>
+        <input type="range" id="hz-slider" min="1" max="100" value="10"
+               oninput="onHz(this.value)">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-label">Depth  <small style="color:var(--fg2)">how far pattern dips  (0% = flat, 100% = full swing)</small></span>
+          <span class="slider-val" id="depth-val">100%</span>
+        </div>
+        <input type="range" id="depth-slider" min="0" max="100" value="100"
+               oninput="onDepth(this.value)">
+      </div>
+
+      <div class="section-label">Ramp</div>
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-label">Ramp to</span>
+          <span class="slider-val" id="ramp-target-val">80%</span>
+        </div>
+        <input type="range" id="ramp-target" min="0" max="100" value="80"
+               oninput="document.getElementById('ramp-target-val').textContent=this.value+'%'">
+      </div>
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-label">Over</span>
+          <span class="slider-val" id="ramp-dur-val">60s</span>
+        </div>
+        <input type="range" id="ramp-duration" min="5" max="600" value="60"
+               oninput="onRampDur(this.value)">
+      </div>
+      <div id="ramp-btn-row">
+        <button class="ramp-btn" id="ramp-go" onclick="startRamp()">&#9654;  Start Ramp</button>
+        <button class="ramp-btn" id="ramp-stop-b" onclick="stopRamp()">&#9632;  Stop Ramp</button>
+      </div>
+      <div id="ramp-progress-wrap">
+        <div id="ramp-track"><div id="ramp-bar"></div></div>
+        <span id="ramp-pct">0% &#8594; 80%</span>
+      </div>
+
+      <div class="section-label">Beta  &#183;  sweep between electrodes</div>
+      <div id="beta-mode-row">
+        <button class="mode-btn" data-mode="auto" onclick="setBetaMode(this)">Auto</button>
+        <button class="mode-btn active" data-mode="sweep" onclick="setBetaMode(this)">Sweep &#8596;</button>
+        <button class="mode-btn" data-mode="spiral" onclick="setBetaMode(this)">Spiral &#9678;</button>
+        <button class="mode-btn" data-mode="hold" onclick="setBetaMode(this)">Hold</button>
+      </div>
+
+      <div id="sweep-controls">
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Sweep speed</span>
+            <span class="slider-val" id="sweep-hz-val">0.15 Hz</span>
+          </div>
+          <input type="range" id="sweep-hz" min="1" max="200" value="15"
+                 oninput="onSweepHz(this.value)">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Centre position</span>
+            <span class="slider-val" id="sweep-ctr-val">Centre</span>
+          </div>
+          <input type="range" id="sweep-centre" min="0" max="9999" value="5000"
+                 oninput="onSweepCentre(this.value)">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Sweep width</span>
+            <span class="slider-val" id="sweep-width-val">80%</span>
+          </div>
+          <input type="range" id="sweep-width" min="0" max="4999" value="4000"
+                 oninput="onSweepWidth(this.value)">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Skew  <small style="color:var(--fg2)">&#8592; A dwell &#183; even &#183; B dwell &#8594;</small></span>
+            <span class="slider-val" id="sweep-skew-val">even</span>
+          </div>
+          <input type="range" id="sweep-skew" min="-100" max="100" value="0"
+                 oninput="onSweepSkew(this.value)">
+        </div>
+      </div>
+
+      <div id="hold-controls" style="display:none">
+        <div id="hold-beta-row">
+          <button class="hold-btn active" data-beta="8099" onclick="setHoldBeta(this)">&#9668; A</button>
+          <button class="hold-btn" data-beta="5000" onclick="setHoldBeta(this)">Centre</button>
+          <button class="hold-btn" data-beta="1900" onclick="setHoldBeta(this)">B &#9658;</button>
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Fine position</span>
+            <span class="slider-val" id="hold-pos-val">Centre</span>
+          </div>
+          <input type="range" id="hold-pos" min="0" max="9999" value="5000"
+                 oninput="onHoldPos(this.value)">
+        </div>
+      </div>
+
+      <div id="spiral-controls" style="display:none">
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Spiral speed</span>
+            <span class="slider-val" id="spiral-hz-val">0.15 Hz</span>
+          </div>
+          <input type="range" id="spiral-hz" min="1" max="200" value="15"
+                 oninput="onSpiralHz(this.value)">
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Tighten rate  <small style="color:var(--fg2)">how fast spiral shrinks</small></span>
+            <span class="slider-val" id="spiral-rate-val">3%/s</span>
+          </div>
+          <input type="range" id="spiral-rate" min="1" max="50" value="3"
+                 oninput="onSpiralRate(this.value)">
+        </div>
+        <div id="spiral-btn-row">
+          <button class="hold-btn" id="spiral-tighten-btn" onclick="toggleSpiralTighten()">Tighten: OFF</button>
+          <button class="hold-btn" onclick="resetSpiral()">Reset &#8634;</button>
+        </div>
+        <div id="spiral-amp-wrap">
+          <span style="font-size:11px;color:var(--fg2);min-width:60px">Amplitude</span>
+          <div id="spiral-amp-track"><div id="spiral-amp-bar"></div></div>
+          <span id="spiral-amp-pct" style="font-size:11px;color:var(--accent);min-width:35px;text-align:right">100%</span>
+        </div>
+      </div>
+
+      <div id="alpha-row">
+        <button id="alpha-toggle" class="active" onclick="toggleAlpha()">
+          &#945;  Alpha oscillation: ON
+        </button>
+      </div>
+    </div><!-- end #controls-panel -->
+
+    <!-- Touch tab -->
+    <div id="touch-panel">
+      <div id="tc-body">
+        <div id="tc-main">
+          <canvas id="touch-canvas"></canvas>
+        </div>
+        <div id="cat-panel">
+          <button class="cat-btn" data-cat="hunk" onclick="setCategory('hunk')">HUNK</button>
+          <button class="cat-btn" data-cat="toon" onclick="setCategory('toon')">TOON</button>
+          <button class="cat-btn" data-cat="furry" onclick="setCategory('furry')">FURRY</button>
+        </div>
+      </div>
+      <!-- Base Power gradient slider -->
+      <div style="flex-shrink:0;padding:2px 0 0">
+        <div style="font-size:10px;color:var(--fg2);margin-bottom:4px;text-align:center;letter-spacing:.05em">BASE POWER</div>
+        <div style="position:relative;height:34px;border-radius:6px;overflow:hidden;touch-action:none">
+          <div style="position:absolute;inset:0;background:linear-gradient(to right,#44cc70,#ffcc14,#ff8800,#ff4444)"></div>
+          <input type="range" id="tc-power-slider" min="0" max="100" value="50"
+                 oninput="_tcPowerSlider=this.value/100;_tcUpdatePowerThumb();tcDraw()"
+                 style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;padding:0;-webkit-appearance:none;appearance:none;touch-action:none">
+          <div id="tc-power-thumb" style="position:absolute;top:4px;bottom:4px;width:5px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.95);border-radius:3px;pointer-events:none;box-shadow:0 0 5px rgba(0,0,0,0.8)"></div>
+        </div>
+      </div>
+      <div id="tc-status" style="color:var(--fg2);font-size:11px;font-family:monospace;min-height:14px;flex-shrink:0">Tap or drag &middot; Y = position &middot; X = intensity</div>
+    </div><!-- end #touch-panel -->
+
+  </div><!-- end #tab-area -->
+
+</div><!-- end #page-body -->
 
 <script>
-const PATTERNS = ["Hold","Sine","Ramp ↑","Ramp ↓","Pulse","Burst","Random","Edge"];
+const PATTERNS = ["Hold","Sine","Ramp \u2191","Ramp \u2193","Pulse","Burst","Random","Edge"];
 let state = { pattern:"Hold", intensity:0, hz:0.5, depth:1.0,
               betaMode:"sweep", beta:5000, alpha:true };
 let spiralTighten = false;
@@ -689,7 +757,7 @@ const presetRow = document.getElementById("preset-row");
 Object.keys(JS_PRESETS).forEach(name => {
   const b = document.createElement("button");
   b.className = "preset-btn";
-  b.textContent = "★ " + name;
+  b.textContent = "\u2605 " + name;
   b.onclick = () => loadPreset(name);
   presetRow.appendChild(b);
 });
@@ -836,10 +904,10 @@ function setBetaMode(btn) {
 }
 
 function betaLabel(v) {
-  if (v < 1500) return "← A";
-  if (v > 8500) return "B →";
+  if (v < 1500) return "\u2190 A";
+  if (v > 8500) return "B \u2192";
   if (v > 4500 && v < 5500) return "Centre";
-  return v < 5000 ? "← " + Math.round((5000-v)/50) : Math.round((v-5000)/50) + " →";
+  return v < 5000 ? "\u2190 " + Math.round((5000-v)/50) : Math.round((v-5000)/50) + " \u2192";
 }
 
 function onSweepHz(v) {
@@ -914,7 +982,7 @@ function toggleAlpha() {
   state.alpha = !state.alpha;
   const btn = document.getElementById("alpha-toggle");
   btn.classList.toggle("active", state.alpha);
-  btn.textContent = "α  Alpha oscillation: " + (state.alpha ? "ON" : "OFF");
+  btn.textContent = "\u03b1  Alpha oscillation: " + (state.alpha ? "ON" : "OFF");
   sendCmd({ alpha: state.alpha });
 }
 
@@ -968,7 +1036,7 @@ async function sendCmd(cmd) {
 function setConnected(ok) {
   document.getElementById("dot").style.background = ok ? "var(--ok)" : "var(--err)";
   document.getElementById("status-text").textContent =
-    ok ? "Connected to rider" : "Connection lost — retrying…";
+    ok ? "Connected to rider" : "Connection lost \u2014 retrying\u2026";
 }
 
 // ── Visualization ─────────────────────────────────────────────────────────────
@@ -1007,7 +1075,7 @@ function drawWaveform(vol, alpha) {
   ctx.fillStyle = "#5fa3ff"; ctx.beginPath();
   ctx.arc(W-3, H - volHist[HIST-1]*(H-4), 3, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle="#3a5a7a"; ctx.font="9px Arial"; ctx.textAlign="left";
-  ctx.fillText("Vol",2,10); ctx.fillStyle="#2a4a2a"; ctx.fillText("α",2,H-3);
+  ctx.fillText("Vol",2,10); ctx.fillStyle="#2a4a2a"; ctx.fillText("\u03b1",2,H-3);
 }
 
 function drawTriangle(vol, beta, alpha) {
@@ -1075,7 +1143,7 @@ async function pollState() {
       document.getElementById("ramp-progress-wrap").style.display = "flex";
       document.getElementById("ramp-bar").style.width = (d.ramp_progress*100)+"%";
       document.getElementById("ramp-pct").textContent =
-        Math.round(d.ramp_progress*100)+"% → "+Math.round(d.ramp_target*100)+"%";
+        Math.round(d.ramp_progress*100)+"% \u2192 "+Math.round(d.ramp_target*100)+"%";
     } else {
       if (document.getElementById("ramp-progress-wrap").style.display === "flex")
         document.getElementById("ramp-progress-wrap").style.display = "none";
@@ -1099,7 +1167,7 @@ async function pollState() {
       document.getElementById("spiral-amp-pct").textContent = pct + "%";
     }
     document.getElementById("live").textContent =
-      `Vol ${Math.round(d.vol*100)}%  β ${d.beta} (${betaLabel(d.beta)})  α ${Math.round(d.alpha*100)}%  ${d.pattern}`;
+      `Vol ${Math.round(d.vol*100)}%  \u03b2 ${d.beta} (${betaLabel(d.beta)})  \u03b1 ${Math.round(d.alpha*100)}%  ${d.pattern}`;
     if (d.likes && d.likes.length) {
       d.likes.forEach(like => triggerLikeAnimation(like));
     }
@@ -1108,6 +1176,25 @@ async function pollState() {
 
 setInterval(pollState, 350);
 pollState();
+
+// ── Room code / rider link ─────────────────────────────────────────────────
+const _m = window.location.pathname.match(/\/room\/([^/]+)/);
+const _ROOM_CODE = _m ? _m[1] : null;
+
+function copyRoomCode(btn) {
+  if (!_ROOM_CODE) return;
+  navigator.clipboard.writeText(_ROOM_CODE)
+    .then(() => { const t = btn.textContent; btn.textContent = '\u2713 Copied!'; setTimeout(() => btn.textContent = t, 1500); })
+    .catch(() => {});
+}
+
+function copyRiderLink(btn) {
+  if (!_ROOM_CODE) return;
+  const url = location.origin + '/room/' + _ROOM_CODE + '/rider';
+  navigator.clipboard.writeText(url)
+    .then(() => { const t = btn.textContent; btn.textContent = '\u2713 Copied!'; setTimeout(() => btn.textContent = t, 1500); })
+    .catch(() => {});
+}
 
 // ── Driver name ────────────────────────────────────────────────────────────
 let _driverNameTimer = null;
@@ -1130,16 +1217,21 @@ function setDriverName(val) {
 
 // ── Participant avatars ─────────────────────────────────────────────────────
 function renderParticipants(data) {
-  const panel = document.getElementById('participants-panel');
-  if (!panel) return;
-  const parts = data.participants || [];
-  if (!parts.length) { panel.style.display = 'none'; return; }
-  panel.style.display = 'flex';
-  panel.innerHTML = parts.map((p, i) => {
-    const url = p.anatomy ? '/touch_assets/anatomy/' + p.anatomy.split('/').map(encodeURIComponent).join('/') : '';
-    const bg = url ? 'background-image:url(\'' + url + '\');background-size:cover;background-position:top center' : 'background:#222';
-    return '<div class="avatar-card" data-idx="' + p.idx + '" style="width:36px;height:90px;border-radius:6px;border:1px solid #2a2a2a;' +
-      bg + ';position:relative;flex-shrink:0;margin-left:' + (i === 0 ? '0' : '-8px') + ';z-index:' + i + '">' +
+  const col = document.getElementById('rider-cards');
+  if (!col) return;
+  const parts = (data.participants || []).slice().sort((a, b) => {
+    const aHas = a.anatomy && a.anatomy.includes('_uploads') ? 0 : 1;
+    const bHas = b.anatomy && b.anatomy.includes('_uploads') ? 0 : 1;
+    return aHas - bHas;
+  });
+  col.innerHTML = parts.map(p => {
+    const url = p.anatomy
+      ? '/touch_assets/anatomy/' + p.anatomy.split('/').map(encodeURIComponent).join('/')
+      : '';
+    const bg = url
+      ? 'background-image:url(\'' + url + '\');background-size:cover;background-position:top center'
+      : 'background:#222';
+    return '<div class="rider-card" data-idx="' + p.idx + '" style="' + bg + '">' +
       '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);' +
       'font-size:8px;color:#ccc;text-align:center;padding:2px;border-radius:0 0 5px 5px;' +
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + p.name + '</div>' +
@@ -1160,10 +1252,10 @@ if (!document.getElementById('like-style')) {
 }
 
 function triggerLikeAnimation(like) {
-  const panel = document.getElementById('participants-panel');
-  if (!panel) return;
-  const cards = panel.querySelectorAll('.avatar-card');
-  let origin = panel;
+  const col = document.getElementById('rider-cards');
+  if (!col) return;
+  const cards = col.querySelectorAll('.rider-card');
+  let origin = col;
   cards.forEach(c => { if (parseInt(c.dataset.idx) === like.rider_idx) origin = c; });
   const rect = origin.getBoundingClientRect();
   const el = document.createElement('div');
@@ -1181,13 +1273,10 @@ function triggerLikeAnimation(like) {
 }
 
 (function initParticipantsPoll() {
-  // Extract room code from current URL path /room/CODE?key=...
-  const m = window.location.pathname.match(/\/room\/([^/]+)/);
-  if (!m) return;
-  const roomCode = m[1];
+  if (!_ROOM_CODE) return;
   async function fetchParticipants() {
     try {
-      const d = await (await fetch('/room/' + roomCode + '/participants')).json();
+      const d = await (await fetch('/room/' + _ROOM_CODE + '/participants')).json();
       renderParticipants(d);
     } catch(_) {}
   }
@@ -1195,48 +1284,22 @@ function triggerLikeAnimation(like) {
   setInterval(fetchParticipants, 5000);
 })();
 
-// ── Mode toggle (controls ↔ touch) ───────────────────────────────────────────
+// ── Tab switching (controls / touch) ─────────────────────────────────────────
 let _driverMode = 'controls';
-function toggleMode() {
-  _driverMode = _driverMode === 'controls' ? 'touch' : 'controls';
-  const cc = document.getElementById('common-controls');
-  const cp = document.getElementById('controls-panel');
-  document.getElementById('controls-panel').style.display = _driverMode === 'controls' ? '' : 'none';
+function setTab(tab) {
+  _driverMode = tab;
+  document.getElementById('controls-panel').style.display = tab === 'controls' ? '' : 'none';
   const tp = document.getElementById('touch-panel');
-  if (_driverMode === 'touch') {
-    // Move common-controls (status/safety/STOP/poppers/live) into touch panel top slot
-    document.getElementById('tc-top-slot').appendChild(cc);
-    // Apply all fixed-overlay styles via JS — immune to Quirks Mode CSS issues
-    tp.style.cssText = [
-      'display:flex','flex-direction:column','gap:5px',
-      'position:fixed','top:0','left:0','right:0','bottom:0','z-index:10001',
-      'background:#111','padding:8px',
-      'padding-top:calc(8px + env(safe-area-inset-top))',
-      'max-width:480px','margin:0 auto','box-sizing:border-box',
-      'overflow:hidden',
-    ].join(';');
-    const _rb=document.getElementById('room-banner');
-    if (_rb) _rb.style.display='none';
-  } else {
-    // Return common-controls to its original home before controls-panel
-    if (cc && cp && cp.parentNode) cp.parentNode.insertBefore(cc, cp);
-    tp.style.cssText = 'display:none';
-    tcSetLooping(false);
-    const _rb=document.getElementById('room-banner');
-    if (_rb) _rb.style.display='';
-  }
-  document.getElementById('mode-toggle-btn').textContent =
-    _driverMode === 'controls' ? '\uD83D\uDD90 Touch' : '\uD83C\uDFDB Controls';
-  if (_driverMode === 'touch') {
+  tp.style.display = tab === 'touch' ? 'flex' : 'none';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  if (tab === 'touch') {
     initTouchPanel();
-    const _tcUntil=Date.now()+3000;
-    (function syncTcDraw(){
-      const w=document.getElementById('tc-main');
-      const c=document.getElementById('touch-canvas');
-      if(w&&w.offsetHeight>10){
-        if(!c||c.width!==w.offsetWidth||c.height!==w.offsetHeight){tcDraw();}
-      }
-      if(Date.now()<_tcUntil){requestAnimationFrame(syncTcDraw);}
+    const _until = Date.now() + 3000;
+    (function sync() {
+      const w = document.getElementById('tc-main');
+      const c = document.getElementById('touch-canvas');
+      if (w && w.offsetHeight > 10) { if (!c || c.width !== w.offsetWidth || c.height !== w.offsetHeight) tcDraw(); }
+      if (Date.now() < _until) requestAnimationFrame(sync);
     })();
   }
 }
@@ -1437,6 +1500,12 @@ function tcDraw() {
     const v=tcAnatVariants.find(a=>a.id===tcCurrentAnat);
     const fn=(v&&v.drawFn)||tcDrawDetailed;
     fn(ctx,W,H,false);
+  }
+  // Overlay guide — drawn between base image and cursor effects
+  if (_tcOverlayOn && tcOverlayImg) {
+    ctx.globalAlpha = 0.28;
+    ctx.drawImage(tcOverlayImg, 0, 0, W, H);
+    ctx.globalAlpha = 1.0;
   }
   // Power window tint — subtle gradient showing current lo→hi range
   const _lo=_tcPowerSlider*0.75, _hi=_lo+0.25;
@@ -1708,7 +1777,7 @@ function initTouchPanel() {
     }
   });
   tcRO.observe(wrap);
-  tcBuildPicker();
+  // (tcBuildPicker not called — category buttons handle image selection)
   // Apply saved anatomy if it's a PNG
   if (tcCurrentAnat!=='default'&&tcCurrentAnat!=='simple') {
     const img=new Image();
@@ -1745,6 +1814,82 @@ function initTouchPanel() {
   }, 1500);
 }
 
+// ── Overlay guide ─────────────────────────────────────────────────────────────
+let tcOverlayImg = null;
+let _tcOverlayOn = localStorage.getItem('reDriveOverlay') !== 'false'; // default true
+
+(function loadOverlayImg() {
+  const img = new Image();
+  img.onload = () => {
+    tcOverlayImg = img;
+    if (_tcOverlayOn && _driverMode === 'touch') tcDraw();
+  };
+  img.src = '/touch_assets/anatomy/anatomyexampleOVERLAY.png';
+})();
+
+function toggleOverlay(btn) {
+  _tcOverlayOn = !_tcOverlayOn;
+  localStorage.setItem('reDriveOverlay', String(_tcOverlayOn));
+  btn.innerHTML = 'GUIDE<br>' + (_tcOverlayOn ? 'ON' : 'OFF');
+  btn.title = _tcOverlayOn ? 'Overlay guide: ON' : 'Overlay guide: OFF';
+  btn.classList.toggle('active', _tcOverlayOn);
+  if (_driverMode === 'touch') tcDraw();
+}
+
+// Init overlay button state from localStorage
+(function initOverlayBtn() {
+  const btn = document.getElementById('overlay-btn');
+  if (!btn) return;
+  btn.classList.toggle('active', _tcOverlayOn);
+  btn.innerHTML = 'GUIDE<br>' + (_tcOverlayOn ? 'ON' : 'OFF');
+  btn.title = _tcOverlayOn ? 'Overlay guide: ON' : 'Overlay guide: OFF';
+})();
+
+// ── Category cycling ──────────────────────────────────────────────────────────
+let _tcCat = null;
+let _tcCatImages = [];
+let _tcCatIdx = 0;
+let _tcCatTimer = null;
+let _tcStandardImages = [];
+
+(async function loadStdImages() {
+  try {
+    const d = await (await fetch('/touch_assets/list?type=anatomy')).json();
+    _tcStandardImages = (d || []).filter(f => /^(hunk|toon|furry)/i.test(f));
+    // Restore saved category selection
+    const savedCat = localStorage.getItem('reDriveCat');
+    if (savedCat) setCategory(savedCat);
+  } catch(_) {}
+})();
+
+function setCategory(cat) {
+  _tcCat = cat;
+  localStorage.setItem('reDriveCat', cat);
+  clearInterval(_tcCatTimer);
+  const imgs = _tcStandardImages.filter(f => f.toLowerCase().startsWith(cat));
+  if (!imgs.length) return;
+  _tcCatImages = imgs;
+  _tcCatIdx = 0;
+  _applyImage();
+  _tcCatTimer = setInterval(() => {
+    _tcCatIdx = (_tcCatIdx + 1) % _tcCatImages.length;
+    _applyImage();
+  }, 600000);
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+}
+
+function _applyImage() {
+  // Prefer rider's custom upload
+  const custom = _tcParticipants.find(p => p.anatomy && p.anatomy.includes('_uploads'));
+  const src = custom
+    ? '/touch_assets/anatomy/' + custom.anatomy.split('/').map(encodeURIComponent).join('/')
+    : (_tcCatImages.length ? '/touch_assets/anatomy/' + encodeURIComponent(_tcCatImages[_tcCatIdx]) : null);
+  if (!src) return;
+  const img = new Image();
+  img.onload = () => { tcCustomImg = img; tcDraw(); };
+  img.src = src;
+}
+
 // ── Driver WebSocket — receive participants_update ────────────────────────────
 (function connectDriverWS() {
   if (typeof DRIVER_KEY === 'undefined' || typeof ROOM_CODE === 'undefined') return;
@@ -1760,7 +1905,8 @@ function initTouchPanel() {
           const msg = JSON.parse(ev.data);
           if (msg.type === 'participants_update') {
             _tcParticipants = msg.participants || [];
-            if (_driverMode === 'touch') _tcRefreshPickerNames();
+            renderParticipants({participants: _tcParticipants});
+            if (_driverMode === 'touch') { _tcRefreshPickerNames(); _applyImage(); }
           }
         } catch(_) {}
       };
@@ -1967,7 +2113,7 @@ if (_ROOM_CODE) {
 }
 function copyRoomCode(btn) {
   if (!_ROOM_CODE) return;
-  const url = location.origin + '/room/' + _ROOM_CODE + '/touch';
+  const url = location.origin + '/room/' + _ROOM_CODE + '/rider';
   navigator.clipboard.writeText(url)
     .then(() => { const t = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = t, 1500); })
     .catch(() => {});

@@ -631,7 +631,7 @@ _LANDING_HTML = """<!DOCTYPE html>
 <script>
 function joinRider() {
   const c = document.getElementById('code-in').value.trim();
-  if (c.length === 10) window.location = '/room/' + c + '/touch';
+  if (c.length === 10) window.location = '/room/' + c + '/rider';
   else alert('Enter a 10-character room code');
 }
 
@@ -662,7 +662,7 @@ async function refreshPublicRooms() {
         <td class="td-code">${r.code}</td>
         <td>${r.riders}</td>
         <td>${r.age_minutes}m</td>
-        <td class="td-join"><a class="join-link" href="/room/${r.code}/touch">Join</a></td>
+        <td class="td-join"><a class="join-link" href="/room/${r.code}/rider">Join</a></td>
       </tr>`;
     }
     html += '</tbody></table>';
@@ -1260,7 +1260,7 @@ async def handle_waiting_status(req):
                             content_type="application/json")
     # Room exists and is no longer a waiting room — driver has claimed it
     return web.Response(
-        text=json.dumps({"claimed": True, "touch_url": f"/room/{code}/touch"}),
+        text=json.dumps({"claimed": True, "touch_url": f"/room/{code}/rider"}),
         content_type="application/json")
 
 
@@ -1852,7 +1852,8 @@ def build_app() -> web.Application:
     app.router.add_get("/api/waiting",                         handle_api_waiting)
     # Room routes
     app.router.add_get("/room/{code}",                         handle_room_driver)
-    app.router.add_get("/room/{code}/touch",                   handle_room_touch)
+    app.router.add_get("/room/{code}/rider",                   handle_room_touch)
+    app.router.add_get("/room/{code}/touch",                   handle_room_touch)  # legacy redirect
     app.router.add_get("/room/{code}/join",                    handle_room_join)
     app.router.add_post("/room/{code}/command",                handle_room_command)
     app.router.add_get("/room/{code}/state",                   handle_room_state)
