@@ -413,7 +413,7 @@ DRIVER_HTML = r"""<!DOCTYPE html>
 
   /* Touch panel */
   #touch-panel { gap:5px; }
-  #tc-main { min-height:320px; }
+  #tc-main { min-height:320px; height:calc(100vh - 220px); }
   #tc-main canvas { display:block; }
 </style>
 </head>
@@ -1346,7 +1346,8 @@ function tcIntFromY(y) {
 function tcDraw() {
   const canvas=document.getElementById('touch-canvas');
   if (!canvas) return;
-  const W=canvas.offsetWidth, H=canvas.offsetHeight;
+  const wrap=document.getElementById('tc-main');
+  const W=wrap.offsetWidth, H=wrap.offsetHeight;
   if (W<10||H<10) return;
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
@@ -1569,14 +1570,13 @@ TOUCH_HTML = r"""
     --accent:#5fa3ff; --ok:#4caf50; --err:#f44336; --warn:#ff9800;
     --e1:#ff4444; --e2:#4488ff; --e3:#ffcc14; --e4:#44cc70;
   }
-  html { height: 100%; }
+  html, body { height: 100%; overflow-y: auto; }
   body {
     background: var(--bg); color: var(--fg);
     font-family: Arial, sans-serif; font-size: 14px;
     display: flex; flex-direction: column;
     padding: 8px; padding-top: calc(8px + env(safe-area-inset-top));
     max-width: 480px; margin: 0 auto; gap: 5px;
-    min-height: 100%; overflow-y: auto;
     user-select: none; -webkit-user-select: none; touch-action: none;
   }
   .top-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -1595,8 +1595,8 @@ TOUCH_HTML = r"""
   #conn { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
   #cdot { width: 9px; height: 9px; border-radius: 50%; background: var(--err); flex-shrink: 0; }
   #ctxt { color: var(--fg2); font-size: 11px; }
-  #main-area { flex: 1; min-height: 420px; display: flex; position: relative; }
-  #anatomy-wrap { flex: 1; min-width: 0; min-height: 420px; position: relative; border-radius: 6px; }
+  #main-area { flex: 1; min-height: 0; display: flex; position: relative; }
+  #anatomy-wrap { flex: 1; min-width: 0; min-height: 0; position: relative; border-radius: 6px; }
   @keyframes loop-pulse {
     0%,100% { box-shadow: 0 0 0 0 rgba(95,163,255,0.5); }
     50%      { box-shadow: 0 0 0 8px rgba(95,163,255,0); }
@@ -2436,7 +2436,8 @@ function drawTrail(ctx, W, H) {
 }
 
 function draw() {
-  const W=cvs.offsetWidth, H=cvs.offsetHeight;
+  const wrap=document.getElementById('anatomy-wrap');
+  const W=wrap.offsetWidth, H=wrap.offsetHeight;
   if (W<10||H<10) return;
   cvs.width=W; cvs.height=H;
   const ctx=cvs.getContext('2d');

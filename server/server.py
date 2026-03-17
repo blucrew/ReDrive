@@ -732,10 +732,8 @@ async def handle_room_driver(req):
               style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">&#128203; Code only</button>
       <button id="btn-rider" onclick="rdCopy('rider')" title="Copy rider join link"
               style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">&#128279; Rider link</button>
-      <button id="btn-touch" onclick="rdCopy('touch')" title="Copy touch link"
-              style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">&#127918; Touch link</button>
       <button id="btn-privacy" onclick="rdTogglePrivacy()" title="Toggle public/private session"
-              style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">&#127760; Public</button>
+              style="padding:3px 8px;background:#162012;border:1px solid #426038;color:#7dcc60;border-radius:4px;cursor:pointer;font-size:11px">&#127760; Public</button>
     </div>
     <span id="rider-ct" style="color:#666;margin-left:auto;font-size:12px;white-space:nowrap">0 riders</span>
     <input id="driver-name-input" placeholder="Your name (optional)" maxlength="30"
@@ -764,9 +762,21 @@ function rdFlash(btnId){{
 function rdCopy(type){{
   let text, btnId;
   if(type==='code')  {{ text=_RC;         btnId='btn-code';  }}
-  else if(type==='rider') {{ text=_RIDER_URL; btnId='btn-rider'; }}
-  else               {{ text=_TOUCH_URL;  btnId='btn-touch'; }}
+  else               {{ text=_RIDER_URL;  btnId='btn-rider'; }}
   navigator.clipboard.writeText(text).then(()=>rdFlash(btnId));
+}}
+function rdSetPrivacyBtn(isPublic){{
+  const btn=document.getElementById('btn-privacy');
+  if(!btn) return;
+  if(isPublic){{
+    btn.innerHTML='&#127760; Public';
+    btn.style.background='#162012'; btn.style.borderColor='#426038';
+    btn.style.color='#7dcc60';
+  }}else{{
+    btn.innerHTML='&#128274; Private';
+    btn.style.background='#1a1208'; btn.style.borderColor='#6b4a10';
+    btn.style.color='#cc9933';
+  }}
 }}
 async function rdTogglePrivacy(){{
   try{{
@@ -774,10 +784,7 @@ async function rdTogglePrivacy(){{
     if(!r.ok) return;
     const d=await r.json();
     _isPublic=d.public;
-    const btn=document.getElementById('btn-privacy');
-    btn.textContent=_isPublic?'&#127760; Public':'&#128274; Private';
-    btn.style.color=_isPublic?'#4caf50':'#ff9800';
-    btn.style.borderColor=_isPublic?'#4caf50':'#ff9800';
+    rdSetPrivacyBtn(_isPublic);
   }}catch(_){{}}
 }}
 setInterval(async()=>{{
