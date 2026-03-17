@@ -279,6 +279,7 @@ DRIVER_HTML = r"""<!DOCTYPE html>
     font-family:Arial,sans-serif; font-size:14px;
     padding:8px; height:100dvh; overflow:hidden;
     display:flex; flex-direction:column; box-sizing:border-box; gap:6px;
+    max-width:520px; margin:0 auto;
   }
 
   /* ── Page header ── */
