@@ -1071,7 +1071,7 @@ TOUCH_HTML = r"""
     --bg:#111; --bg2:#1a1a1a; --bg3:#222;
     --border:#2a2a2a; --fg:#fff; --fg2:#999;
     --accent:#5fa3ff; --ok:#4caf50; --err:#f44336; --warn:#ff9800;
-    --ea:#5a78ff; --eb:#ffcc14; --ec:#44cc70;
+    --ea:#ff3333; --eb:#4499ff; --ec:#ffdd00; --ed:#44cc70;
   }
   html, body { height: 100%; overflow: hidden; }
   body {
@@ -1185,6 +1185,7 @@ TOUCH_HTML = r"""
 <div id="main-area">
   <div id="anatomy-wrap">
     <canvas id="anatomy"></canvas>
+    <button id="elec-toggle-btn" title="Electrode assignment" style="position:absolute;bottom:8px;right:8px;width:32px;height:32px;background:rgba(30,30,30,0.85);border:1px solid #333;border-radius:50%;color:#666;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;z-index:10">&#9881;</button>
   </div>
 </div>
 
@@ -1198,9 +1199,6 @@ TOUCH_HTML = r"""
   <button class="tool-btn" data-tool="stroker" onclick="selectTool(this)">
     &#9889;<span>Stroker</span>
   </button>
-  <button class="tool-btn" id="elec-toggle-btn">
-    &#9889;<span>Elec</span>
-  </button>
 </div>
 
 <div id="elec-sheet-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100" onclick="closeElecSheet()"></div>
@@ -1209,17 +1207,18 @@ TOUCH_HTML = r"""
     <div style="font-size:13px;font-weight:bold;color:var(--fg)">Electrode Assignment</div>
     <button onclick="closeElecSheet()" style="background:none;border:none;color:var(--fg2);font-size:20px;cursor:pointer;padding:4px 8px">&#10005;</button>
   </div>
-  <!-- tip row -->
   <div style="margin-bottom:10px">
     <div style="font-size:10px;color:var(--fg2);font-weight:bold;letter-spacing:0.08em;margin-bottom:6px">TIP</div>
     <div style="display:flex;gap:8px" id="elec-tip"></div>
   </div>
-  <!-- balls row -->
+  <div style="margin-bottom:10px">
+    <div style="font-size:10px;color:var(--fg2);font-weight:bold;letter-spacing:0.08em;margin-bottom:6px">SHAFT</div>
+    <div style="display:flex;gap:8px" id="elec-shaft"></div>
+  </div>
   <div style="margin-bottom:10px">
     <div style="font-size:10px;color:var(--fg2);font-weight:bold;letter-spacing:0.08em;margin-bottom:6px">BALLS</div>
     <div style="display:flex;gap:8px" id="elec-balls"></div>
   </div>
-  <!-- anus row -->
   <div>
     <div style="font-size:10px;color:var(--fg2);font-weight:bold;letter-spacing:0.08em;margin-bottom:6px">ANUS</div>
     <div style="display:flex;gap:8px" id="elec-anus"></div>
@@ -1234,14 +1233,15 @@ TOUCH_HTML = r"""
     <div class="leg"><div class="ldot" style="background:var(--ea)"></div>A</div>
     <div class="leg"><div class="ldot" style="background:var(--eb)"></div>B</div>
     <div class="leg"><div class="ldot" style="background:var(--ec)"></div>C</div>
+    <div class="leg"><div class="ldot" style="background:var(--ed)"></div>D</div>
   </div>
 </div>
 
 <script>
 const TOOLS = {
-  feather: { min:0.01, max:0.30, color:'#88aaff', cursorW:0.88 },
-  hand:    { min:0.31, max:0.60, color:'#ffffff', cursorW:0.55 },
-  stroker: { min:0.61, max:1.00, color:'#ff8800', cursorW:0.35 },
+  feather: { min:0.08, max:0.55, color:'#88aaff', cursorW:0.88 },
+  hand:    { min:0.25, max:0.80, color:'#ffffff', cursorW:0.55 },
+  stroker: { min:0.55, max:1.00, color:'#ff8800', cursorW:0.35 },
 };
 let currentTool = 'feather';
 let pointerDown = false;
@@ -1258,25 +1258,25 @@ let _loopDur    = 0;    // duration of one loop cycle (ms)
 
 // Electrode assignment: tip/balls/anus -> A/B/C label
 // A = beta 0 (one physical end), B = beta 9999 (other end), C = beta 5000 (neutral)
-const ELEC_BETA  = { A:0, B:9999, C:5000 };
-const ANAT_YF    = { tip:0.0, balls:0.5, anus:1.0 };
-const ELEC_COLOR = { A:'#5a78ff', B:'#ffcc14', C:'#44cc70' };
+const ELEC_BETA  = { A:0, B:3333, C:6666, D:9999 };
+const ANAT_YF    = { tip:0.0, shaft:0.33, balls:0.66, anus:1.0 };
+const ELEC_COLOR = { A:'#ff3333', B:'#4499ff', C:'#ffdd00', D:'#44cc70' };
 
 let elecAt = JSON.parse(localStorage.getItem('elecAt') || 'null')
-          || { tip:'B', balls:'C', anus:'A' };
+          || { tip:'A', shaft:'B', balls:'C', anus:'D' };
 
 function saveElecAt() { localStorage.setItem('elecAt', JSON.stringify(elecAt)); }
 
 function buildElecSheet() {
-  ['tip','balls','anus'].forEach(anat => {
+  ['tip','shaft','balls','anus'].forEach(anat => {
     const container = document.getElementById('elec-' + anat);
+    if (!container) return;
     container.innerHTML = '';
-    ['A','B','C'].forEach(elec => {
+    ['A','B','C','D'].forEach(elec => {
       const btn = document.createElement('button');
       btn.textContent = elec;
       btn.style.cssText = `flex:1;min-height:48px;border-radius:8px;border:2px solid ${ELEC_COLOR[elec]};background:${elecAt[anat]===elec ? ELEC_COLOR[elec]+'33' : 'var(--bg3)'};color:${ELEC_COLOR[elec]};font-size:18px;font-weight:bold;cursor:pointer;touch-action:manipulation;transition:background 0.15s`;
       btn.onclick = () => {
-        // swap if conflict
         const prev = Object.entries(elecAt).find(([a,e]) => a !== anat && e === elec);
         if (prev) elecAt[prev[0]] = elecAt[anat];
         elecAt[anat] = elec;
@@ -1307,8 +1307,8 @@ function betaFromY(y) {
     .map(([anat, elec]) => ({ y: ANAT_YF[anat], beta: ELEC_BETA[elec] }))
     .sort((a, b) => a.y - b.y);
   if (y <= pts[0].y) return pts[0].beta;
-  if (y >= pts[2].y) return pts[2].beta;
-  for (let i = 0; i < 2; i++) {
+  if (y >= pts[pts.length-1].y) return pts[pts.length-1].beta;
+  for (let i = 0; i < pts.length - 1; i++) {
     if (y >= pts[i].y && y <= pts[i+1].y) {
       const f = (y - pts[i].y) / (pts[i+1].y - pts[i].y);
       return Math.round(pts[i].beta + f * (pts[i+1].beta - pts[i].beta));
@@ -1551,12 +1551,15 @@ function rgba(hex, a) {
 }
 
 function buildAnatGrad(ctx, W, H) {
-  const base = { A:'45,75,225', B:'255,200,18', C:'50,195,90' };
+  const base = { A:'255,51,51', B:'68,153,255', C:'255,221,0', D:'50,195,90' };
   const stops = Object.entries(elecAt)
     .map(([anat,elec]) => ({ y:ANAT_YF[anat], c:base[elec] }))
     .sort((a,b) => a.y - b.y);
   const g = ctx.createLinearGradient(0,0,0,H);
-  [0.82, 0.44, 0.76].forEach((op,i) => g.addColorStop(stops[i].y, `rgba(${stops[i].c},${op})`));
+  stops.forEach((s, i) => {
+    const op = [0.82, 0.60, 0.44, 0.76][i] || 0.60;
+    g.addColorStop(s.y, `rgba(${s.c},${op})`);
+  });
   return g;
 }
 
@@ -1641,13 +1644,15 @@ function drawAnatomySimple(ctx, W, H, thumb) {
 }
 
 function drawElecLabels(ctx, W, H) {
-  const GLY=0.07, SCY=0.50, ANY=0.88;
+  const GLY=0.07, SHT=0.15, SHB=0.44, SCY=0.50, ANY=0.88;
   const slb=H*0.115, ar=Math.min(W*0.095,H*0.046), gtv=H*0.055, cx=W/2;
   for (const [anat, elec] of Object.entries(elecAt)) {
     let lblY;
     if (anat==='tip')   lblY = H*GLY + gtv + 14;
+    if (anat==='shaft') lblY = H*((SHT+SHB)/2) + 14;
     if (anat==='balls') lblY = H*SCY + slb + 14;
     if (anat==='anus')  lblY = H*ANY + ar  + 14;
+    if (lblY === undefined) lblY = H * ANAT_YF[anat] + 14;
     ctx.font='bold 12px Arial'; ctx.textAlign='right'; ctx.fillStyle=ELEC_COLOR[elec];
     ctx.fillText(elec, cx+W*0.44, lblY-2);
     ctx.font='9px Arial'; ctx.textAlign='center'; ctx.fillStyle='rgba(180,180,200,0.58)';
