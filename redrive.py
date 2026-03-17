@@ -2487,7 +2487,7 @@ function _pathAt(t) {
   requestAnimationFrame(trailTick);
 })();
 
-const ro=new ResizeObserver(entries=>{ for(const e of entries){ if(e.contentRect.width>10&&e.contentRect.height>10) draw(); } });
+const ro=new ResizeObserver(()=>draw());
 ro.observe(document.getElementById('anatomy-wrap'));
 
 setInterval(async()=>{
@@ -2505,9 +2505,7 @@ setInterval(async()=>{
   } catch(_) { setConn(false); }
 },1500);
 
-loadAnatomyList(); loadToolImages(); autoUploadStoredAnatomy();
-// Defer first draw until layout is complete so offsetWidth/offsetHeight are non-zero
-requestAnimationFrame(() => requestAnimationFrame(() => draw()));
+loadAnatomyList(); loadToolImages(); draw(); autoUploadStoredAnatomy();
 
 // ── Like button ─────────────────────────────────────────────────────────────
 function sendLike(emoji) {
