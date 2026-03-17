@@ -472,6 +472,29 @@ async def handle_assets_file(req):
     return web.Response(body=path.read_bytes(), content_type=ct)
 
 
+async def handle_version(_req):
+    path = Path(__file__).parent.parent / "version.json"
+    if not path.is_file():
+        return web.Response(text='{"version":"0.1.0"}', content_type="application/json")
+    return web.Response(body=path.read_bytes(), content_type="application/json",
+                        headers={"Access-Control-Allow-Origin": "*"})
+
+
+async def handle_download(req):
+    platform = req.match_info["platform"]   # "windows" or "mac"
+    ext = {"windows": ".exe", "mac": ".dmg"}.get(platform)
+    if not ext:
+        raise web.HTTPNotFound()
+    fname = f"ReDriveRider-Setup{ext}" if platform == "windows" else "ReDriveRider.dmg"
+    path = Path(__file__).parent / "dist" / fname
+    if not path.is_file():
+        raise web.HTTPNotFound(text=f"{fname} not yet available — check back soon.")
+    return web.Response(
+        body=path.read_bytes(),
+        content_type="application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
 async def handle_bottle_png(_req):
     path = Path(__file__).parent.parent / "bottle.png"
     if not path.is_file():
@@ -506,6 +529,8 @@ def build_app() -> web.Application:
     app.router.add_get("/bottle.png",                 handle_bottle_png)
     app.router.add_get("/touch_assets/list",          handle_assets_list)
     app.router.add_get("/touch_assets/{type}/{name}", handle_assets_file)
+    app.router.add_get("/version.json",               handle_version)
+    app.router.add_get("/download/{platform}",        handle_download)
     async def _start_cleanup(_app):
         asyncio.ensure_future(_cleanup_loop())
 

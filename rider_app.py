@@ -7,11 +7,16 @@ import sys
 import threading
 import tkinter as tk
 from tkinter import ttk
+import urllib.request
+import urllib.error
+import json
+import webbrowser
 import aiohttp
 
 APP_VERSION = "0.1.0"
-DEFAULT_RELAY  = "wss://redrive.estimstation.com"
-DEFAULT_RESTIM = "ws://localhost:12346"
+DEFAULT_RELAY   = "wss://redrive.estimstation.com"
+DEFAULT_RESTIM  = "ws://localhost:12346"
+VERSION_URL     = "https://redrive.estimstation.com/version.json"
 
 class RiderApp:
     def __init__(self, root: tk.Tk, room_code: str = ""):
@@ -27,6 +32,7 @@ class RiderApp:
 
         self._build_ui(room_code)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        threading.Thread(target=self._check_update, daemon=True).start()
 
     def _build_ui(self, room_code: str):
         PAD = dict(padx=12, pady=6)
@@ -40,7 +46,17 @@ class RiderApp:
         tk.Label(self.root, text="ReDrive Rider", bg=BG, fg=FG,
                  font=("Helvetica", 18, "bold")).pack(pady=(16, 4))
         tk.Label(self.root, text=f"v{APP_VERSION}", bg=BG, fg=FG2,
-                 font=("Helvetica", 10)).pack(pady=(0, 12))
+                 font=("Helvetica", 10)).pack(pady=(0, 8))
+
+        # Update banner (hidden until an update is found)
+        self._update_banner = tk.Frame(self.root, bg="#7c4d00", cursor="hand2")
+        self._update_lbl = tk.Label(self._update_banner, text="",
+                                    bg="#7c4d00", fg="#ffe082",
+                                    font=("Helvetica", 10, "bold"))
+        self._update_lbl.pack(pady=6, padx=12)
+        self._update_url = ""
+        self._update_banner.bind("<Button-1>", lambda _: webbrowser.open(self._update_url))
+        self._update_lbl.bind("<Button-1>",   lambda _: webbrowser.open(self._update_url))
 
         # Room code
         tk.Label(self.root, text="Room Code", bg=BG, fg=FG2,
@@ -209,6 +225,25 @@ class RiderApp:
         self._connected = False
         self._set_status("Disconnected", "#444")
         self.root.after(0, lambda: self._btn.config(text="Connect", bg="#5fa3ff"))
+
+    def _check_update(self):
+        try:
+            with urllib.request.urlopen(VERSION_URL, timeout=5) as r:
+                data = json.loads(r.read())
+            latest = data.get("version", "0.0.0")
+            if tuple(int(x) for x in latest.split(".")) > \
+               tuple(int(x) for x in APP_VERSION.split(".")):
+                import platform
+                key = "download_mac" if platform.system() == "Darwin" else "download_windows"
+                url = data.get(key, data.get("download_windows", ""))
+                self._update_url = url
+                def _show():
+                    self._update_lbl.config(
+                        text=f"Update available: v{latest} — click to download")
+                    self._update_banner.pack(fill="x", padx=16, pady=(0, 8))
+                self.root.after(0, _show)
+        except Exception:
+            pass  # silently ignore — no update check on network error
 
     def _on_close(self):
         self._disconnect()
