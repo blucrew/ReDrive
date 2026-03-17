@@ -19,3 +19,4 @@ jobs:
             git pull
             systemctl restart redrive
             echo "Deployed at $(date)"
+            systemctl is-active redrive
