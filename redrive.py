@@ -430,6 +430,7 @@ DRIVER_HTML = r"""<!DOCTYPE html>
            border-radius:4px;cursor:pointer;font-size:11px;white-space:nowrap">&#128400; Touch</button>
 </div>
 
+<div id="common-controls">
 <div id="status-bar">
   <div id="dot"></div>
   <span id="status-text">Connecting…</span>
@@ -470,6 +471,7 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   <div id="beta-track"><div id="beta-dot" style="left:50%"></div></div>
   <div id="beta-labels"><span>◄ L</span><span>Centre</span><span>R ►</span></div>
 </div>
+</div><!-- end #common-controls -->
 
 <div id="controls-panel">
 <div class="section-label">Presets</div>
@@ -626,34 +628,37 @@ DRIVER_HTML = r"""<!DOCTYPE html>
 </div><!-- end #controls-panel -->
 
 <div id="touch-panel" style="display:none;flex-direction:column;gap:5px">
+  <!-- Back button only — STOP / status / poppers / live slot in below via DOM move -->
   <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">
     <button onclick="toggleMode()" title="Back to controls"
-      style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:6px;font-size:13px;cursor:pointer;flex-shrink:0">&#8592;</button>
-    <div id="tc-conn" style="display:flex;align-items:center;gap:5px">
-      <div id="tc-dot" style="width:9px;height:9px;border-radius:50%;background:var(--err);flex-shrink:0"></div>
-      <span id="tc-txt" style="color:var(--fg2);font-size:11px">Connected</span>
+      style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:6px;font-size:13px;cursor:pointer;flex-shrink:0">&#8592; Controls</button>
+    <span id="tc-mode-label" style="color:var(--fg2);font-size:11px;flex:1;text-align:center">Touch Mode</span>
+  </div>
+  <!-- Slot: common-controls (status/safety/STOP/poppers/live) moves here in touch mode -->
+  <div id="tc-top-slot" style="overflow-y:auto;flex-shrink:0;max-height:42vh"></div>
+  <!-- Body: vertical picker on left + canvas on right -->
+  <div style="display:flex;gap:5px;flex:1;min-height:0">
+    <div id="tc-picker" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;width:54px;flex-shrink:0;align-items:center;padding:2px 0"></div>
+    <div id="tc-main" style="position:relative;border-radius:6px;background:#1a1a1a;min-height:0;flex:1">
+      <canvas id="touch-canvas" style="width:100%;height:100%;display:block;border-radius:6px;cursor:none;touch-action:none"></canvas>
     </div>
-    <button onclick="tcStop()" style="flex:1;padding:8px;background:var(--err);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer">&#9632; STOP</button>
   </div>
-  <div id="tc-main" style="position:relative;border-radius:6px;background:#1a1a1a;min-height:0;flex:1">
-    <canvas id="touch-canvas" style="width:100%;height:100%;display:block;border-radius:6px;cursor:none;touch-action:none"></canvas>
-  </div>
-  <div style="display:flex;gap:6px">
+  <!-- Tool buttons -->
+  <div style="display:flex;gap:6px;flex-shrink:0">
     <button class="tc-tool-btn" data-tool="feather" onclick="tcSelectTool(this)"
-      style="flex:1;min-height:48px;background:#141428;border:1px solid #88aaff;border-radius:8px;color:#88aaff;font-size:20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 4px;touch-action:manipulation">
+      style="flex:1;min-height:44px;background:#141428;border:1px solid #88aaff;border-radius:8px;color:#88aaff;font-size:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;touch-action:manipulation">
       &#129302;<span style="font-size:10px">Feather</span>
     </button>
     <button class="tc-tool-btn" data-tool="hand" onclick="tcSelectTool(this)"
-      style="flex:1;min-height:48px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--fg2);font-size:20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 4px;touch-action:manipulation">
+      style="flex:1;min-height:44px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--fg2);font-size:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;touch-action:manipulation">
       &#9995;<span style="font-size:10px">Hand</span>
     </button>
     <button class="tc-tool-btn" data-tool="stroker" onclick="tcSelectTool(this)"
-      style="flex:1;min-height:48px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--fg2);font-size:20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 4px;touch-action:manipulation">
+      style="flex:1;min-height:44px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--fg2);font-size:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;touch-action:manipulation">
       &#9889;<span style="font-size:10px">Stroker</span>
     </button>
   </div>
-  <div style="display:flex;gap:6px;overflow-x:auto;flex-shrink:0;padding:2px 0 4px;min-height:70px;align-items:flex-start" id="tc-picker"></div>
-  <div id="tc-status" style="color:var(--fg2);font-size:11px;font-family:monospace;min-height:16px">Tap or drag &middot; Y = position &middot; X = intensity</div>
+  <div id="tc-status" style="color:var(--fg2);font-size:11px;font-family:monospace;min-height:14px;flex-shrink:0">Tap or drag &middot; Y = position &middot; X = intensity</div>
 </div><!-- end #touch-panel -->
 
 <div id="participants-panel" style="display:none;align-items:flex-end;gap:0;margin:8px 0 4px;min-height:0"></div>
@@ -1203,9 +1208,13 @@ function triggerLikeAnimation(like) {
 let _driverMode = 'controls';
 function toggleMode() {
   _driverMode = _driverMode === 'controls' ? 'touch' : 'controls';
+  const cc = document.getElementById('common-controls');
+  const cp = document.getElementById('controls-panel');
   document.getElementById('controls-panel').style.display = _driverMode === 'controls' ? '' : 'none';
   const tp = document.getElementById('touch-panel');
   if (_driverMode === 'touch') {
+    // Move common-controls (status/safety/STOP/poppers/live) into touch panel top slot
+    document.getElementById('tc-top-slot').appendChild(cc);
     // Apply all fixed-overlay styles via JS — immune to Quirks Mode CSS issues
     tp.style.cssText = [
       'display:flex','flex-direction:column','gap:5px',
@@ -1218,6 +1227,8 @@ function toggleMode() {
     const _rb=document.getElementById('room-banner');
     if (_rb) _rb.style.display='none';
   } else {
+    // Return common-controls to its original home before controls-panel
+    if (cc && cp && cp.parentNode) cp.parentNode.insertBefore(cc, cp);
     tp.style.cssText = 'display:none';
     tcSetLooping(false);
     const _rb=document.getElementById('room-banner');
@@ -1510,64 +1521,107 @@ function tcSelectTool(btn) {
   tcDraw();
 }
 
+function _tcPickerAddItem(v, isCustom) {
+  const el=document.getElementById('tc-picker'); if (!el) return;
+  const active = v.id===tcCurrentAnat;
+  const wrap=document.createElement('div');
+  wrap.dataset.anatId = v.id;
+  wrap.style.cssText='width:48px;height:64px;border-radius:6px;cursor:pointer;' +
+    'border:2px solid '+(active?'var(--accent)':'var(--border)')+';' +
+    'flex-shrink:0;overflow:hidden;background:var(--bg3);position:relative;touch-action:manipulation';
+  if (isCustom) {
+    // Gold star badge for custom/rider images
+    const badge=document.createElement('div');
+    badge.style.cssText='position:absolute;top:2px;right:2px;font-size:9px;z-index:2;line-height:1';
+    badge.textContent='★'; wrap.appendChild(badge);
+  }
+  if (v.type==='canvas') {
+    const tc=document.createElement('canvas'); tc.width=48; tc.height=64;
+    v.drawFn(tc.getContext('2d'),48,64,true);
+    wrap.appendChild(tc);
+  } else {
+    const img=document.createElement('img'); img.src=v.src;
+    img.style='width:100%;height:100%;display:block;object-fit:cover;object-position:top'; wrap.appendChild(img);
+  }
+  const lbl=document.createElement('div');
+  lbl.style.cssText='position:absolute;bottom:0;left:0;right:0;font-size:8px;text-align:center;'+
+    'background:rgba(0,0,0,0.60);padding:2px 0;color:var(--fg2);pointer-events:none;' +
+    'white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  lbl.textContent=v.label; wrap.appendChild(lbl);
+  wrap.addEventListener('click',()=>{
+    tcCurrentAnat=v.id; localStorage.setItem('anatId',v.id);
+    if (v.type==='canvas') {
+      tcCustomImg=null; tcDraw();
+    } else {
+      const im2=new Image();
+      im2.onload=()=>{tcCustomImg=im2; tcDraw();};
+      im2.onerror=()=>{tcCustomImg=null; tcDraw();};
+      im2.src=v.src;
+    }
+    document.querySelectorAll('#tc-picker [data-anat-id]').forEach(w=>{
+      w.style.borderColor=(w.dataset.anatId===v.id)?'var(--accent)':'var(--border)';
+    });
+  });
+  el.appendChild(wrap);
+}
+
 function tcBuildPicker() {
   const el=document.getElementById('tc-picker'); if (!el) return;
   el.innerHTML='';
-  tcAnatVariants=[
-    {id:'default',label:'Default',type:'canvas',drawFn:tcDrawDetailed},
-    {id:'simple', label:'Simple', type:'canvas',drawFn:tcDrawSimple},
-  ];
-  for (const v of tcAnatVariants) {
-    const wrap=document.createElement('div');
-    wrap.style.cssText='width:48px;height:64px;border-radius:6px;cursor:pointer;' +
-      'border:2px solid '+(v.id===tcCurrentAnat?'var(--accent)':'var(--border)')+';' +
-      'flex-shrink:0;overflow:hidden;background:var(--bg3);position:relative;touch-action:manipulation';
-    if (v.type==='canvas') {
-      const tc=document.createElement('canvas'); tc.width=48; tc.height=64;
-      v.drawFn(tc.getContext('2d'),48,64,true);
-      wrap.appendChild(tc);
+  tcAnatVariants=[];
+
+  // Try room anatomy API first (includes custom rider uploads)
+  const m=window.location.pathname.match(/\/room\/([^/]+)/);
+  const roomCode=m?m[1]:null;
+  const apiUrl=roomCode?'/room/'+roomCode+'/anatomies':null;
+
+  const finish=(customFiles, builtinFiles)=>{
+    // 1. Custom/rider uploads — top of picker, gold star badge
+    const customItems=[];
+    for (const f of (customFiles||[])) {
+      const id=f, label=f.split('/').pop().replace(/\.[^.]+$/,'');
+      const src='/touch_assets/anatomy/'+f.split('/').map(encodeURIComponent).join('/');
+      customItems.push({id,label,type:'png',src});
     }
-    const lbl=document.createElement('div');
-    lbl.style.cssText='position:absolute;bottom:0;left:0;right:0;font-size:8px;text-align:center;'+
-      'background:rgba(0,0,0,0.60);padding:2px 0;color:var(--fg2);pointer-events:none';
-    lbl.textContent=v.label; wrap.appendChild(lbl);
-    wrap.addEventListener('click',()=>{
-      tcCurrentAnat=v.id; localStorage.setItem('anatId',v.id);
-      if (v.type==='canvas') { tcCustomImg=null; tcDraw(); }
-      document.querySelectorAll('#tc-picker > div').forEach((w,i)=>{
-        w.style.borderColor=(tcAnatVariants[i]&&tcAnatVariants[i].id===v.id)?'var(--accent)':'var(--border)';
-      });
-    });
-    el.appendChild(wrap);
-  }
-  // Also try to load PNG variants from server
-  fetch('/touch_assets/list?type=anatomy').then(r=>r.ok?r.json():null).then(files=>{
-    if (!files||!files.length) return;
-    for (const f of files) {
+    for (const v of customItems) {
+      tcAnatVariants.push(v);
+      _tcPickerAddItem(v, true);
+    }
+    // 2. Built-in canvas variants
+    const builtins=[
+      {id:'default',label:'Default',type:'canvas',drawFn:tcDrawDetailed},
+      {id:'simple', label:'Simple', type:'canvas',drawFn:tcDrawSimple},
+    ];
+    for (const v of builtins) { tcAnatVariants.push(v); _tcPickerAddItem(v,false); }
+    // 3. Server PNG variants (non-custom)
+    for (const f of (builtinFiles||[])) {
       const id=f, label=f.replace(/\.[^.]+$/,'');
-      tcAnatVariants.push({id,label,type:'png',src:'/touch_assets/anatomy/'+encodeURIComponent(f)});
-      const wrap=document.createElement('div');
-      wrap.style.cssText='width:48px;height:64px;border-radius:6px;cursor:pointer;' +
-        'border:2px solid var(--border);flex-shrink:0;overflow:hidden;background:var(--bg3);position:relative;touch-action:manipulation';
-      const img=document.createElement('img'); img.src='/touch_assets/anatomy/'+encodeURIComponent(f);
-      img.style='width:100%;height:100%;display:block;object-fit:cover'; wrap.appendChild(img);
-      const lbl=document.createElement('div');
-      lbl.style.cssText='position:absolute;bottom:0;left:0;right:0;font-size:8px;text-align:center;'+
-        'background:rgba(0,0,0,0.60);padding:2px 0;color:var(--fg2);pointer-events:none';
-      lbl.textContent=label; wrap.appendChild(lbl);
-      wrap.addEventListener('click',()=>{
-        tcCurrentAnat=id; localStorage.setItem('anatId',id);
-        const im2=new Image();
-        im2.onload=()=>{tcCustomImg=im2; tcDraw();};
-        im2.onerror=()=>{tcCustomImg=null; tcDraw();};
-        im2.src='/touch_assets/anatomy/'+encodeURIComponent(f);
-        document.querySelectorAll('#tc-picker > div').forEach((w,j)=>{
-          w.style.borderColor=(tcAnatVariants[j]&&tcAnatVariants[j].id===id)?'var(--accent)':'var(--border)';
-        });
-      });
-      el.appendChild(wrap);
+      const src='/touch_assets/anatomy/'+encodeURIComponent(f);
+      const v={id,label,type:'png',src};
+      tcAnatVariants.push(v); _tcPickerAddItem(v,false);
     }
-  }).catch(()=>{});
+    // Auto-select first custom if no saved preference or saved is default
+    if (customItems.length && (tcCurrentAnat==='default'||tcCurrentAnat==='simple'||!tcCurrentAnat)) {
+      const first=customItems[0];
+      tcCurrentAnat=first.id; localStorage.setItem('anatId',first.id);
+      const im=new Image();
+      im.onload=()=>{tcCustomImg=im; tcDraw();};
+      im.src=first.src;
+      document.querySelectorAll('#tc-picker [data-anat-id]').forEach(w=>{
+        w.style.borderColor=(w.dataset.anatId===first.id)?'var(--accent)':'var(--border)';
+      });
+    }
+  };
+
+  if (apiUrl) {
+    fetch(apiUrl).then(r=>r.ok?r.json():null).then(data=>{
+      finish(data?data.custom:[], data?data.builtin:[]);
+    }).catch(()=>finish([],[]));
+  } else {
+    fetch('/touch_assets/list?type=anatomy').then(r=>r.ok?r.json():null).then(files=>{
+      finish([], files||[]);
+    }).catch(()=>finish([],[]));
+  }
 }
 
 function initTouchPanel() {
