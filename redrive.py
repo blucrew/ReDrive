@@ -444,7 +444,7 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   <input type="range" id="bottle-dur" min="5" max="15" value="10"
          oninput="document.getElementById('bottle-dur-val').textContent=this.value+'s'">
 </div>
-<button id="bottle-btn" onclick="sendBottle()">🍾  Bottle Prompt</button>
+<button id="bottle-btn" onclick="sendBottle()"><img src="/bottle.png" style="height:18px;vertical-align:middle;margin-right:4px">Poppers Prompt</button>
 
 <div class="section-label">Live</div>
 <div id="viz-row">
@@ -605,6 +605,14 @@ DRIVER_HTML = r"""<!DOCTYPE html>
 <div id="alpha-row">
   <button id="alpha-toggle" class="active" onclick="toggleAlpha()">
     α  Alpha oscillation: ON
+  </button>
+</div>
+
+<div style="margin-top:8px">
+  <button id="touch-mode-btn" onclick="toggleTouchPanel()"
+          style="width:100%;padding:.7rem;background:#1a2a1a;border:1px solid #2a4a2a;
+                 border-radius:6px;color:#88cc88;font-size:.9rem;cursor:pointer">
+    🖐 Open Touch Mode
   </button>
 </div>
 
@@ -1041,6 +1049,29 @@ async function pollState() {
 
 setInterval(pollState, 350);
 pollState();
+
+function toggleTouchPanel() {
+  const panel = document.getElementById('touch-panel');
+  if (panel.style.bottom === '0px') { closeTouchPanel(); } else { openTouchPanel(); }
+}
+function openTouchPanel() {
+  const frame = document.getElementById('touch-frame');
+  if (!frame.src || frame.src === window.location.href) {
+    // Build touch URL: replace /room/CODE?key=... with /room/CODE/touch (no key needed for touch)
+    const touchUrl = window.location.pathname.replace(/\/$/, '') + '/touch';
+    frame.src = touchUrl;
+  }
+  document.getElementById('touch-overlay').style.display = 'block';
+  document.getElementById('touch-panel').style.bottom = '0px';
+  document.getElementById('touch-mode-btn').textContent = '✕ Close Touch Mode';
+}
+function closeTouchPanel() {
+  document.getElementById('touch-overlay').style.display = 'none';
+  document.getElementById('touch-panel').style.bottom = '-100%';
+  document.getElementById('touch-mode-btn').textContent = '🖐 Open Touch Mode';
+}
+// Listen for close message from touch iframe (when touch page "Main" button is pressed)
+window.addEventListener('message', e => { if (e.data === 'close-touch') closeTouchPanel(); });
 </script>
 <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
 <script>
@@ -1051,6 +1082,21 @@ pollState();
     'floating-chat.donateButton.text-color': '#fff'
   });
 </script>
+
+<div id="touch-overlay" style="display:none;position:fixed;inset:0;z-index:500;
+     background:rgba(0,0,0,0.5)" onclick="if(event.target===this)closeTouchPanel()"></div>
+<div id="touch-panel" style="position:fixed;bottom:-100%;left:0;right:0;
+     height:75vh;background:#111;border-top:2px solid #2a4a2a;border-radius:16px 16px 0 0;
+     z-index:501;transition:bottom 0.3s ease;display:flex;flex-direction:column">
+  <div style="display:flex;align-items:center;justify-content:space-between;
+              padding:10px 16px;border-bottom:1px solid #222;flex-shrink:0">
+    <span style="color:#88cc88;font-weight:bold;font-size:14px">🖐 Touch Mode</span>
+    <button onclick="closeTouchPanel()"
+            style="background:none;border:none;color:#999;font-size:22px;cursor:pointer;padding:0 4px">✕</button>
+  </div>
+  <iframe id="touch-frame" src="" style="flex:1;border:none;width:100%;background:#111"
+          allow="pointer-events"></iframe>
+</div>
 </body>
 </html>
 """
@@ -1093,6 +1139,7 @@ TOUCH_HTML = r"""
     color: var(--fg2); font-size: 11px; text-decoration: none;
     white-space: nowrap; border: 1px solid var(--border);
     border-radius: 4px; padding: 4px 7px;
+    background: none; cursor: pointer;
   }
   #conn { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
   #cdot { width: 9px; height: 9px; border-radius: 50%; background: var(--err); flex-shrink: 0; }
@@ -1173,7 +1220,7 @@ TOUCH_HTML = r"""
   <div id="conn"><div id="cdot"></div><span id="ctxt">Connecting&#8230;</span></div>
   <button id="stop-btn" onclick="doStop()">&#9632; STOP</button>
   <button id="bottle-btn" onclick="sendBottle()">🍾</button>
-  <a id="nav-link" href="/">Main &#8599;</a>
+  <button id="nav-link" onclick="if(window.parent!==window){window.parent.postMessage('close-touch','*');}else{window.location='/';}">Main &#8599;</button>
 </div>
 <div id="bottle-row">
   <span style="font-size:10px;color:var(--fg2);white-space:nowrap">Bottle</span>
@@ -1779,10 +1826,6 @@ function _pathAt(t) {
 })();
 
 const ro=new ResizeObserver(()=>draw()); ro.observe(document.getElementById('anatomy-wrap'));
-
-// Fix Main nav link → room page (strip /touch from path)
-document.getElementById('nav-link').href =
-  window.location.pathname.replace(/\/touch$/, '') || '/';
 
 setInterval(async()=>{
   try {

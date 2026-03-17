@@ -367,6 +367,15 @@ _LANDING_HTML = """<!DOCTYPE html>
   </details>
 
   <details>
+    <summary>How do I set up ReStim?</summary>
+    <p>ReDrive works with <a href="https://github.com/ranzbak/restim" target="_blank">ReStim</a>
+    — free open-source estim software. Install it on the PC connected to your device,
+    then enable its WebSocket server: in ReStim go to <strong>Settings → Network</strong>
+    and enable <strong>WebSocket server</strong> (default port 12346).
+    Leave ReStim running before connecting ReDrive Rider.</p>
+  </details>
+
+  <details>
     <summary>How do I get started as a driver?</summary>
     <p>Click <strong>Create New Room</strong> below. You'll get a room code — share it
     with your rider(s). Open the touch canvas on your phone and you're in control.
