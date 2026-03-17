@@ -62,6 +62,8 @@ class Room:
         self.created_at      = time.monotonic()
         self.driver_last_seen = time.monotonic()   # updated on every valid driver request
         self.bottle_until: float = 0.0
+        self.bottle_mode:  str   = "normal"
+        self.pending_likes: list = []
         self.rider_wss:  set[web.WebSocketResponse] = set()
         self._main_loop  = main_loop
         self._log_q      = queue.Queue()
@@ -836,6 +838,17 @@ async def handle_room_command(req):
         room.driver_name = str(cmd["set_driver_name"])[:30]
         await room._broadcast_participants()
         return web.Response(text="{}", content_type="application/json")
+    if "bottle" in cmd:
+        b = cmd["bottle"]
+        if isinstance(b, dict):
+            mode = str(b.get("mode", "normal"))
+            duration = max(5, min(60, int(b.get("duration", 10))))
+        else:
+            mode = "normal"
+            duration = 10
+        room.bottle_mode  = mode
+        room.bottle_until = time.monotonic() + duration
+        return web.Response(text="{}", content_type="application/json")
     # Reconstruct a fake request-like object isn't possible; use engine directly
     return await room.engine._handle_command_data(cmd)
 
@@ -853,6 +866,9 @@ async def handle_room_state(req):
     d["rider_count"]      = room.rider_count
     d["bottle_active"]    = time.monotonic() < room.bottle_until
     d["bottle_remaining"] = max(0.0, round(room.bottle_until - time.monotonic(), 1))
+    d["bottle_mode"]      = room.bottle_mode
+    d["likes"]            = room.pending_likes[:]
+    room.pending_likes.clear()
     return web.Response(text=json.dumps(d), content_type="application/json")
 
 
@@ -921,6 +937,15 @@ async def handle_rider_ws(req):
                         if ws_id in room.participants:
                             room.participants[ws_id]["name"] = name
                         await room._broadcast_participants()
+                    elif data.get("type") == "like":
+                        emoji = str(data.get("emoji", "😍"))[:4]
+                        rider_info = room.participants.get(ws_id, {})
+                        room.pending_likes.append({
+                            "emoji": emoji,
+                            "rider_name": rider_info.get("name", "Rider"),
+                            "rider_idx": rider_info.get("idx", 0),
+                            "anatomy": rider_info.get("anatomy", ""),
+                        })
                 except Exception:
                     pass
             elif msg.type in (aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSE):

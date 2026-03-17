@@ -406,11 +406,6 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   #ramp-pct { font-size:11px; color:var(--fg2); min-width:80px; text-align:right; }
 
   /* Bottle */
-  #bottle-btn {
-    width:100%; padding:12px; background:var(--bg3); color:var(--fg2);
-    border:1px solid var(--border); border-radius:6px; font-size:14px;
-    font-weight:bold; cursor:pointer; margin-bottom:14px; letter-spacing:.05em;
-  }
   #bottle-btn.active { background:#2a1e00; border-color:var(--warn); color:var(--warn); }
 
   /* Live */
@@ -444,15 +439,23 @@ DRIVER_HTML = r"""<!DOCTYPE html>
 <button id="stop-btn" onclick="sendStop()">⬛  STOP</button>
 
 <div class="section-label" style="margin-top:4px">Poppers Prompt</div>
-<div class="slider-row" style="margin-bottom:6px">
-  <div class="slider-header">
-    <span class="slider-label">Duration</span>
-    <span class="slider-val" id="bottle-dur-val">10s</span>
+<div style="margin-bottom:6px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px">
+  <div id="poppers-mode-row" style="display:flex;gap:14px;margin-bottom:8px;align-items:center">
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
+      <input type="radio" name="poppers-mode" value="normal" checked onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
+      <span id="pm-lbl-normal" style="color:#fff">Normal</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
+      <input type="radio" name="poppers-mode" value="deep_huff" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
+      <span id="pm-lbl-deep_huff">Deep Huff</span>
+    </label>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
+      <input type="radio" name="poppers-mode" value="double_hit" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
+      <span id="pm-lbl-double_hit">Double Hit</span>
+    </label>
   </div>
-  <input type="range" id="bottle-dur" min="5" max="15" value="10"
-         oninput="document.getElementById('bottle-dur-val').textContent=this.value+'s'">
+  <button id="bottle-btn" onclick="sendBottle()" style="width:100%;padding:10px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;letter-spacing:.05em"><img src="/bottle.png" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;margin-right:6px">Poppers Prompt</button>
 </div>
-<button id="bottle-btn" onclick="sendBottle()"><img src="/bottle.png" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;margin-right:6px">Poppers Prompt</button>
 
 <div class="section-label">Live</div>
 <div id="viz-row">
@@ -920,10 +923,28 @@ function sendStop() {
   sendCmd({ stop: true });
 }
 
+let _poppersMode = 'normal';
+function _poppersDuration() {
+  if (_poppersMode === 'normal')     return 10;
+  if (_poppersMode === 'deep_huff')  return 20;
+  if (_poppersMode === 'double_hit') return 35;
+  return 10;
+}
+// Keep radio labels styled: selected = white, others = #999
+document.querySelectorAll('input[name="poppers-mode"]').forEach(r => {
+  r.addEventListener('change', () => {
+    _poppersMode = r.value;
+    document.querySelectorAll('input[name="poppers-mode"]').forEach(r2 => {
+      const lbl = r2.parentElement.querySelector('span');
+      if (lbl) lbl.style.color = r2.checked ? '#fff' : '#999';
+    });
+  });
+});
+
 let _bottleTimer = null;
 function sendBottle() {
-  const dur = document.getElementById('bottle-dur').value;
-  fetch('/bottle?duration=' + dur, {method:'POST'});
+  const dur = _poppersDuration();
+  sendCmd({bottle: {mode: _poppersMode, duration: dur}});
   const btn = document.getElementById('bottle-btn');
   btn.classList.add('active');
   if (_bottleTimer) clearTimeout(_bottleTimer);
@@ -1077,6 +1098,9 @@ async function pollState() {
     }
     document.getElementById("live").textContent =
       `Vol ${Math.round(d.vol*100)}%  β ${d.beta} (${betaLabel(d.beta)})  α ${Math.round(d.alpha*100)}%  ${d.pattern}`;
+    if (d.likes && d.likes.length) {
+      d.likes.forEach(like => triggerLikeAnimation(like));
+    }
   } catch { setConnected(false); }
 }
 
@@ -1112,13 +1136,46 @@ function renderParticipants(data) {
   panel.innerHTML = parts.map((p, i) => {
     const url = p.anatomy ? '/touch_assets/anatomy/' + p.anatomy.split('/').map(encodeURIComponent).join('/') : '';
     const bg = url ? 'background-image:url(\'' + url + '\');background-size:cover;background-position:top center' : 'background:#222';
-    return '<div style="width:36px;height:90px;border-radius:6px;border:1px solid #2a2a2a;' +
+    return '<div class="avatar-card" data-idx="' + p.idx + '" style="width:36px;height:90px;border-radius:6px;border:1px solid #2a2a2a;' +
       bg + ';position:relative;flex-shrink:0;margin-left:' + (i === 0 ? '0' : '-8px') + ';z-index:' + i + '">' +
       '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);' +
       'font-size:8px;color:#ccc;text-align:center;padding:2px;border-radius:0 0 5px 5px;' +
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + p.name + '</div>' +
       '</div>';
   }).join('');
+}
+
+// ── Like animation ──────────────────────────────────────────────────────────
+if (!document.getElementById('like-style')) {
+  const s = document.createElement('style');
+  s.id = 'like-style';
+  s.textContent = '@keyframes likeFloat {' +
+    '0%   { transform: translateY(0) scale(1);       opacity: 1; }' +
+    '60%  { transform: translateY(-80px) scale(1.3); opacity: 1; }' +
+    '100% { transform: translateY(-160px) scale(0.8); opacity: 0; }' +
+    '}';
+  document.head.appendChild(s);
+}
+
+function triggerLikeAnimation(like) {
+  const panel = document.getElementById('participants-panel');
+  if (!panel) return;
+  const cards = panel.querySelectorAll('.avatar-card');
+  let origin = panel;
+  cards.forEach(c => { if (parseInt(c.dataset.idx) === like.rider_idx) origin = c; });
+  const rect = origin.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.textContent = like.emoji;
+  el.style.cssText =
+    'position:fixed;' +
+    'left:' + (rect.left + rect.width / 2) + 'px;' +
+    'top:' + rect.top + 'px;' +
+    'font-size:28px;' +
+    'pointer-events:none;' +
+    'z-index:9999;' +
+    'animation:likeFloat 1.8s ease-out forwards;';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1900);
 }
 
 (function initParticipantsPoll() {
@@ -1607,6 +1664,29 @@ TOUCH_HTML = r"""
   }
   #bottle-btn.active { background: #2a1e00; border-color: var(--warn); }
   #bottle-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .like-btn {
+    min-height: 52px;
+    min-width: 44px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 22px;
+    cursor: pointer;
+    touch-action: manipulation;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.1s;
+  }
+  .like-btn:active { transform: scale(0.88); }
+  /* Bottle overlay */
+  #bottle-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.93); z-index: 9999;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px;
+  }
 </style>
 </head>
 <body>
@@ -1651,6 +1731,18 @@ TOUCH_HTML = r"""
   <button class="tool-btn" data-tool="stroker" onclick="selectTool(this)">
     &#9889;<span>Stroker</span>
   </button>
+  <div style="width:1px;background:#2a2a2a;margin:6px 2px;flex-shrink:0"></div>
+  <button class="like-btn" onclick="sendLike('😍')">😍</button>
+  <button class="like-btn" onclick="sendLike('⚡')">⚡</button>
+  <button class="like-btn" onclick="sendLike('💦')">💦</button>
+</div>
+
+<div id="bottle-overlay">
+  <img id="bottle-overlay-img" src="/bottle.png" style="max-width:60vmin;max-height:50vmin;object-fit:contain;border-radius:8px">
+  <div id="bottle-overlay-heading" style="color:#fff;font-size:1.5rem;font-weight:bold;text-align:center"></div>
+  <div id="bottle-overlay-sub" style="color:#ffcc14;font-size:1rem;text-align:center"></div>
+  <div id="bottle-overlay-dots" style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px"></div>
+  <div id="bottle-overlay-cd" style="color:#fff;font-size:1.1rem;font-family:monospace;opacity:0.7"></div>
 </div>
 
 <div id="elec-sheet-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100" onclick="closeElecSheet()"></div>
@@ -2405,12 +2497,114 @@ setInterval(async()=>{
     if (d.intensity != null) serverIntensity = d.intensity;
     if (!pointerDown) setLooping(d.gesture_active);
     if (d.gesture_active&&!pointerDown&&!looping) setStatus('Looping '+d.gesture_dur.toFixed(1)+'s  drag to replace');
+    // Bottle overlay
+    if (d.bottle_active) {
+      showBottleOverlay(d.bottle_mode || 'normal', d.bottle_remaining || 0);
+    } else {
+      if (_bottleOverlayActive) hideBottleOverlay();
+    }
   } catch(_) { setConn(false); }
 },1500);
 
 loadAnatomyList(); loadToolImages(); autoUploadStoredAnatomy();
 // Defer first draw until layout is complete so offsetWidth/offsetHeight are non-zero
 requestAnimationFrame(() => requestAnimationFrame(() => draw()));
+
+// ── Like button ─────────────────────────────────────────────────────────────
+function sendLike(emoji) {
+  if (_riderWs && _riderWs.readyState === WebSocket.OPEN) {
+    _riderWs.send(JSON.stringify({type: 'like', emoji}));
+  }
+}
+
+// ── Bottle overlay ──────────────────────────────────────────────────────────
+let _bottleOverlayActive = false;
+let _bottleOverlayMode   = 'normal';
+let _bottleOverlayIv     = null;
+let _bottlePhaseTimer    = null;
+
+function showDeepHuffDots(containerEl) {
+  containerEl.innerHTML = '';
+  const dots = [];
+  for (let i = 0; i < 10; i++) {
+    const d = document.createElement('span');
+    d.textContent = '\u25cf';
+    d.style.cssText = 'font-size:20px;margin:0 4px;transition:opacity 0.5s;color:#ffcc14';
+    containerEl.appendChild(d);
+    dots.push(d);
+  }
+  let idx = 0;
+  const iv = setInterval(() => {
+    if (idx < dots.length) { dots[idx].style.opacity = '0'; idx++; }
+    else clearInterval(iv);
+  }, 2000);
+  return iv;
+}
+
+function _clearBottleTimers() {
+  if (_bottleOverlayIv)    { clearInterval(_bottleOverlayIv);  _bottleOverlayIv = null; }
+  if (_bottlePhaseTimer)   { clearTimeout(_bottlePhaseTimer);  _bottlePhaseTimer = null; }
+}
+
+function showBottleOverlay(mode, remaining) {
+  const ov      = document.getElementById('bottle-overlay');
+  const heading = document.getElementById('bottle-overlay-heading');
+  const sub     = document.getElementById('bottle-overlay-sub');
+  const dots    = document.getElementById('bottle-overlay-dots');
+  const cd      = document.getElementById('bottle-overlay-cd');
+
+  if (!ov) return;
+
+  // Already showing this mode — just update countdown
+  if (_bottleOverlayActive && _bottleOverlayMode === mode) {
+    cd.textContent = Math.ceil(remaining) + 's';
+    return;
+  }
+
+  // Fresh show — reset
+  _clearBottleTimers();
+  _bottleOverlayActive = true;
+  _bottleOverlayMode   = mode;
+  dots.innerHTML       = '';
+  ov.style.display     = 'flex';
+
+  if (mode === 'normal') {
+    heading.textContent = 'Take a huff!';
+    sub.textContent     = '';
+    cd.textContent      = Math.ceil(remaining) + 's';
+  } else if (mode === 'deep_huff') {
+    heading.textContent = 'DEEP HUFF';
+    sub.textContent     = 'HOLD IT\u2026';
+    cd.textContent      = '';
+    _bottleOverlayIv = showDeepHuffDots(dots);
+  } else if (mode === 'double_hit') {
+    // Phase 1: HIT #1 (0-10s) — show overlay
+    heading.textContent = 'HIT #1 \ud83e\uddf4';
+    sub.textContent     = '';
+    cd.textContent      = '';
+    // Phase 2 at 10s: hide overlay (get ready)
+    _bottlePhaseTimer = setTimeout(() => {
+      ov.style.display    = 'none';
+      heading.textContent = '';
+      sub.textContent     = '';
+      // Phase 3 at 25s (15s later): show HIT #2
+      _bottlePhaseTimer = setTimeout(() => {
+        ov.style.display    = 'flex';
+        heading.textContent = 'HIT #2 \ud83e\uddf4';
+        sub.textContent     = '';
+        cd.textContent      = '';
+      }, 15000);
+    }, 10000);
+  }
+}
+
+function hideBottleOverlay() {
+  _bottleOverlayActive = false;
+  _clearBottleTimers();
+  const ov = document.getElementById('bottle-overlay');
+  if (ov) ov.style.display = 'none';
+}
+
 
 // ── Rider name input ───────────────────────────────────────────────────────
 let _riderWs = null;
