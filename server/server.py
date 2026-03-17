@@ -291,282 +291,343 @@ _LANDING_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ReDrive &middot; EstimStation</title>
 <style>
-  :root { --bg:#0e0e10; --bg2:#18181c; --bg3:#222228; --border:#2a2a32;
-          --fg:#f0f0f5; --fg2:#8888a0; --accent:#5fa3ff; --accent2:#a855f7;
-          --ok:#4caf50; --warn:#ff9800; }
+  :root {
+    --bg:#111; --bg2:#1a1a1a; --bg3:#222; --border:#2a2a2a;
+    --fg:#f0f0f5; --fg2:#888; --accent:#5fa3ff; --accent2:#a855f7;
+    --ok:#4caf50; --warn:#ff9800;
+  }
   * { box-sizing:border-box; margin:0; padding:0 }
-  body { background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,sans-serif;
-         display:flex; flex-direction:column; align-items:center;
-         min-height:100vh; padding:2rem }
-  .site-header { width:100%; max-width:420px; display:flex; align-items:center;
-                 justify-content:space-between; margin-bottom:2rem; padding-bottom:1rem;
-                 border-bottom:1px solid var(--border) }
+  body {
+    background:var(--bg); color:var(--fg);
+    font:15px/1.6 system-ui,sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+    min-height:100vh; padding:1.5rem 1rem;
+  }
+  .wrap { width:100%; max-width:480px }
+
+  /* Header */
+  .site-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding-bottom:1rem; margin-bottom:2rem;
+    border-bottom:1px solid var(--border);
+  }
   .site-header a { text-decoration:none }
   .brand { font-size:1.1rem; font-weight:700; color:var(--fg); letter-spacing:.04em }
   .brand span { color:var(--accent) }
-  h1 { font-size:2.2rem; letter-spacing:.05em;
-       background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
-       -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-       background-clip:text; margin-bottom:.25rem }
-  p.sub { color:var(--fg2); margin-bottom:2.5rem; font-size:.95rem }
-  .card { background:var(--bg2); border:1px solid var(--border); border-radius:10px;
-          padding:2rem 2.5rem; width:100%; max-width:420px; margin-bottom:1.5rem }
-  .card h2 { font-size:1.1rem; color:var(--fg2); text-transform:uppercase;
-              letter-spacing:.08em; margin-bottom:1.2rem; font-weight:500 }
-  button { width:100%; padding:.85rem;
-           background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
-           color:#fff; border:none; border-radius:6px; font-size:1rem; font-weight:700;
-           cursor:pointer; transition:opacity .15s }
-  button:hover { opacity:.85 }
-  input { width:100%; padding:.75rem 1rem; background:var(--bg3);
-          border:1px solid var(--border); border-radius:6px; color:var(--fg);
-          font-size:1.1rem; letter-spacing:.15em; text-transform:uppercase;
-          text-align:center; margin-bottom:1rem }
-  input::placeholder { letter-spacing:normal; text-transform:none; color:var(--fg2) }
-  .note { color:var(--fg2); font-size:.83rem; margin-top:1rem; line-height:1.6 }
-  code { background:var(--bg3); padding:.1em .4em; border-radius:3px;
-         font-family:monospace; font-size:.9em; color:var(--accent) }
-  .faq { width:100%; max-width:420px; margin-bottom:2rem }
-  .faq-section-label { font-size:.75rem; color:var(--accent); text-transform:uppercase;
-                       letter-spacing:.12em; margin:1.4rem 0 .5rem; font-weight:700 }
-  details { border-bottom:1px solid var(--border); padding:.6rem 0 }
+  .header-tag { color:var(--fg2); font-size:.82rem }
+
+  /* Page title */
+  .page-title {
+    font-size:2rem; font-weight:800; letter-spacing:.04em;
+    background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text; margin-bottom:.3rem;
+  }
+  .page-sub { color:var(--fg2); margin-bottom:2rem; font-size:.95rem }
+
+  /* Alpha warning */
+  .warn {
+    background:#1a1200; border:1px solid #3a2800; border-radius:8px;
+    padding:.85rem 1rem; margin-bottom:1.75rem;
+    color:#ffcc55; font-size:.87rem; line-height:1.6;
+  }
+  .warn strong { display:block; margin-bottom:.2rem }
+
+  /* Cards */
+  .card {
+    background:var(--bg2); border:1px solid var(--border); border-radius:10px;
+    padding:1.6rem 1.75rem; margin-bottom:1.25rem;
+  }
+  .card-title {
+    font-size:1rem; font-weight:700; color:var(--fg);
+    margin-bottom:.4rem;
+  }
+  .card-desc {
+    color:var(--fg2); font-size:.88rem; line-height:1.6;
+    margin-bottom:1.1rem;
+  }
+
+  /* Buttons */
+  .btn {
+    display:block; width:100%; padding:.8rem 1rem;
+    border:none; border-radius:6px;
+    font-size:.95rem; font-weight:700; cursor:pointer;
+    transition:opacity .15s; text-align:center; text-decoration:none;
+  }
+  .btn-primary { background:var(--accent); color:#000 }
+  .btn-primary:hover { opacity:.85 }
+  .btn-ghost {
+    background:transparent; color:var(--fg2);
+    border:1px solid var(--border);
+  }
+  .btn-ghost:hover { border-color:var(--fg2); color:var(--fg) }
+
+  /* Join input row */
+  .join-row { display:flex; gap:.5rem; margin-bottom:0 }
+  .join-row input {
+    flex:1; padding:.75rem .9rem;
+    background:var(--bg3); border:1px solid var(--border);
+    border-radius:6px; color:var(--fg);
+    font-size:1rem; letter-spacing:.12em; text-transform:uppercase;
+    text-align:center;
+  }
+  .join-row input::placeholder {
+    letter-spacing:normal; text-transform:none; color:var(--fg2);
+  }
+  .join-row .btn { width:auto; white-space:nowrap; flex-shrink:0 }
+
+  .card-note {
+    color:var(--fg2); font-size:.8rem; margin-top:.85rem; line-height:1.6;
+  }
+  code {
+    background:var(--bg3); padding:.1em .35em; border-radius:3px;
+    font-family:monospace; font-size:.88em; color:var(--accent);
+  }
+
+  /* Live sessions */
+  .live-section { margin-bottom:1.5rem }
+  .section-label {
+    font-size:.72rem; color:var(--accent); text-transform:uppercase;
+    letter-spacing:.12em; font-weight:700; margin-bottom:.65rem;
+  }
+  .live-table {
+    width:100%; border-collapse:collapse; font-size:.88rem;
+  }
+  .live-table thead th {
+    text-align:left; padding:.35rem .3rem;
+    color:var(--fg2); font-size:.75rem; font-weight:500;
+    border-bottom:1px solid var(--border);
+  }
+  .live-table tbody tr { border-top:1px solid var(--border) }
+  .live-table td { padding:.45rem .3rem; color:var(--fg2) }
+  .live-table .td-code { font-family:monospace; color:var(--accent) }
+  .live-table .td-join { text-align:right }
+  .join-link {
+    color:#000; background:var(--accent);
+    text-decoration:none; font-size:.78rem; font-weight:700;
+    padding:3px 9px; border-radius:4px;
+  }
+
+  /* FAQ */
+  .faq-wrapper { margin-bottom:2rem }
+  .faq-toggle {
+    background:none; border:none; width:100%; text-align:left;
+    padding:.6rem 0; cursor:pointer;
+    display:flex; align-items:center; gap:.5rem;
+    color:var(--fg2); font-size:.9rem;
+  }
+  .faq-toggle .faq-title { font-weight:700; color:var(--fg); font-size:.95rem }
+  .faq-toggle .faq-hint { font-size:.8rem; margin-left:auto }
+  .faq-body { display:none }
+  .faq-body.open { display:block }
+  .faq-section-label {
+    font-size:.72rem; color:var(--accent); text-transform:uppercase;
+    letter-spacing:.12em; font-weight:700; margin:1.25rem 0 .45rem;
+  }
+  details { border-bottom:1px solid var(--border); padding:.55rem 0 }
   details:first-of-type { border-top:1px solid var(--border) }
-  summary { cursor:pointer; font-size:.95rem; color:var(--fg); list-style:none;
-            display:flex; justify-content:space-between; align-items:center;
-            user-select:none; padding:.2rem 0 }
+  summary {
+    cursor:pointer; font-size:.93rem; color:var(--fg); list-style:none;
+    display:flex; justify-content:space-between; align-items:center;
+    user-select:none; padding:.15rem 0;
+  }
   summary::-webkit-details-marker { display:none }
-  summary::after { content:'+'; color:var(--fg2); font-size:1.1rem; flex-shrink:0; margin-left:1rem }
+  summary::after { content:'+'; color:var(--fg2); font-size:1.05rem; flex-shrink:0; margin-left:1rem }
   details[open] summary::after { content:'\u2212' }
-  details p { color:var(--fg2); font-size:.9rem; line-height:1.7;
-              padding:.6rem 0 .2rem; margin:0 }
+  details p {
+    color:var(--fg2); font-size:.88rem; line-height:1.7;
+    padding:.55rem 0 .15rem; margin:0;
+  }
   details p a { color:var(--accent); text-decoration:none }
-  .warn { background:#1a1200; border:1px solid #3a2800; border-radius:8px;
-          padding:.9rem 1.1rem; margin-bottom:1.5rem; width:100%; max-width:420px;
-          color:#ffcc55; font-size:.88rem; line-height:1.6 }
-  .warn strong { display:block; margin-bottom:.3rem; font-size:.95rem }
-  .site-footer { width:100%; max-width:420px; text-align:center; margin-top:2rem;
-                 padding-top:1.2rem; border-top:1px solid var(--border);
-                 color:var(--fg2); font-size:.8rem; line-height:1.9 }
+
+  /* Footer */
+  .site-footer {
+    text-align:center; margin-top:1.5rem;
+    padding-top:1.1rem; border-top:1px solid var(--border);
+    color:var(--fg2); font-size:.78rem; line-height:1.9;
+  }
   .site-footer a { color:var(--accent); text-decoration:none }
   .site-footer a:hover { text-decoration:underline }
 </style>
 </head>
 <body>
+<div class="wrap">
 
 <header class="site-header">
   <a href="https://www.estimstation.com/" class="brand">
     <span>Estim</span>Station
   </a>
-  <span style="color:var(--fg2);font-size:.82rem">ReDrive &middot; Remote Estim</span>
+  <span class="header-tag">ReDrive &middot; Remote Estim</span>
 </header>
 
-<h1>ReDrive</h1>
-<p class="sub">Remote pattern engine for ReStim &mdash; by EstimStation</p>
+<div class="page-title">ReDrive</div>
+<p class="page-sub">Remote real-time control for ReStim e-stim devices. A driver runs a session from their browser &mdash; patterns, intensity, ramps, sweeps &mdash; while riders connect their local ReStim through a lightweight bridge app. Everything syncs live over the internet.</p>
 
 <div class="warn">
   <strong>&#9888; Early alpha software</strong>
   This is experimental. Expect rough edges, disconnections, and missing features.
-  Always keep your hand on your ReStim device's power dial &mdash; the driver controls
-  pattern shape, but <em>you</em> control your maximum intensity.
+  Always keep your hand on your ReStim device&rsquo;s power dial &mdash; the driver
+  controls pattern shape, but <em>you</em> control your maximum intensity.
 </div>
 
-<div class="faq">
-
-  <div class="faq-section-label">For Riders</div>
-
-  <details>
-    <summary>What do I need to use ReDrive as a rider?</summary>
-    <p>A PC running ReStim with its WebSocket server enabled, and Python 3.9+.
-    Download the ReDrive Rider app or run <code>rider_client.py</code> directly.</p>
-  </details>
-
-  <details>
-    <summary>How do I set up ReStim to work with ReDrive?</summary>
-    <p>In ReStim, enable the WebSocket server (default port 12346). ReDrive connects
-    to <code>ws://localhost:12346</code>. See the
-    <a href="https://github.com/siotour/restim" target="_blank" rel="noopener">ReStim GitHub</a>
-    for setup instructions.</p>
-  </details>
-
-  <details>
-    <summary>My driver sent me a room code &mdash; what do I do?</summary>
-    <p>Run <code>python rider_client.py ROOMCODE</code> or use the ReDrive Rider app,
-    enter the code, and click Connect. Make sure ReStim is already running first.</p>
-  </details>
-
-  <details>
-    <summary>How do I get started as a rider?</summary>
-    <p>Download <strong>ReDrive Rider</strong> for
-    <a href="/download/windows">Windows</a> or <a href="/download/mac">macOS</a>,
-    install it, enter the room code your driver shares with you, and click Connect.
-    Make sure ReStim is already running before you connect.</p>
-  </details>
-
-  <div class="faq-section-label">For Drivers</div>
-
-  <details>
-    <summary>What device do I need to drive?</summary>
-    <p>Any phone, tablet, or computer with a modern browser. No app needed &mdash;
-    just open your room URL and you're in control.</p>
-  </details>
-
-  <details>
-    <summary>Can I control multiple riders at once?</summary>
-    <p>Yes &mdash; share your room code with as many riders as you like.
-    All connected riders receive the same signal simultaneously.</p>
-  </details>
-
-  <details>
-    <summary>How long does a room last?</summary>
-    <p>Rooms expire after 24 hours of inactivity. Active rooms with a connected
-    driver are kept alive automatically.</p>
-  </details>
-
-  <details>
-    <summary>How do I get started as a driver?</summary>
-    <p>Click <strong>Create New Room</strong> below. You'll get a room code &mdash;
-    share it with your rider(s). Open the touch canvas on your phone and you're in
-    control. Riders need to be connected before patterns reach them.</p>
-  </details>
-
-  <div class="faq-section-label">General</div>
-
-  <details>
-    <summary>What does ReDrive do?</summary>
-    <p>ReDrive lets one person (the <strong>driver</strong>) control the estim patterns
-    of one or more people (the <strong>riders</strong>) in real time over the internet.
-    The driver uses a touch canvas on their phone or browser. Riders run a small app
-    on their PC that bridges the signal to their local ReStim device.</p>
-  </details>
-
-  <details>
-    <summary>Is my session private?</summary>
-    <p>Rooms are identified by a 10-character code that you share yourself. Nobody else
-    can access your room without the code. Rooms expire after 24 hours. No session data
-    is logged or stored.</p>
-  </details>
-
-  <details>
-    <summary>What if something goes wrong?</summary>
-    <p>The rider can disconnect or close ReDrive Rider at any time &mdash; it immediately
-    stops forwarding signals. Your ReStim device's own power controls always take
-    priority. If in doubt, turn the dial down.</p>
-  </details>
-</div>
-
+<!-- Card 1: Drive a Session -->
 <div class="card">
-  <h2>Driver &mdash; create a room</h2>
+  <div class="card-title">Drive a Session</div>
+  <p class="card-desc">Open a room and share the code with your riders. You control the experience.</p>
   <form action="/create" method="post">
-    <button type="submit">Create New Room</button>
+    <button class="btn btn-primary" type="submit">Create Room &rarr;</button>
   </form>
-  <p class="note">You'll get a 10-character room code to share with your rider(s).</p>
 </div>
 
+<!-- Card 2: Join as Rider -->
 <div class="card">
-  <h2>Rider &mdash; looking for a driver?</h2>
+  <div class="card-title">Join as Rider</div>
+  <p class="card-desc">Have a room code? Enter it below to connect your ReStim to a live session.</p>
+  <div class="join-row">
+    <input id="code-in" placeholder="Room code" maxlength="10"
+           oninput="this.value=this.value.toUpperCase().replace(/[^BCDFGHJKMNPQRSTVWXYZ23456789]/g,'')">
+    <button class="btn btn-primary" onclick="joinRider()">Connect &rarr;</button>
+  </div>
+</div>
+
+<!-- Card 3: Waiting Room (rider-initiated) -->
+<div class="card">
+  <div class="card-title">No driver yet?</div>
+  <p class="card-desc">Set up a waiting room and share the link with your driver. When they claim it, you&rsquo;ll connect automatically.</p>
   <form action="/waiting" method="post">
-    <button type="submit" style="background:linear-gradient(135deg,var(--accent2) 0%,var(--accent) 100%)">Request a Driver &rarr;</button>
+    <button class="btn btn-ghost" type="submit">Open Waiting Room &rarr;</button>
   </form>
-  <p class="note">Creates a waiting room. Share the invite link with your driver &mdash; they'll be redirected straight into control.</p>
-  <div id="waiting-list" style="margin-top:1rem"></div>
+  <p class="card-note">Your driver visits the link and takes over &mdash; no account needed.</p>
 </div>
 
-<div class="card">
-  <h2>Rider &mdash; join a room</h2>
-  <input id="code-in" placeholder="Enter room code" maxlength="10"
-         oninput="this.value=this.value.toUpperCase().replace(/[^BCDFGHJKMNPQRSTVWXYZ23456789]/g,'')">
-  <button onclick="joinRider()">Connect as Rider</button>
-  <p class="note">
-    Download <a href="/download/windows" style="color:var(--accent)">ReDrive Rider for Windows</a>
-    or <a href="/download/mac" style="color:var(--accent)">macOS</a> &mdash; or run
-    <code>python rider_client.py &lt;ROOMCODE&gt;</code> directly if you have Python.
-  </p>
+<!-- Live Sessions -->
+<div class="live-section" id="live-section" style="display:none">
+  <div class="section-label">Live Sessions</div>
+  <div id="live-sessions-list"></div>
 </div>
 
-<div class="card" id="live-sessions-card">
-  <h2>Join a live session</h2>
-  <div id="live-sessions-list"><span style="color:var(--fg2);font-size:.9rem">Loading&#8230;</span></div>
-</div>
+<!-- FAQ -->
+<div class="faq-wrapper">
+  <button class="faq-toggle" onclick="toggleFaq()" id="faq-btn">
+    <span class="faq-title">FAQ</span>
+    <span class="faq-hint" id="faq-hint">&#9654; Show</span>
+  </button>
+  <div class="faq-body" id="faq-body">
+
+    <div class="faq-section-label">For Riders</div>
+
+    <details>
+      <summary>What is ReDrive?</summary>
+      <p>ReDrive lets a driver remotely control one or more riders&rsquo; ReStim e-stim devices in real time over the internet. The driver uses a browser-based control panel &mdash; adjusting patterns, intensity, ramps, beta sweeps and more. Riders run a small bridge app on their PC that forwards the signal to their local ReStim. There&rsquo;s also an optional touch canvas the driver can use with an anatomy overlay, but the main controls are the standard sliders and pattern buttons.</p>
+    </details>
+
+    <details>
+      <summary>What do I need as a rider?</summary>
+      <p>A PC running ReStim with its WebSocket server enabled (default port 12346). Download the ReDrive Rider bridge app &mdash; it connects to the relay server and forwards T-code to your local ReStim. No browser needed on the rider&rsquo;s side.</p>
+    </details>
+
+    <details>
+      <summary>How do I set up ReStim?</summary>
+      <p>In ReStim, enable the WebSocket server &mdash; it defaults to port 12346. ReDrive connects to <code>ws://localhost:12346</code>. See the
+      <a href="https://github.com/siotour/restim" target="_blank" rel="noopener">ReStim GitHub</a>
+      for setup help.</p>
+    </details>
+
+    <details>
+      <summary>My driver sent me a room code &mdash; what do I do?</summary>
+      <p>Download the ReDrive Rider app, enter the room code and click Connect. Or run <code>python rider_client.py ROOMCODE</code> directly if you prefer the command line.</p>
+    </details>
+
+    <div class="faq-section-label">For Drivers</div>
+
+    <details>
+      <summary>What device do I need to drive?</summary>
+      <p>Any phone, tablet, or computer with a modern browser. No app or install needed &mdash; just create a room and share the code.</p>
+    </details>
+
+    <details>
+      <summary>What can I actually control?</summary>
+      <p>Pattern type (Hold, Sine, Ramp, Pulse, Burst, Random, Edge), intensity, speed, depth, beta sweep (which electrodes are active and how they cycle), alpha oscillation, and ramp (gradual intensity build). Presets let you save and recall full configurations instantly. There&rsquo;s also an optional touch canvas with anatomy overlays for a more hands-on control style.</p>
+    </details>
+
+    <details>
+      <summary>Can I control multiple riders at once?</summary>
+      <p>Yes &mdash; share your room code with as many riders as you like. They all receive the same signal simultaneously.</p>
+    </details>
+
+    <details>
+      <summary>Is my session private?</summary>
+      <p>By default your session appears in the Live Sessions list on this page. You can switch to private using the &#x1F512; toggle in your room&rsquo;s share panel, which removes it from the list. Your driver key (part of your room URL) is always required to access the driver controls &mdash; the room code alone only gives rider access.</p>
+    </details>
+
+    <details>
+      <summary>How long does a room last?</summary>
+      <p>Rooms expire automatically after a period of inactivity. Waiting rooms (rider-initiated) expire after 30 minutes if unclaimed.</p>
+    </details>
+
+    <div class="faq-section-label">General</div>
+
+    <details>
+      <summary>Is this safe?</summary>
+      <p>ReDrive sends T-code commands (pattern shape and relative intensity) &mdash; it does not access your hardware directly. The rider&rsquo;s ReStim device receives these as normal T-code input. The rider always controls their own maximum output level at the device itself. Never run at intensities that are uncomfortable &mdash; the driver controls pattern, but you control your ceiling.</p>
+    </details>
+
+    <details>
+      <summary>&#x1F5BC; Want to make a custom anatomy overlay?</summary>
+      <p><a href="/anatomy-maker">Use the overlay maker tool &rarr;</a> &mdash; upload a photo, align it to the outline, download a ready-to-use PNG.</p>
+    </details>
+
+  </div><!-- /faq-body -->
+</div><!-- /faq-wrapper -->
 
 <footer class="site-footer">
   &copy; EstimStation &middot;
   <a href="https://www.estimstation.com">estimstation.com</a> &middot;
-  ReDrive is open source &middot;
-  <a href="/anatomy-maker" style="color:#5fa3ff">&#x1F5BC; Make your own anatomy overlay &rarr;</a>
+  ReDrive is open-source
 </footer>
 
+</div><!-- /wrap -->
+
 <script>
-function joinRider(){
+function joinRider() {
   const c = document.getElementById('code-in').value.trim();
-  if(c.length === 10) window.location = '/room/' + c + '/join';
+  if (c.length === 10) window.location = '/room/' + c + '/touch';
   else alert('Enter a 10-character room code');
 }
 
-// ── Waiting room list (driver side) ──────────────────────────────────────────
-async function refreshWaiting() {
-  try {
-    const resp = await fetch('/api/waiting');
-    const rooms = await resp.json();
-    const el = document.getElementById('waiting-list');
-    if (!rooms.length) { el.innerHTML = ''; return; }
-    let html = '<div style="font-size:.78rem;color:var(--fg2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem">Pending waiting rooms</div>';
-    html += '<table style="width:100%;border-collapse:collapse;font-size:.9rem">';
-    for (const r of rooms) {
-      const mins = Math.floor(r.expires_in / 60), secs = r.expires_in % 60;
-      const timeStr = mins + 'm ' + String(secs).padStart(2,'0') + 's remaining';
-      html += `<tr style="border-top:1px solid var(--border)">
-        <td style="padding:.5rem .3rem;font-family:monospace;color:var(--accent)">${r.code}</td>
-        <td style="padding:.5rem .3rem;color:var(--fg2);font-size:.82rem">${timeStr}</td>
-        <td style="padding:.5rem .3rem;text-align:right">
-          <a href="/waiting/${r.code}/claim"
-             style="color:var(--accent);text-decoration:none;font-size:.82rem;
-                    border:1px solid var(--accent);padding:2px 8px;border-radius:4px">
-            Claim as Driver &rarr;</a>
-        </td>
-      </tr>`;
-    }
-    html += '</table>';
-    el.innerHTML = html;
-  } catch(_) {}
+function toggleFaq() {
+  const body = document.getElementById('faq-body');
+  const hint = document.getElementById('faq-hint');
+  const open = body.classList.toggle('open');
+  hint.innerHTML = open ? '&#9660; Hide' : '&#9654; Show';
 }
-refreshWaiting();
-setInterval(refreshWaiting, 10000);
 
 // ── Public live sessions ──────────────────────────────────────────────────────
 async function refreshPublicRooms() {
   try {
     const resp = await fetch('/api/rooms');
     const rooms = await resp.json();
+    const section = document.getElementById('live-section');
     const el = document.getElementById('live-sessions-list');
     if (!rooms.length) {
-      el.innerHTML = '<span style="color:var(--fg2);font-size:.9rem">No public sessions running right now</span>';
+      section.style.display = 'none';
       return;
     }
-    let html = '<table style="width:100%;border-collapse:collapse;font-size:.9rem">';
-    html += '<thead><tr style="border-bottom:1px solid var(--border)">' +
-      '<th style="text-align:left;padding:.4rem .3rem;color:var(--fg2);font-size:.78rem;font-weight:500">Room</th>' +
-      '<th style="text-align:left;padding:.4rem .3rem;color:var(--fg2);font-size:.78rem;font-weight:500">Riders</th>' +
-      '<th style="text-align:left;padding:.4rem .3rem;color:var(--fg2);font-size:.78rem;font-weight:500">Running</th>' +
-      '<th></th></tr></thead><tbody>';
+    section.style.display = '';
+    let html = '<table class="live-table"><thead><tr>' +
+      '<th>Room Code</th><th>Riders</th><th>Running</th><th></th>' +
+      '</tr></thead><tbody>';
     for (const r of rooms) {
-      html += `<tr style="border-top:1px solid var(--border)">
-        <td style="padding:.5rem .3rem;font-family:monospace;color:var(--accent)">${r.code}</td>
-        <td style="padding:.5rem .3rem;color:var(--fg2)">${r.riders}</td>
-        <td style="padding:.5rem .3rem;color:var(--fg2)">${r.age_minutes}m</td>
-        <td style="padding:.5rem .3rem;text-align:right">
-          <a href="/room/${r.code}/touch"
-             style="color:#000;background:var(--accent);text-decoration:none;
-                    font-size:.82rem;font-weight:700;padding:3px 10px;border-radius:4px">
-            Join as Rider</a>
-        </td>
+      html += `<tr>
+        <td class="td-code">${r.code}</td>
+        <td>${r.riders}</td>
+        <td>${r.age_minutes}m</td>
+        <td class="td-join"><a class="join-link" href="/room/${r.code}/touch">Join</a></td>
       </tr>`;
     }
     html += '</tbody></table>';
     el.innerHTML = html;
-  } catch(_) {
-    document.getElementById('live-sessions-list').innerHTML =
-      '<span style="color:var(--fg2);font-size:.9rem">Could not load session list</span>';
-  }
+  } catch(_) {}
 }
 refreshPublicRooms();
 setInterval(refreshPublicRooms, 30000);
