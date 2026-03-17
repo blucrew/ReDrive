@@ -8,7 +8,8 @@ import platform
 import sys
 import threading
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
+from pathlib import Path
 import urllib.request
 import urllib.error
 import webbrowser
@@ -33,6 +34,20 @@ OK     = "#4caf50"
 ERR    = "#f44336"
 WARN   = "#ff9800"
 
+# ── Config ────────────────────────────────────────────────────────────────────
+CONFIG_DIR = Path.home() / ".redrive"
+CONFIG_FILE = CONFIG_DIR / "config.json"
+
+def load_config():
+    try:
+        return json.loads(CONFIG_FILE.read_text())
+    except:
+        return {}
+
+def save_config(data):
+    CONFIG_DIR.mkdir(exist_ok=True)
+    CONFIG_FILE.write_text(json.dumps(data, indent=2))
+
 
 class RiderApp:
     def __init__(self, root: tk.Tk, room_code: str = ""):
@@ -45,6 +60,8 @@ class RiderApp:
         self._thread: threading.Thread | None = None
         self._stop_ev: asyncio.Event | None = None
         self._connected = False
+
+        self._config = load_config()
 
         self._build_ui(room_code)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -115,6 +132,38 @@ class RiderApp:
         tk.Entry(self.root, textvariable=self._relay_var, **ENTRY_KW).pack(
             fill="x", padx=16, ipady=5, pady=(2, 10))
 
+        # ── My Anatomy Overlay ────────────────────────────────────────────────
+        self._add_label("My overlay:")
+        overlay_row = tk.Frame(self.root, bg=BG)
+        overlay_row.pack(fill="x", padx=16, pady=(2, 10))
+
+        stored_path = self._config.get("anatomy_path", "")
+        if stored_path and Path(stored_path).is_file():
+            display_name = Path(stored_path).name
+        else:
+            display_name = "No overlay set"
+
+        self._overlay_lbl = tk.Label(
+            overlay_row, text=display_name,
+            bg="#222222", fg=FG2,
+            font=("Helvetica", 10),
+            anchor="w", relief="flat",
+            highlightthickness=1,
+            highlightbackground=BORDER,
+            width=28,
+        )
+        self._overlay_lbl.pack(side="left", ipady=4, fill="x", expand=True)
+
+        tk.Button(overlay_row, text="Set...", relief="flat",
+                  bg=BG2, fg=FG2, activebackground=BORDER,
+                  font=("Helvetica", 9), cursor="hand2",
+                  command=self._pick_overlay).pack(side="left", padx=(6, 2), ipady=4, ipadx=6)
+
+        tk.Button(overlay_row, text="Clear", relief="flat",
+                  bg=BG2, fg=FG2, activebackground=BORDER,
+                  font=("Helvetica", 9), cursor="hand2",
+                  command=self._clear_overlay).pack(side="left", padx=(0, 0), ipady=4, ipadx=6)
+
         # ── Status row ────────────────────────────────────────────────────────
         status_row = tk.Frame(self.root, bg=BG)
         status_row.pack(fill="x", padx=16, pady=(2, 10))
@@ -146,11 +195,30 @@ class RiderApp:
                   command=self._clear_log).pack(
             anchor="e", padx=16, pady=(0, 14))
 
-        self.root.minsize(360, 500)
+        self.root.minsize(360, 540)
 
     def _add_label(self, text: str):
         tk.Label(self.root, text=text, bg=BG, fg=FG2,
                  font=("Helvetica", 10)).pack(anchor="w", padx=16)
+
+    # ── Overlay helpers ───────────────────────────────────────────────────────
+
+    def _pick_overlay(self):
+        path = filedialog.askopenfilename(
+            title="Select anatomy overlay image",
+            filetypes=[("Image files", "*.png *.jpg *.jpeg *.webp"),
+                       ("All files", "*.*")],
+        )
+        if not path:
+            return
+        self._config["anatomy_path"] = path
+        save_config(self._config)
+        self._overlay_lbl.config(text=Path(path).name, fg=FG)
+
+    def _clear_overlay(self):
+        self._config.pop("anatomy_path", None)
+        save_config(self._config)
+        self._overlay_lbl.config(text="No overlay set", fg=FG2)
 
     # ── Log helpers ───────────────────────────────────────────────────────────
 
@@ -210,6 +278,32 @@ class RiderApp:
         self.root.after(0, lambda: self._connect_btn.config(
             text="Connect", bg=ACC, activebackground="#4090ee"))
 
+    # ── Anatomy upload ────────────────────────────────────────────────────────
+
+    async def _upload_anatomy(self, relay_host: str, room: str):
+        path = self._config.get("anatomy_path", "")
+        if not path or not Path(path).is_file():
+            return
+        upload_url = f"https://{relay_host}/room/{room}/upload_anatomy"
+        self._log_line("Uploading anatomy overlay...")
+        try:
+            data = aiohttp.FormData()
+            data.add_field(
+                "file",
+                open(path, "rb"),
+                filename=Path(path).name,
+                content_type="image/png",
+            )
+            async with aiohttp.ClientSession() as session:
+                async with session.post(upload_url, data=data) as resp:
+                    if resp.status in (200, 201, 204):
+                        self._log_line("Anatomy overlay uploaded ✓")
+                    else:
+                        text = await resp.text()
+                        self._log_line(f"Anatomy upload failed ({resp.status}): {text[:120]}")
+        except Exception as e:
+            self._log_line(f"Anatomy upload error: {e}")
+
     # ── Async rider loop (runs in background thread) ──────────────────────────
 
     def _run_loop(self, room: str, relay: str, restim: str):
@@ -219,6 +313,9 @@ class RiderApp:
         relay_url       = f"{relay}/ws/rider/{room}"
         RECONNECT_DELAY = 5.0
 
+        # Derive relay_host from the relay URL (strip scheme)
+        relay_host = relay.split("://", 1)[-1].rstrip("/")
+
         while not self._stop_ev.is_set():
             self._log_line("Connecting to relay…")
             self._set_status("Connecting...", WARN)
@@ -227,6 +324,10 @@ class RiderApp:
                     async with session.ws_connect(relay_url) as relay_ws:
                         self._log_line("Connected to relay. Connecting to ReStim…")
                         self._set_status("Connected to relay", ACC)
+
+                        # Upload anatomy overlay after successful WebSocket handshake
+                        await self._upload_anatomy(relay_host, room)
+
                         try:
                             async with session.ws_connect(restim) as restim_ws:
                                 self._connected = True
