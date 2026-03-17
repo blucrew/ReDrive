@@ -406,7 +406,7 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   #ramp-pct { font-size:11px; color:var(--fg2); min-width:80px; text-align:right; }
 
   /* Bottle */
-  #bottle-btn.active { background:#2a1e00; border-color:var(--warn); color:var(--warn); }
+  #bottle-btn.active { background:#2a1e00; border-color:var(--warn); color:var(--warn); box-shadow:0 0 0 2px rgba(255,204,20,0.55), 0 0 10px rgba(255,204,20,0.25); }
 
   /* Live */
   #live { color:var(--fg2); font-size:11px; font-family:monospace; min-height:18px; }
@@ -453,8 +453,8 @@ DRIVER_HTML = r"""<!DOCTYPE html>
 </div>
 <!-- STOP + Poppers on same row -->
 <div style="display:flex;gap:6px;margin-bottom:6px">
-  <button id="stop-btn" onclick="sendStop()" style="flex:1;padding:10px 6px;font-size:15px;font-weight:bold">⬛ STOP</button>
-  <button id="bottle-btn" onclick="sendBottle()" style="flex:1;padding:10px 6px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><img src="/bottle.png" style="width:18px;height:18px;object-fit:contain">Poppers</button>
+  <button id="stop-btn" onclick="sendStop()" style="flex:1;height:44px;font-size:14px;font-weight:bold;margin-bottom:0">⬛ STOP</button>
+  <button id="bottle-btn" onclick="sendBottle()" style="flex:1;height:44px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><img src="/bottle.png" style="width:18px;height:18px;object-fit:contain">Poppers</button>
 </div>
 
 <div class="section-label">Live</div>
@@ -638,20 +638,16 @@ DRIVER_HTML = r"""<!DOCTYPE html>
       <canvas id="touch-canvas" style="width:100%;height:100%;display:block;border-radius:6px;cursor:none;touch-action:none"></canvas>
     </div>
   </div>
-  <!-- Tool buttons -->
-  <div style="display:flex;gap:6px;flex-shrink:0">
-    <button class="tc-tool-btn" data-tool="feather" onclick="tcSelectTool(this)"
-      style="flex:1;min-height:44px;background:#141428;border:1px solid #88aaff;border-radius:8px;color:#88aaff;font-size:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;touch-action:manipulation">
-      &#129302;<span style="font-size:10px">Feather</span>
-    </button>
-    <button class="tc-tool-btn" data-tool="hand" onclick="tcSelectTool(this)"
-      style="flex:1;min-height:44px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--fg2);font-size:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;touch-action:manipulation">
-      &#9995;<span style="font-size:10px">Hand</span>
-    </button>
-    <button class="tc-tool-btn" data-tool="stroker" onclick="tcSelectTool(this)"
-      style="flex:1;min-height:44px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--fg2);font-size:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;touch-action:manipulation">
-      &#9889;<span style="font-size:10px">Stroker</span>
-    </button>
+  <!-- Base Power gradient slider (replaces tool buttons) -->
+  <div style="flex-shrink:0;padding:2px 0 0">
+    <div style="font-size:10px;color:var(--fg2);margin-bottom:4px;text-align:center;letter-spacing:.05em">BASE POWER</div>
+    <div style="position:relative;height:34px;border-radius:6px;overflow:hidden;touch-action:none">
+      <div style="position:absolute;inset:0;background:linear-gradient(to right,#44cc70,#ffcc14,#ff8800,#ff4444)"></div>
+      <input type="range" id="tc-power-slider" min="0" max="100" value="50"
+             oninput="_tcPowerSlider=this.value/100;_tcUpdatePowerThumb();tcDraw()"
+             style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;padding:0;-webkit-appearance:none;appearance:none;touch-action:none">
+      <div id="tc-power-thumb" style="position:absolute;top:4px;bottom:4px;width:5px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.95);border-radius:3px;pointer-events:none;box-shadow:0 0 5px rgba(0,0,0,0.8)"></div>
+    </div>
   </div>
   <div id="tc-status" style="color:var(--fg2);font-size:11px;font-family:monospace;min-height:14px;flex-shrink:0">Tap or drag &middot; Y = position &middot; X = intensity</div>
 </div><!-- end #touch-panel -->
@@ -1265,6 +1261,7 @@ let tcCurrentAnat = localStorage.getItem('anatId') || 'default';
 let tcCustomImg   = null;
 let tcServerInt   = 0.5;
 let _tcGesturePath= [], _tcLooping=false, _tcLoopStart=0, _tcLoopDur=0, _tcGestureStart=0;
+let _tcPowerSlider = 0.5; // 0=min 1=max, default middle
 
 function tcElecAt() {
   const valid = ['1','2','3','4'];
@@ -1393,10 +1390,35 @@ function tcBetaFromY(y) {
   return 5000;
 }
 
-function tcIntFromY(y) {
-  const t=TC_TOOLS[tcTool];
-  const curved=Math.pow(Math.max(0,Math.min(1,y)),t.power);
-  return Math.max(0,Math.min(1,tcServerInt*t.multiplier*curved));
+function tcIntFromX(x) {
+  // Sliding 25% window: lo = slider*0.75, hi = lo+0.25
+  const lo = _tcPowerSlider * 0.75;
+  return lo + 0.25 * Math.max(0, Math.min(1, x));
+}
+
+function _tcPowerColor(power, alpha) {
+  alpha = (alpha === undefined) ? 1 : alpha;
+  const p = Math.max(0, Math.min(1, power));
+  const stops = [
+    [0,    [68,  204, 112]],
+    [0.33, [255, 204, 20 ]],
+    [0.67, [255, 136, 0  ]],
+    [1.0,  [255, 68,  68 ]],
+  ];
+  let c = stops[stops.length-1][1];
+  for (let i = 0; i < stops.length-1; i++) {
+    if (p <= stops[i+1][0]) {
+      const f = (p - stops[i][0]) / (stops[i+1][0] - stops[i][0]);
+      c = stops[i][1].map((v,j) => Math.round(v + f*(stops[i+1][1][j]-v)));
+      break;
+    }
+  }
+  return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+}
+
+function _tcUpdatePowerThumb() {
+  const thumb = document.getElementById('tc-power-thumb');
+  if (thumb) thumb.style.left = (_tcPowerSlider * 100) + '%';
 }
 
 function tcDraw() {
@@ -1415,33 +1437,54 @@ function tcDraw() {
     const fn=(v&&v.drawFn)||tcDrawDetailed;
     fn(ctx,W,H,false);
   }
-  // Tool band
-  const t=TC_TOOLS[tcTool], xL=t.min*W, xR=t.max*W;
-  ctx.fillStyle=tcRgba(t.color,0.07); ctx.fillRect(xL,0,xR-xL,H);
-  // Trail
+  // Power window tint — subtle gradient showing current lo→hi range
+  const _lo=_tcPowerSlider*0.75, _hi=_lo+0.25;
+  const _tint=ctx.createLinearGradient(0,0,W,0);
+  _tint.addColorStop(0,_tcPowerColor(_lo,0.06));
+  _tint.addColorStop(1,_tcPowerColor(_hi,0.06));
+  ctx.fillStyle=_tint; ctx.fillRect(0,0,W,H);
+  // Trail — power-colored fading dots
   const now=Date.now(), FADE=1800;
   for (const p of tcTrail) {
     const age=now-p.t;
     if (age>FADE) continue;
-    const f=1-age/FADE, r=4+f*8;
+    const f=1-age/FADE, r=3+f*7;
     ctx.beginPath(); ctx.arc(p.x*W,p.y*H,r,0,Math.PI*2);
-    ctx.fillStyle=`rgba(95,163,255,${(f*f*0.55).toFixed(3)})`; ctx.fill();
+    ctx.fillStyle=_tcPowerColor(p.p!=null?p.p:tcIntFromX(p.x), f*f*0.55); ctx.fill();
   }
   if (tcTrail.length>0) {
     const head=tcTrail[tcTrail.length-1];
-    ctx.beginPath(); ctx.arc(head.x*W,head.y*H,6,0,Math.PI*2);
-    ctx.fillStyle='rgba(95,163,255,0.90)'; ctx.fill();
+    const hp=head.p!=null?head.p:tcIntFromX(head.x);
+    ctx.beginPath(); ctx.arc(head.x*W,head.y*H,5,0,Math.PI*2);
+    ctx.fillStyle=_tcPowerColor(hp,0.90); ctx.fill();
   }
-  // Cursor — show when actively touching or looping
+  // Cursor — power-aware size, color, softness
   if (tcPointerDown || _tcLooping) {
-    const curX=tcLastX*W, curY=tcLastY*H, cw=W*t.cursorW, ch=Math.max(16,cw*0.16);
-    const glow=ctx.createRadialGradient(curX,curY,0,curX,curY,cw*0.56);
-    glow.addColorStop(0,tcRgba(t.color,0.26)); glow.addColorStop(0.65,tcRgba(t.color,0.10)); glow.addColorStop(1,tcRgba(t.color,0));
-    ctx.fillStyle=glow; ctx.beginPath(); ctx.ellipse(curX,curY,cw*0.56,ch*0.95,0,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(curX,curY,cw*0.50,ch*0.78,0,0,Math.PI*2);
-    ctx.strokeStyle=tcRgba(t.color,0.48); ctx.lineWidth=1.5; ctx.stroke();
-    ctx.fillStyle=tcRgba(t.color,0.80); ctx.font='bold 10px Arial'; ctx.textAlign='left';
-    ctx.fillText(Math.round(tcIntFromY(tcLastY)*100)+'%',curX+cw*0.52+3,curY-3);
+    const power=tcIntFromX(tcLastX);
+    const curX=tcLastX*W, curY=tcLastY*H;
+    // Size: scales from ~10% to ~28% of canvas width with power
+    const dotR=W*(0.10+power*0.18);
+    // Glow softness: large soft at low power, tight hard at high power
+    const glowR=dotR*(3.0-power*1.8);
+    const glow=ctx.createRadialGradient(curX,curY,0,curX,curY,glowR);
+    glow.addColorStop(0,_tcPowerColor(power,0.35));
+    glow.addColorStop(0.55,_tcPowerColor(power,0.12));
+    glow.addColorStop(1,_tcPowerColor(power,0));
+    ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(curX,curY,glowR,0,Math.PI*2); ctx.fill();
+    // Core dot
+    ctx.beginPath(); ctx.arc(curX,curY,dotR,0,Math.PI*2);
+    ctx.fillStyle=_tcPowerColor(power,0.55+power*0.40); ctx.fill();
+    // Ring — thicker/harder at high power
+    ctx.beginPath(); ctx.arc(curX,curY,dotR,0,Math.PI*2);
+    ctx.strokeStyle=_tcPowerColor(power,0.85);
+    ctx.lineWidth=1+power*2.5; ctx.stroke();
+    // % label above dot
+    const pct=Math.round(power*100)+'%';
+    ctx.fillStyle=_tcPowerColor(power,0.95);
+    ctx.font=`bold ${11+Math.round(power*5)}px Arial`;
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(pct,curX,curY-dotR-4);
+    ctx.textBaseline='alphabetic';
   }
 }
 
@@ -1460,9 +1503,9 @@ function tcOnDown(e) {
   const canvas=document.getElementById('touch-canvas');
   const pos=tcGetPos(e,canvas);
   tcLastX=pos.x; tcLastY=pos.y;
-  tcTrail=[{x:pos.x,y:pos.y,t:Date.now()}];
+  tcTrail=[{x:pos.x,y:pos.y,p:tcIntFromX(pos.x),t:Date.now()}];
   _tcGesturePath.push({t:0, x:pos.x, y:pos.y});
-  sendCmd({beta_mode:'hold',beta:tcBetaFromY(pos.y),intensity:tcIntFromY(pos.y)});
+  sendCmd({beta_mode:'hold',beta:tcBetaFromY(pos.y),intensity:tcIntFromX(pos.x)});
   tcDraw();
 }
 function tcOnMove(e) {
@@ -1470,10 +1513,10 @@ function tcOnMove(e) {
   const canvas=document.getElementById('touch-canvas');
   const pos=tcGetPos(e,canvas);
   tcLastX=pos.x; tcLastY=pos.y;
-  tcTrail.push({x:pos.x,y:pos.y,t:Date.now()});
+  tcTrail.push({x:pos.x,y:pos.y,p:tcIntFromX(pos.x),t:Date.now()});
   if (tcTrail.length>60) tcTrail.shift();
   _tcGesturePath.push({t:performance.now()-_tcGestureStart, x:pos.x, y:pos.y});
-  sendCmd({beta:tcBetaFromY(pos.y),intensity:tcIntFromY(pos.y)});
+  sendCmd({beta:tcBetaFromY(pos.y),intensity:tcIntFromX(pos.x)});
   tcDraw();
 }
 function tcOnUp() {
