@@ -1569,13 +1569,14 @@ TOUCH_HTML = r"""
     --accent:#5fa3ff; --ok:#4caf50; --err:#f44336; --warn:#ff9800;
     --e1:#ff4444; --e2:#4488ff; --e3:#ffcc14; --e4:#44cc70;
   }
-  html, body { height: 100%; overflow: hidden; }
+  html { height: 100%; }
   body {
     background: var(--bg); color: var(--fg);
     font-family: Arial, sans-serif; font-size: 14px;
     display: flex; flex-direction: column;
     padding: 8px; padding-top: calc(8px + env(safe-area-inset-top));
     max-width: 480px; margin: 0 auto; gap: 5px;
+    min-height: 100%; overflow-y: auto;
     user-select: none; -webkit-user-select: none; touch-action: none;
   }
   .top-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
@@ -1594,8 +1595,8 @@ TOUCH_HTML = r"""
   #conn { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
   #cdot { width: 9px; height: 9px; border-radius: 50%; background: var(--err); flex-shrink: 0; }
   #ctxt { color: var(--fg2); font-size: 11px; }
-  #main-area { flex: 1; min-height: 0; display: flex; position: relative; }
-  #anatomy-wrap { flex: 1; min-width: 0; min-height: 0; height: 100%; position: relative; border-radius: 6px; }
+  #main-area { flex: 1; min-height: 420px; display: flex; position: relative; }
+  #anatomy-wrap { flex: 1; min-width: 0; min-height: 420px; position: relative; border-radius: 6px; }
   @keyframes loop-pulse {
     0%,100% { box-shadow: 0 0 0 0 rgba(95,163,255,0.5); }
     50%      { box-shadow: 0 0 0 8px rgba(95,163,255,0); }
