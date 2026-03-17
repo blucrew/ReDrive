@@ -1,363 +1,229 @@
-"""rider_app.py — ReDrive Rider  (Windows GUI)
-
-Standalone GUI for riders.  Enter a room code, click Connect.
-No Python knowledge required.
-
-Build to .exe:
-    pip install pyinstaller
-    pyinstaller rider.spec
-"""
+#!/usr/bin/env python3
+"""ReDrive Rider — connects to a relay room and forwards T-code to local ReStim."""
 
 import asyncio
-import queue
+import argparse
+import sys
 import threading
 import tkinter as tk
-from tkinter import ttk, scrolledtext
-import sys
+from tkinter import ttk
+import aiohttp
 
-# ── Try aiohttp; show a friendly error if missing ────────────────────────────
-try:
-    import aiohttp
-except ImportError:
-    import tkinter.messagebox as mb
-    root = tk.Tk(); root.withdraw()
-    mb.showerror("Missing dependency",
-                 "aiohttp is not installed.\n\nPlease run:\n  pip install aiohttp")
-    sys.exit(1)
-
-# ── Theme ─────────────────────────────────────────────────────────────────────
-BG     = "#111111"
-BG2    = "#1a1a1a"
-BG3    = "#222222"
-BORDER = "#333333"
-FG     = "#ffffff"
-FG2    = "#888888"
-ACCENT = "#5fa3ff"
-GREEN  = "#4caf50"
-RED    = "#f44336"
-YELLOW = "#ff9800"
-
-DEFAULT_SERVER = "wss://redrive.estimstation.com"
+APP_VERSION = "0.1.0"
+DEFAULT_RELAY  = "wss://redrive.estimstation.com"
 DEFAULT_RESTIM = "ws://localhost:12346"
-_VALID_CHARS   = set("BCDFGHJKMNPQRSTVWXYZ23456789")
-
-
-# ── Async rider loop (runs in background thread) ──────────────────────────────
-
-async def _rider_loop(room_code: str, server_url: str, restim_url: str,
-                      log_q: queue.Queue, stop_ev: asyncio.Event):
-
-    relay_url = f"{server_url.rstrip('/')}/room/{room_code}/rider"
-
-    def log(msg):
-        log_q.put_nowait(("log", msg))
-
-    def status(state):        # "connecting" | "connected" | "disconnected" | "error"
-        log_q.put_nowait(("status", state))
-
-    while not stop_ev.is_set():
-        status("connecting")
-        log(f"Connecting to relay…")
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.ws_connect(relay_url, heartbeat=30) as relay:
-                    log("Relay connected.  Connecting to ReStim…")
-                    try:
-                        async with session.ws_connect(restim_url, heartbeat=30) as restim:
-                            status("connected")
-                            log("ReStim connected.  Receiving T-code.\n")
-                            async for msg in relay:
-                                if stop_ev.is_set():
-                                    break
-                                if msg.type == aiohttp.WSMsgType.TEXT:
-                                    try:
-                                        await restim.send_str(msg.data)
-                                    except Exception as e:
-                                        log(f"ReStim send error: {e}")
-                                        break
-                                elif msg.type in (aiohttp.WSMsgType.ERROR,
-                                                  aiohttp.WSMsgType.CLOSE):
-                                    break
-                    except aiohttp.ClientConnectorError:
-                        log(f"Could not reach ReStim at {restim_url}\n"
-                            "Make sure ReStim is open with WebSocket enabled.")
-                        status("error")
-                        await asyncio.sleep(5)
-                        continue
-
-        except aiohttp.ClientConnectorError as e:
-            log(f"Could not reach relay: {e}")
-            status("error")
-        except aiohttp.WSServerHandshakeError as e:
-            if e.status == 404:
-                log("Room not found — check the code and try again.")
-            else:
-                log(f"Relay error: {e}")
-            status("error")
-        except Exception as e:
-            log(f"Unexpected error: {e}")
-            status("error")
-
-        if stop_ev.is_set():
-            break
-        status("connecting")
-        log("Reconnecting in 5 s…")
-        try:
-            await asyncio.wait_for(stop_ev.wait(), timeout=5)
-        except asyncio.TimeoutError:
-            pass
-
-    status("disconnected")
-    log("Disconnected.")
-
-
-# ── Main GUI ──────────────────────────────────────────────────────────────────
 
 class RiderApp:
-    def __init__(self):
-        self._thread:  threading.Thread | None = None
-        self._loop:    asyncio.AbstractEventLoop | None = None
-        self._stop_ev: asyncio.Event | None = None
-        self._log_q:   queue.Queue = queue.Queue()
-        self._running: bool = False
-
-        self.root = tk.Tk()
+    def __init__(self, root: tk.Tk, room_code: str = ""):
+        self.root = root
         self.root.title("ReDrive Rider")
         self.root.resizable(False, False)
-        self.root.configure(bg=BG)
+        self.root.configure(bg="#111")
+
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._thread: threading.Thread | None = None
+        self._stop_ev: asyncio.Event | None = None
+        self._connected = False
+
+        self._build_ui(room_code)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-        self._build_ui()
-        self.root.after(100, self._poll)
 
-    # ── UI construction ───────────────────────────────────────────────────────
+    def _build_ui(self, room_code: str):
+        PAD = dict(padx=12, pady=6)
+        BG, BG2, FG, FG2, ACC = "#111", "#1a1a1a", "#fff", "#999", "#5fa3ff"
+        ENTRY_STYLE = dict(bg="#222", fg=FG, insertbackground=FG,
+                           relief="flat", font=("Helvetica", 15),
+                           highlightthickness=1, highlightbackground="#333",
+                           highlightcolor=ACC)
 
-    def _build_ui(self):
-        st = ttk.Style(self.root)
-        try: st.theme_use("clam")
-        except Exception: pass
-        st.configure("TFrame",   background=BG)
-        st.configure("TLabel",   background=BG,  foreground=FG,  font=("Arial", 9))
-        st.configure("TButton",  background=BG3, foreground=FG,
-                     bordercolor=BORDER, relief="flat",
-                     font=("Arial", 9), padding=[8, 4])
-        st.map("TButton", background=[("active", "#333"), ("disabled", BG2)],
-                          foreground=[("disabled", FG2)])
-        st.configure("Connect.TButton", background=ACCENT, foreground="#000",
-                     font=("Arial", 10, "bold"), padding=[12, 6])
-        st.map("Connect.TButton", background=[("active", "#4a8fe0")])
-        st.configure("Disconnect.TButton", background="#c0392b", foreground="#fff",
-                     font=("Arial", 10, "bold"), padding=[12, 6])
-        st.map("Disconnect.TButton", background=[("active", "#a93226")])
+        # Title
+        tk.Label(self.root, text="ReDrive Rider", bg=BG, fg=FG,
+                 font=("Helvetica", 18, "bold")).pack(pady=(16, 4))
+        tk.Label(self.root, text=f"v{APP_VERSION}", bg=BG, fg=FG2,
+                 font=("Helvetica", 10)).pack(pady=(0, 12))
 
-        pad = dict(padx=16, pady=8)
+        # Room code
+        tk.Label(self.root, text="Room Code", bg=BG, fg=FG2,
+                 font=("Helvetica", 11)).pack(anchor="w", padx=16)
+        self._room_var = tk.StringVar(value=room_code.upper())
+        room_entry = tk.Entry(self.root, textvariable=self._room_var,
+                              width=18, justify="center", **ENTRY_STYLE)
+        room_entry.pack(padx=16, pady=(2, 10), ipady=8, fill="x")
 
-        # ── Header ────────────────────────────────────────────────────────────
-        hdr = tk.Frame(self.root, bg=BG2,
-                       highlightbackground=BORDER, highlightthickness=1)
-        hdr.pack(fill="x")
-        tk.Label(hdr, text="ReDrive  Rider",
-                 bg=BG2, fg=ACCENT,
-                 font=("Arial", 14, "bold")).pack(side="left", padx=16, pady=10)
-        self._dot = tk.Canvas(hdr, width=12, height=12, bg=BG2,
-                              highlightthickness=0)
-        self._dot_oval = self._dot.create_oval(2, 2, 11, 11, fill=FG2, outline="")
-        self._dot.pack(side="right", padx=4)
-        self._status_lbl = tk.Label(hdr, text="Not connected",
-                                    bg=BG2, fg=FG2, font=("Arial", 9))
-        self._status_lbl.pack(side="right", padx=4, pady=10)
+        # Advanced (collapsible)
+        adv_frame = tk.Frame(self.root, bg=BG)
+        adv_frame.pack(fill="x", padx=16)
+        self._adv_open = False
+        adv_toggle = tk.Label(adv_frame, text="▶ Advanced", bg=BG, fg=FG2,
+                              font=("Helvetica", 10), cursor="hand2")
+        adv_toggle.pack(anchor="w")
+        self._adv_body = tk.Frame(self.root, bg=BG2, bd=0)
 
-        # ── Room code ─────────────────────────────────────────────────────────
-        body = tk.Frame(self.root, bg=BG)
-        body.pack(fill="both", expand=True, padx=16, pady=12)
-
-        tk.Label(body, text="Room Code", bg=BG, fg=FG2,
-                 font=("Arial", 8)).grid(row=0, column=0, sticky="w", pady=(0, 2))
-
-        self._code_var = tk.StringVar()
-        self._code_var.trace_add("write", self._on_code_change)
-        self._code_entry = tk.Entry(
-            body, textvariable=self._code_var,
-            font=("Courier New", 22, "bold"),
-            bg=BG3, fg=ACCENT, insertbackground=ACCENT,
-            relief="flat", bd=8,
-            justify="center",
-            width=12)
-        self._code_entry.grid(row=1, column=0, columnspan=2, sticky="ew",
-                              pady=(0, 10))
-        self._code_entry.bind("<KeyRelease>", self._sanitise_code)
-
-        # ── Connect button ────────────────────────────────────────────────────
-        self._btn = ttk.Button(body, text="Connect",
-                               style="Connect.TButton",
-                               command=self._toggle,
-                               state="disabled")
-        self._btn.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 14))
-
-        # ── Advanced (collapsible) ────────────────────────────────────────────
-        adv_toggle = tk.Label(body, text="▸  Advanced settings",
-                              bg=BG, fg=FG2, font=("Arial", 8),
-                              cursor="hand2")
-        adv_toggle.grid(row=3, column=0, columnspan=2, sticky="w", pady=(0, 4))
-
-        self._adv_frame = tk.Frame(body, bg=BG)
-        self._adv_visible = False
-        adv_toggle.bind("<Button-1>", self._toggle_adv)
-
-        for i, (lbl, attr, default) in enumerate([
-            ("Relay server",   "_server_var", DEFAULT_SERVER),
-            ("ReStim address", "_restim_var", DEFAULT_RESTIM),
-        ]):
-            tk.Label(self._adv_frame, text=lbl, bg=BG, fg=FG2,
-                     font=("Arial", 8)).grid(row=i*2, column=0, sticky="w")
+        for label, default, attr in [
+            ("Relay Server", DEFAULT_RELAY,  "_relay_var"),
+            ("ReStim URL",   DEFAULT_RESTIM, "_restim_var"),
+        ]:
+            tk.Label(self._adv_body, text=label, bg=BG2, fg=FG2,
+                     font=("Helvetica", 10)).pack(anchor="w", padx=8, pady=(6,0))
             var = tk.StringVar(value=default)
             setattr(self, attr, var)
-            tk.Entry(self._adv_frame, textvariable=var,
-                     bg=BG3, fg=FG, insertbackground=FG,
-                     relief="flat", bd=6, font=("Arial", 9),
-                     width=38).grid(row=i*2+1, column=0, sticky="ew",
-                                    pady=(0, 6))
+            tk.Entry(self._adv_body, textvariable=var, width=32,
+                     bg="#2a2a2a", fg=FG, insertbackground=FG,
+                     relief="flat", font=("Helvetica", 11)).pack(
+                         padx=8, pady=(0,4), fill="x")
 
-        body.columnconfigure(0, weight=1)
+        def toggle_adv(_=None):
+            self._adv_open = not self._adv_open
+            adv_toggle.config(text=("▼ Advanced" if self._adv_open else "▶ Advanced"))
+            if self._adv_open:
+                self._adv_body.pack(fill="x", padx=16, pady=(2,8))
+            else:
+                self._adv_body.pack_forget()
+        adv_toggle.bind("<Button-1>", toggle_adv)
 
-        # ── Log ───────────────────────────────────────────────────────────────
-        log_frame = tk.Frame(self.root, bg=BG,
-                             highlightbackground=BORDER, highlightthickness=1)
-        log_frame.pack(fill="both", expand=True, padx=16, pady=(0, 14))
+        # Status row
+        status_row = tk.Frame(self.root, bg=BG)
+        status_row.pack(fill="x", padx=16, pady=(4,0))
+        self._dot = tk.Label(status_row, text="●", bg=BG, fg="#444",
+                             font=("Helvetica", 14))
+        self._dot.pack(side="left")
+        self._status_lbl = tk.Label(status_row, text="Not connected", bg=BG, fg=FG2,
+                                    font=("Helvetica", 11))
+        self._status_lbl.pack(side="left", padx=(6,0))
 
-        self._log_box = scrolledtext.ScrolledText(
-            log_frame,
-            bg=BG2, fg=FG2,
-            font=("Courier New", 8),
-            relief="flat", bd=0,
-            height=8, wrap="word",
-            state="disabled")
-        self._log_box.pack(fill="both", expand=True, padx=8, pady=6)
-        self._log_box.tag_config("hi", foreground=FG)
+        # Connect button
+        self._btn = tk.Button(self.root, text="Connect",
+                              bg=ACC, fg="#000", activebackground="#4090ee",
+                              font=("Helvetica", 13, "bold"),
+                              relief="flat", cursor="hand2",
+                              command=self._toggle_connect)
+        self._btn.pack(padx=16, pady=10, fill="x", ipady=8)
 
-        # ── Footer ────────────────────────────────────────────────────────────
-        foot = tk.Frame(self.root, bg=BG2,
-                        highlightbackground=BORDER, highlightthickness=1)
-        foot.pack(fill="x")
-        tk.Label(foot,
-                 text="Your maximum power is always controlled on your ReStim device — "
-                      "ReDrive only shapes the pattern.",
-                 bg=BG2, fg=FG2, font=("Arial", 8),
-                 wraplength=380, justify="left").pack(padx=14, pady=6)
+        # Log
+        log_frame = tk.Frame(self.root, bg="#000", bd=1, relief="sunken")
+        log_frame.pack(padx=16, pady=(0,16), fill="both", expand=True)
+        self._log = tk.Text(log_frame, bg="#000", fg="#888", font=("Courier", 9),
+                            state="disabled", height=10, width=46,
+                            relief="flat", wrap="word")
+        sb = tk.Scrollbar(log_frame, command=self._log.yview)
+        self._log.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self._log.pack(side="left", fill="both", expand=True)
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
+        self.root.minsize(340, 460)
 
-    def _sanitise_code(self, _ev=None):
-        raw = self._code_var.get().upper()
-        clean = "".join(c for c in raw if c in _VALID_CHARS)[:10]
-        if clean != raw:
-            self._code_var.set(clean)
-            self._code_entry.icursor(len(clean))
+    def _log_line(self, msg: str):
+        def _do():
+            self._log.configure(state="normal")
+            self._log.insert("end", msg + "\n")
+            self._log.see("end")
+            self._log.configure(state="disabled")
+        self.root.after(0, _do)
 
-    def _on_code_change(self, *_):
-        ok = len(self._code_var.get()) == 10
-        self._btn.config(state="normal" if ok and not self._running else
-                         ("normal" if self._running else "disabled"))
+    def _set_status(self, text: str, color: str):
+        def _do():
+            self._dot.config(fg=color)
+            self._status_lbl.config(text=text)
+        self.root.after(0, _do)
 
-    def _toggle_adv(self, _ev=None):
-        self._adv_visible = not self._adv_visible
-        if self._adv_visible:
-            self._adv_frame.grid(row=4, column=0, columnspan=2,
-                                 sticky="ew", pady=(0, 4))
-        else:
-            self._adv_frame.grid_forget()
+    def _set_btn(self, text: str, bg: str):
+        def _do():
+            self._btn.config(text=text, bg=bg)
+        self.root.after(0, _do)
 
-    def _log(self, msg: str):
-        self._log_box.config(state="normal")
-        self._log_box.insert("end", msg + "\n")
-        self._log_box.see("end")
-        self._log_box.config(state="disabled")
-
-    def _set_status(self, state: str):
-        colour = {
-            "connecting":   YELLOW,
-            "connected":    GREEN,
-            "disconnected": FG2,
-            "error":        RED,
-        }.get(state, FG2)
-        label = {
-            "connecting":   "Connecting…",
-            "connected":    "Connected",
-            "disconnected": "Not connected",
-            "error":        "Connection error",
-        }.get(state, state)
-        self._dot.itemconfig(self._dot_oval, fill=colour)
-        self._status_lbl.config(text=label, fg=colour)
-
-    # ── Connect / disconnect ──────────────────────────────────────────────────
-
-    def _toggle(self):
-        if self._running:
+    def _toggle_connect(self):
+        if self._connected:
             self._disconnect()
         else:
             self._connect()
 
     def _connect(self):
-        code   = self._code_var.get().strip()
-        server = self._server_var.get().strip()
+        room = self._room_var.get().strip().upper()
+        if not room:
+            self._log_line("⚠ Enter a room code first.")
+            return
+        relay  = self._relay_var.get().strip().rstrip("/")
         restim = self._restim_var.get().strip()
-
-        self._running = True
-        self._btn.config(text="Disconnect", style="Disconnect.TButton")
-        self._code_entry.config(state="disabled")
-        self._log(f"── Connecting to room {code} ──")
-
-        def run():
-            loop = asyncio.new_event_loop()
-            self._loop    = loop
-            self._stop_ev = asyncio.Event()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(
-                _rider_loop(code, server, restim, self._log_q, self._stop_ev))
-            loop.close()
-
-        self._thread = threading.Thread(target=run, daemon=True)
+        self._set_btn("Disconnect", "#c0392b")
+        self._set_status("Connecting…", "#f39c12")
+        self._loop = asyncio.new_event_loop()
+        self._stop_ev = asyncio.Event()
+        self._thread = threading.Thread(
+            target=self._run_loop,
+            args=(room, relay, restim),
+            daemon=True)
         self._thread.start()
 
     def _disconnect(self):
-        if self._stop_ev and self._loop:
+        if self._stop_ev:
             self._loop.call_soon_threadsafe(self._stop_ev.set)
-        self._running = False
-        self._btn.config(text="Connect", style="Connect.TButton")
-        self._code_entry.config(state="normal")
-        self._on_code_change()
+        self._connected = False
+        self._set_btn("Connect", "#5fa3ff")
+        self._set_status("Disconnected", "#444")
 
-    # ── Poll log queue ────────────────────────────────────────────────────────
+    def _run_loop(self, room: str, relay: str, restim: str):
+        self._loop.run_until_complete(self._rider_loop(room, relay, restim))
 
-    def _poll(self):
-        try:
-            while True:
-                kind, data = self._log_q.get_nowait()
-                if kind == "log":
-                    self._log(data)
-                elif kind == "status":
-                    self._set_status(data)
-                    if data == "disconnected" and self._running:
-                        # Engine finished — shouldn't happen, but reset UI
-                        self._disconnect()
-        except queue.Empty:
-            pass
-        self.root.after(100, self._poll)
-
-    # ── Close ─────────────────────────────────────────────────────────────────
+    async def _rider_loop(self, room: str, relay: str, restim: str):
+        relay_url  = f"{relay}/ws/rider/{room}"
+        RECONNECT_DELAY = 5.0
+        while not self._stop_ev.is_set():
+            # Connect to relay
+            self._log_line(f"Connecting to relay…")
+            self._set_status("Connecting to relay…", "#f39c12")
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.ws_connect(relay_url) as relay_ws:
+                        self._log_line("Connected to relay.  Connecting to ReStim…")
+                        self._set_status("Connecting to ReStim…", "#f39c12")
+                        try:
+                            async with session.ws_connect(restim) as restim_ws:
+                                self._connected = True
+                                self._log_line("Connected to ReStim.  Forwarding T-code.")
+                                self._set_status("Live", "#2ecc71")
+                                self.root.after(0, lambda: self._btn.config(
+                                    text="Disconnect", bg="#c0392b"))
+                                async for msg in relay_ws:
+                                    if self._stop_ev.is_set():
+                                        break
+                                    if msg.type == aiohttp.WSMsgType.TEXT:
+                                        try:
+                                            await restim_ws.send_str(msg.data)
+                                        except Exception:
+                                            break
+                                    elif msg.type in (aiohttp.WSMsgType.CLOSE,
+                                                      aiohttp.WSMsgType.ERROR):
+                                        break
+                        except Exception as e:
+                            self._log_line(f"ReStim error: {e}")
+            except Exception as e:
+                self._log_line(f"Relay error: {e}")
+            if self._stop_ev.is_set():
+                break
+            self._connected = False
+            self._set_status(f"Reconnecting in {int(RECONNECT_DELAY)}s…", "#e74c3c")
+            try:
+                await asyncio.wait_for(self._stop_ev.wait(), timeout=RECONNECT_DELAY)
+            except asyncio.TimeoutError:
+                pass
+        self._connected = False
+        self._set_status("Disconnected", "#444")
+        self.root.after(0, lambda: self._btn.config(text="Connect", bg="#5fa3ff"))
 
     def _on_close(self):
         self._disconnect()
-        self.root.after(300, self.root.destroy)
+        self.root.after(200, self.root.destroy)
 
-    def run(self):
-        # Centre on screen
-        self.root.update_idletasks()
-        w, h = 420, 520
-        x = (self.root.winfo_screenwidth()  - w) // 2
-        y = (self.root.winfo_screenheight() - h) // 2
-        self.root.geometry(f"{w}x{h}+{x}+{y}")
-        self.root.mainloop()
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("room", nargs="?", default="",
+                        help="Room code (optional, can be typed in the app)")
+    args = parser.parse_args()
+    root = tk.Tk()
+    app = RiderApp(root, room_code=args.room)
+    root.mainloop()
 
 
 if __name__ == "__main__":
-    RiderApp().run()
+    main()
