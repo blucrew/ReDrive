@@ -415,6 +415,11 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   #touch-panel { display:none; flex-direction:column; gap:5px; }
   #tc-main { flex:1; min-height:0; min-width:0; }
   #tc-main canvas { display:block; width:100%; height:100%; cursor:none; touch-action:none; }
+  @keyframes tc-loop-pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(95,163,255,0.5); }
+    50%      { box-shadow: 0 0 0 8px rgba(95,163,255,0); }
+  }
+  #tc-main.looping { animation: tc-loop-pulse 1.1s ease-in-out infinite; }
 </style>
 </head>
 <body>
@@ -630,7 +635,7 @@ DRIVER_HTML = r"""<!DOCTYPE html>
     </div>
     <button onclick="tcStop()" style="flex:1;padding:8px;background:var(--err);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer">&#9632; STOP</button>
   </div>
-  <div id="tc-main" style="position:relative;border-radius:6px;background:#1a1a1a;min-height:320px;flex:1">
+  <div id="tc-main" style="position:relative;border-radius:6px;background:#1a1a1a;min-height:0;flex:1">
     <canvas id="touch-canvas" style="width:100%;height:100%;display:block;border-radius:6px;cursor:none;touch-action:none"></canvas>
   </div>
   <div style="display:flex;gap:6px">
@@ -1208,9 +1213,11 @@ function toggleMode() {
       'background:#111','padding:8px',
       'padding-top:calc(8px + env(safe-area-inset-top))',
       'max-width:480px','margin:0 auto','box-sizing:border-box',
+      'overflow:hidden',
     ].join(';');
   } else {
     tp.style.cssText = 'display:none';
+    tcSetLooping(false);
   }
   document.getElementById('mode-toggle-btn').textContent =
     _driverMode === 'controls' ? '\uD83D\uDD90 Touch' : '\uD83C\uDFDB Controls';
@@ -1247,6 +1254,7 @@ let tcAnatVariants= [];
 let tcCurrentAnat = localStorage.getItem('anatId') || 'default';
 let tcCustomImg   = null;
 let tcServerInt   = 0.5;
+let _tcGesturePath= [], _tcLooping=false, _tcLoopStart=0, _tcLoopDur=0, _tcGestureStart=0;
 
 function tcElecAt() {
   const valid = ['1','2','3','4'];
@@ -1414,8 +1422,8 @@ function tcDraw() {
     ctx.beginPath(); ctx.arc(head.x*W,head.y*H,6,0,Math.PI*2);
     ctx.fillStyle='rgba(95,163,255,0.90)'; ctx.fill();
   }
-  // Cursor
-  if (tcPointerDown) {
+  // Cursor — show when actively touching or looping
+  if (tcPointerDown || _tcLooping) {
     const curX=tcLastX*W, curY=tcLastY*H, cw=W*t.cursorW, ch=Math.max(16,cw*0.16);
     const glow=ctx.createRadialGradient(curX,curY,0,curX,curY,cw*0.56);
     glow.addColorStop(0,tcRgba(t.color,0.26)); glow.addColorStop(0.65,tcRgba(t.color,0.10)); glow.addColorStop(1,tcRgba(t.color,0));
@@ -1438,10 +1446,12 @@ function tcGetPos(e, canvas) {
 function tcOnDown(e) {
   e.preventDefault();
   tcPointerDown=true;
+  _tcGesturePath=[]; _tcGestureStart=performance.now(); tcSetLooping(false);
   const canvas=document.getElementById('touch-canvas');
   const pos=tcGetPos(e,canvas);
   tcLastX=pos.x; tcLastY=pos.y;
   tcTrail=[{x:pos.x,y:pos.y,t:Date.now()}];
+  _tcGesturePath.push({t:0, x:pos.x, y:pos.y});
   sendCmd({beta_mode:'hold',beta:tcBetaFromY(pos.y),intensity:tcIntFromY(pos.y)});
   tcDraw();
 }
@@ -1452,14 +1462,39 @@ function tcOnMove(e) {
   tcLastX=pos.x; tcLastY=pos.y;
   tcTrail.push({x:pos.x,y:pos.y,t:Date.now()});
   if (tcTrail.length>60) tcTrail.shift();
+  _tcGesturePath.push({t:performance.now()-_tcGestureStart, x:pos.x, y:pos.y});
   sendCmd({beta:tcBetaFromY(pos.y),intensity:tcIntFromY(pos.y)});
   tcDraw();
 }
 function tcOnUp() {
   if (!tcPointerDown) return;
-  tcPointerDown=false; tcDraw();
+  tcPointerDown=false;
+  const dur=(performance.now()-_tcGestureStart)/1000;
+  if (dur>=0.5 && _tcGesturePath.length>=6) {
+    _tcLoopStart=performance.now(); _tcLoopDur=dur*1000;
+    tcSetLooping(true);
+  }
+  tcDraw();
 }
-function tcStop() { sendCmd({stop:true}); }
+function tcSetLooping(on) {
+  _tcLooping=on;
+  const m=document.getElementById('tc-main');
+  if (m) m.classList.toggle('looping',on);
+}
+function _tcPathAt(t) {
+  const path=_tcGesturePath;
+  if (!path.length) return null;
+  if (t<=path[0].t) return path[0];
+  if (t>=path[path.length-1].t) return path[path.length-1];
+  for (let i=0;i<path.length-1;i++) {
+    if (t>=path[i].t&&t<=path[i+1].t) {
+      const f=(t-path[i].t)/(path[i+1].t-path[i].t);
+      return {x:path[i].x+f*(path[i+1].x-path[i].x), y:path[i].y+f*(path[i+1].y-path[i].y)};
+    }
+  }
+  return path[path.length-1];
+}
+function tcStop() { sendCmd({stop:true}); tcSetLooping(false); }
 
 function tcSelectTool(btn) {
   document.querySelectorAll('.tc-tool-btn').forEach(b=>{
@@ -1557,12 +1592,23 @@ function initTouchPanel() {
     img.onerror=()=>{tcCustomImg=null; tcDraw();};
     img.src='/touch_assets/anatomy/'+encodeURIComponent(tcCurrentAnat);
   }
-  // Fade trail
+  // Trail fade + gesture loop replay
   (function tcTrailTick() {
     if (_driverMode==='touch') {
       const now=Date.now();
-      tcTrail=tcTrail.filter(p=>now-p.t<1800);
-      if (tcTrail.length||tcPointerDown) tcDraw();
+      if (_tcLooping && _tcGesturePath.length>1 && _tcLoopDur>0) {
+        const elapsed=(performance.now()-_tcLoopStart)%_tcLoopDur;
+        const pos=_tcPathAt(elapsed);
+        if (pos) {
+          tcLastX=pos.x; tcLastY=pos.y;
+          tcTrail.push({x:pos.x,y:pos.y,t:now});
+          if (tcTrail.length>80) tcTrail.shift();
+        }
+        tcDraw();
+      } else {
+        tcTrail=tcTrail.filter(p=>now-p.t<1800);
+        if (tcTrail.length||tcPointerDown) tcDraw();
+      }
     }
     requestAnimationFrame(tcTrailTick);
   })();
