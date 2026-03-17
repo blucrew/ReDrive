@@ -276,11 +276,90 @@ _LANDING_HTML = """<!DOCTYPE html>
   .note { color:var(--fg2); font-size:.83rem; margin-top:1rem; line-height:1.6 }
   code { background:var(--bg3); padding:.1em .4em; border-radius:3px;
          font-family:monospace; font-size:.9em }
+  .faq { width:100%; max-width:420px; margin-bottom:2rem }
+  .faq h2 { font-size:.8rem; color:var(--fg2); text-transform:uppercase;
+             letter-spacing:.1em; margin-bottom:1rem; font-weight:500 }
+  details { border-bottom:1px solid var(--border); padding:.6rem 0 }
+  details:first-of-type { border-top:1px solid var(--border) }
+  summary { cursor:pointer; font-size:.95rem; color:var(--fg); list-style:none;
+            display:flex; justify-content:space-between; align-items:center;
+            user-select:none; padding:.2rem 0 }
+  summary::-webkit-details-marker { display:none }
+  summary::after { content:'+'; color:var(--fg2); font-size:1.1rem; flex-shrink:0; margin-left:1rem }
+  details[open] summary::after { content:'−' }
+  details p { color:var(--fg2); font-size:.9rem; line-height:1.7;
+              padding:.6rem 0 .2rem; margin:0 }
+  details p a { color:var(--accent); text-decoration:none }
+  .warn { background:#1a1200; border:1px solid #3a2800; border-radius:8px;
+          padding:.9rem 1.1rem; margin-bottom:1.5rem; width:100%; max-width:420px;
+          color:#ffcc55; font-size:.88rem; line-height:1.6 }
+  .warn strong { display:block; margin-bottom:.3rem; font-size:.95rem }
 </style>
 </head>
 <body>
 <h1>ReDrive</h1>
 <p class="sub">Remote pattern engine for ReStim</p>
+
+<div class="warn">
+  <strong>⚠ Early alpha software</strong>
+  This is experimental. Expect rough edges, disconnections, and missing features.
+  Always keep your hand on your ReStim device's power dial — the driver controls
+  pattern shape, but <em>you</em> control your maximum intensity.
+</div>
+
+<div class="faq">
+  <h2>What is this?</h2>
+
+  <details>
+    <summary>What does ReDrive do?</summary>
+    <p>ReDrive lets one person (the <strong>driver</strong>) control the estim patterns
+    of one or more people (the <strong>riders</strong>) in real time over the internet.
+    The driver uses a touch canvas on their phone or browser. Riders run a small app
+    on their PC that bridges the signal to their local ReStim device.</p>
+  </details>
+
+  <details>
+    <summary>What hardware do I need?</summary>
+    <p>You need a <strong>ReStim-compatible device</strong> (ET312, MK312, or similar)
+    with ReStim software running on a Windows or Mac PC. The driver only needs a browser
+    — phone, tablet, or desktop all work.</p>
+  </details>
+
+  <details>
+    <summary>Is my session private?</summary>
+    <p>Rooms are identified by a 10-character code that you share yourself. Nobody else
+    can access your room without the code. Rooms expire after 24 hours. No session data
+    is logged or stored.</p>
+  </details>
+
+  <details>
+    <summary>How do I get started as a rider?</summary>
+    <p>Download <strong>ReDrive Rider</strong> for
+    <a href="/download/windows">Windows</a> or <a href="/download/mac">macOS</a>,
+    install it, enter the room code your driver shares with you, and click Connect.
+    Make sure ReStim is already running before you connect.</p>
+  </details>
+
+  <details>
+    <summary>How do I get started as a driver?</summary>
+    <p>Click <strong>Create New Room</strong> below. You'll get a room code — share it
+    with your rider(s). Open the touch canvas on your phone and you're in control.
+    Riders need to be connected before patterns reach them.</p>
+  </details>
+
+  <details>
+    <summary>Can one driver control multiple riders?</summary>
+    <p>Yes. Share the same room code with as many riders as you like. All connected
+    riders receive the same pattern simultaneously.</p>
+  </details>
+
+  <details>
+    <summary>What if something goes wrong?</summary>
+    <p>The rider can disconnect or close ReDrive Rider at any time — it immediately
+    stops forwarding signals. Your ReStim device's own power controls always take
+    priority. If in doubt, turn the dial down.</p>
+  </details>
+</div>
 
 <div class="card">
   <h2>Driver — create a room</h2>
@@ -296,8 +375,9 @@ _LANDING_HTML = """<!DOCTYPE html>
          oninput="this.value=this.value.toUpperCase().replace(/[^BCDFGHJKMNPQRSTVWXYZ23456789]/g,'')">
   <button onclick="joinRider()">Connect as Rider</button>
   <p class="note">
-    Run <code>python rider_client.py &lt;ROOMCODE&gt;</code> on the machine connected
-    to your ReStim device. Ask the driver to share your room link.
+    Download <a href="/download/windows" style="color:var(--accent)">ReDrive Rider for Windows</a>
+    or <a href="/download/mac" style="color:var(--accent)">macOS</a> — or run
+    <code>python rider_client.py &lt;ROOMCODE&gt;</code> directly if you have Python.
   </p>
 </div>
 
