@@ -436,30 +436,25 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   <span id="status-text">Connecting…</span>
 </div>
 
-<div class="safety">
-  <strong>Safety:</strong> the rider always sets their own maximum power limit on their device.
-  This interface only controls pattern and relative intensity within that limit.
+<!-- Poppers mode radios -->
+<div id="poppers-mode-row" style="display:flex;gap:14px;margin-bottom:5px;align-items:center">
+  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
+    <input type="radio" name="poppers-mode" value="normal" checked onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
+    <span id="pm-lbl-normal" style="color:#fff">Normal</span>
+  </label>
+  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
+    <input type="radio" name="poppers-mode" value="deep_huff" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
+    <span id="pm-lbl-deep_huff">Deep Huff</span>
+  </label>
+  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
+    <input type="radio" name="poppers-mode" value="double_hit" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
+    <span id="pm-lbl-double_hit">Double Hit</span>
+  </label>
 </div>
-
-<button id="stop-btn" onclick="sendStop()">⬛  STOP</button>
-
-<div class="section-label" style="margin-top:4px">Poppers Prompt</div>
-<div style="margin-bottom:6px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px">
-  <div id="poppers-mode-row" style="display:flex;gap:14px;margin-bottom:8px;align-items:center">
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
-      <input type="radio" name="poppers-mode" value="normal" checked onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
-      <span id="pm-lbl-normal" style="color:#fff">Normal</span>
-    </label>
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
-      <input type="radio" name="poppers-mode" value="deep_huff" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
-      <span id="pm-lbl-deep_huff">Deep Huff</span>
-    </label>
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:#999">
-      <input type="radio" name="poppers-mode" value="double_hit" onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
-      <span id="pm-lbl-double_hit">Double Hit</span>
-    </label>
-  </div>
-  <button id="bottle-btn" onclick="sendBottle()" style="width:100%;padding:10px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;letter-spacing:.05em"><img src="/bottle.png" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;margin-right:6px">Poppers Prompt</button>
+<!-- STOP + Poppers on same row -->
+<div style="display:flex;gap:6px;margin-bottom:6px">
+  <button id="stop-btn" onclick="sendStop()" style="flex:1;padding:10px 6px;font-size:15px;font-weight:bold">⬛ STOP</button>
+  <button id="bottle-btn" onclick="sendBottle()" style="flex:1;padding:10px 6px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><img src="/bottle.png" style="width:18px;height:18px;object-fit:contain">Poppers</button>
 </div>
 
 <div class="section-label">Live</div>
@@ -635,7 +630,7 @@ DRIVER_HTML = r"""<!DOCTYPE html>
     <span id="tc-mode-label" style="color:var(--fg2);font-size:11px;flex:1;text-align:center">Touch Mode</span>
   </div>
   <!-- Slot: common-controls (status/safety/STOP/poppers/live) moves here in touch mode -->
-  <div id="tc-top-slot" style="overflow-y:auto;flex-shrink:0;max-height:42vh"></div>
+  <div id="tc-top-slot" style="flex-shrink:0"></div>
   <!-- Body: vertical picker on left + canvas on right -->
   <div style="display:flex;gap:5px;flex:1;min-height:0">
     <div id="tc-picker" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;width:54px;flex-shrink:0;align-items:center;padding:2px 0"></div>
@@ -1583,23 +1578,24 @@ function tcBuildPicker() {
       const src='/touch_assets/anatomy/'+f.split('/').map(encodeURIComponent).join('/');
       customItems.push({id,label,type:'png',src});
     }
+    // 1. Custom / rider uploads — ★ badge, top of list
     for (const v of customItems) {
       tcAnatVariants.push(v);
       _tcPickerAddItem(v, true);
     }
-    // 2. Built-in canvas variants
-    const builtins=[
-      {id:'default',label:'Default',type:'canvas',drawFn:tcDrawDetailed},
-      {id:'simple', label:'Simple', type:'canvas',drawFn:tcDrawSimple},
-    ];
-    for (const v of builtins) { tcAnatVariants.push(v); _tcPickerAddItem(v,false); }
-    // 3. Server PNG variants (non-custom)
+    // 2. Standard server PNGs (hunk1.png, hunk2.png, etc.) — room's built-in images
     for (const f of (builtinFiles||[])) {
       const id=f, label=f.replace(/\.[^.]+$/,'');
       const src='/touch_assets/anatomy/'+encodeURIComponent(f);
       const v={id,label,type:'png',src};
       tcAnatVariants.push(v); _tcPickerAddItem(v,false);
     }
+    // 3. Canvas fallbacks — always available, no server needed
+    const builtins=[
+      {id:'default',label:'Default',type:'canvas',drawFn:tcDrawDetailed},
+      {id:'simple', label:'Simple', type:'canvas',drawFn:tcDrawSimple},
+    ];
+    for (const v of builtins) { tcAnatVariants.push(v); _tcPickerAddItem(v,false); }
     // Auto-select first custom if no saved preference or saved is default
     if (customItems.length && (tcCurrentAnat==='default'||tcCurrentAnat==='simple'||!tcCurrentAnat)) {
       const first=customItems[0];
@@ -1615,7 +1611,9 @@ function tcBuildPicker() {
 
   if (apiUrl) {
     fetch(apiUrl).then(r=>r.ok?r.json():null).then(data=>{
-      finish(data?data.custom:[], data?data.builtin:[]);
+      // API returns {custom: [...], standard: [...]}
+      // standard = files in touch_assets/anatomy/ (hunk1.png etc.)
+      finish(data?data.custom:[], data?data.standard:[]);
     }).catch(()=>finish([],[]));
   } else {
     fetch('/touch_assets/list?type=anatomy').then(r=>r.ok?r.json():null).then(files=>{
