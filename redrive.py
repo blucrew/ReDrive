@@ -411,14 +411,8 @@ DRIVER_HTML = r"""<!DOCTYPE html>
   /* Live */
   #live { color:var(--fg2); font-size:11px; font-family:monospace; min-height:18px; }
 
-  /* Touch panel — fixed overlay so canvas always gets viewport dimensions */
-  #touch-panel {
-    position:fixed; inset:0; z-index:200;
-    background:var(--bg);
-    display:none; flex-direction:column; gap:5px;
-    padding:8px; padding-top:calc(8px + env(safe-area-inset-top));
-    max-width:480px; margin:0 auto; box-sizing:border-box;
-  }
+  /* Touch panel — positioning applied via JS for cross-browser safety */
+  #touch-panel { display:none; flex-direction:column; gap:5px; }
   #tc-main { flex:1; min-height:0; min-width:0; }
   #tc-main canvas { display:block; width:100%; height:100%; cursor:none; touch-action:none; }
 </style>
@@ -1206,7 +1200,18 @@ function toggleMode() {
   _driverMode = _driverMode === 'controls' ? 'touch' : 'controls';
   document.getElementById('controls-panel').style.display = _driverMode === 'controls' ? '' : 'none';
   const tp = document.getElementById('touch-panel');
-  tp.style.display = _driverMode === 'touch' ? 'flex' : 'none';
+  if (_driverMode === 'touch') {
+    // Apply all fixed-overlay styles via JS — immune to Quirks Mode CSS issues
+    tp.style.cssText = [
+      'display:flex','flex-direction:column','gap:5px',
+      'position:fixed','top:0','left:0','right:0','bottom:0','z-index:200',
+      'background:#111','padding:8px',
+      'padding-top:calc(8px + env(safe-area-inset-top))',
+      'max-width:480px','margin:0 auto','box-sizing:border-box',
+    ].join(';');
+  } else {
+    tp.style.cssText = 'display:none';
+  }
   document.getElementById('mode-toggle-btn').textContent =
     _driverMode === 'controls' ? '\uD83D\uDD90 Touch' : '\uD83C\uDFDB Controls';
   if (_driverMode === 'touch') {
@@ -1573,8 +1578,7 @@ function initTouchPanel() {
 
 # ── Touch driver page ─────────────────────────────────────────────────────────
 
-TOUCH_HTML = r"""
-<!DOCTYPE html>
+TOUCH_HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
