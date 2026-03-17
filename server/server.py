@@ -35,8 +35,9 @@ from aiohttp import web
 # ── Room code alphabet — no ambiguous chars (0/O, 1/I/L) ───────────────────
 _ROOM_CHARS   = "BCDFGHJKMNPQRSTVWXYZ23456789"
 _CODE_LEN     = 10
-_ROOM_EXPIRY  = 86_400   # 24 h in seconds
-_CLEANUP_INTERVAL = 600  # sweep expired rooms every 10 min
+_ROOM_EXPIRY        = 86_400   # 24 h in seconds
+_DRIVER_GRACE       = 300      # 5 min grace after driver goes quiet
+_CLEANUP_INTERVAL   = 30       # sweep every 30 s (catches grace expiry quickly)
 
 # ── Global room registry ─────────────────────────────────────────────────────
 _rooms: dict[str, "Room"] = {}
@@ -55,8 +56,9 @@ class Room:
 
     def __init__(self, code: str, main_loop: asyncio.AbstractEventLoop):
         self.code         = code
-        self.driver_key   = secrets.token_urlsafe(20)   # secret — only driver knows
-        self.created_at   = time.monotonic()
+        self.driver_key      = secrets.token_urlsafe(20)
+        self.created_at      = time.monotonic()
+        self.driver_last_seen = time.monotonic()   # updated on every valid driver request
         self.bottle_until: float = 0.0
         self.rider_wss:  set[web.WebSocketResponse] = set()
         self._main_loop  = main_loop
@@ -79,8 +81,17 @@ class Room:
                 dead.add(ws)
         self.rider_wss -= dead
 
+    def touch_driver(self):
+        self.driver_last_seen = time.monotonic()
+
     def expired(self) -> bool:
-        return time.monotonic() - self.created_at > _ROOM_EXPIRY
+        now = time.monotonic()
+        if now - self.created_at > _ROOM_EXPIRY:
+            return True
+        # Grace period: expire if driver has been gone longer than _DRIVER_GRACE
+        if now - self.driver_last_seen > _DRIVER_GRACE:
+            return True
+        return False
 
     def stop(self):
         self.engine.stop()
@@ -251,7 +262,10 @@ def _inject_prefix(html: str, prefix: str, driver_key: str = "") -> str:
             f'const _origFetch=window.fetch;\n'
             f'window.fetch=function(url,opts={{}}){{'
             f'opts.headers={{...opts.headers,"X-Driver-Key":DRIVER_KEY}};'
-            f'return _origFetch(url,opts);}}</script>\n'
+            f'return _origFetch(url,opts);}};\n'
+            # Heartbeat: POST /ping every 60s so grace timer doesn't expire on active driver
+            f'setInterval(()=>fetch("ping",{{method:"POST"}}),60000);\n'
+            f'</script>\n'
         )
         html = html.replace("</head>", key_script + "</head>", 1)
     return html
@@ -443,6 +457,7 @@ async def handle_room_driver(req):
     room = _rooms[code]
     if not _check_driver_key(req, room):
         raise web.HTTPForbidden(text="Invalid or missing driver key. Use the link you were given when creating this room.")
+    room.touch_driver()
     prefix = f"/room/{code}"
     html   = _inject_prefix(DRIVER_HTML, prefix, driver_key=room.driver_key)
     # Inject room code banner + copy button near top of body
@@ -495,6 +510,7 @@ async def handle_room_command(req):
         raise web.HTTPNotFound(text="Room not found or expired")
     if not _check_driver_key(req, room):
         raise web.HTTPForbidden(text="Invalid driver key")
+    room.touch_driver()
     return await room.engine._handle_command(req)
 
 
@@ -505,6 +521,7 @@ async def handle_room_state(req):
         raise web.HTTPNotFound(text="Room not found or expired")
     if not _check_driver_key(req, room):
         raise web.HTTPForbidden(text="Invalid driver key")
+    room.touch_driver()
     state = await room.engine._handle_state(req)
     d = json.loads(state.text)
     d["rider_count"]      = room.rider_count
@@ -520,12 +537,27 @@ async def handle_room_bottle(req):
         raise web.HTTPNotFound(text="Room not found or expired")
     if not _check_driver_key(req, room):
         raise web.HTTPForbidden(text="Invalid driver key")
+    room.touch_driver()
     try:
         duration = max(5, min(15, int(req.rel_url.query.get("duration", "10"))))
     except ValueError:
         duration = 10
     room.bottle_until = time.monotonic() + duration
     return web.Response(text="{}", content_type="application/json")
+
+
+async def handle_driver_ping(req):
+    """Heartbeat — keeps the driver grace timer alive while the page is open."""
+    code = req.match_info["code"]
+    room = _rooms.get(code)
+    if room is None:
+        raise web.HTTPNotFound(text="Room not found or expired")
+    if not _check_driver_key(req, room):
+        raise web.HTTPForbidden(text="Invalid driver key")
+    room.touch_driver()
+    grace_left = max(0, _DRIVER_GRACE - (time.monotonic() - room.driver_last_seen))
+    return web.Response(text=json.dumps({"ok": True, "grace_left": int(grace_left)}),
+                        content_type="application/json")
 
 
 async def handle_rider_ws(req):
@@ -613,10 +645,14 @@ async def handle_bottle_png(_req):
 async def _cleanup_loop():
     while True:
         await asyncio.sleep(_CLEANUP_INTERVAL)
-        expired = [c for c, r in list(_rooms.items()) if r.expired()]
-        for code in expired:
-            _rooms.pop(code).stop()
-            print(f"[room] expired {code}  (total: {len(_rooms)})")
+        now = time.monotonic()
+        for code, room in list(_rooms.items()):
+            if now - room.created_at > _ROOM_EXPIRY:
+                _rooms.pop(code).stop()
+                print(f"[room] expired (24h)  {code}  (total: {len(_rooms)})")
+            elif now - room.driver_last_seen > _DRIVER_GRACE:
+                _rooms.pop(code).stop()
+                print(f"[room] expired (driver gone 5m)  {code}  (total: {len(_rooms)})")
 
 
 # ── App factory ──────────────────────────────────────────────────────────────
@@ -632,6 +668,7 @@ def build_app() -> web.Application:
     app.router.add_get("/room/{code}/state",          handle_room_state)
     app.router.add_post("/room/{code}/bottle",        handle_room_bottle)
     app.router.add_get("/room/{code}/rider",          handle_rider_ws)
+    app.router.add_post("/room/{code}/ping",          handle_driver_ping)
     app.router.add_get("/bottle.png",                 handle_bottle_png)
     app.router.add_get("/touch_assets/list",          handle_assets_list)
     app.router.add_get("/touch_assets/{type}/{name}", handle_assets_file)
