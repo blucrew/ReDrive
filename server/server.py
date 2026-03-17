@@ -14,6 +14,7 @@ import asyncio
 import json
 import queue
 import random
+import secrets
 import sys
 import time
 from pathlib import Path
@@ -54,6 +55,7 @@ class Room:
 
     def __init__(self, code: str, main_loop: asyncio.AbstractEventLoop):
         self.code         = code
+        self.driver_key   = secrets.token_urlsafe(20)   # secret — only driver knows
         self.created_at   = time.monotonic()
         self.bottle_until: float = 0.0
         self.rider_wss:  set[web.WebSocketResponse] = set()
@@ -233,9 +235,9 @@ setInterval(poll, 1500);
 
 # ── HTML helpers ─────────────────────────────────────────────────────────────
 
-def _inject_prefix(html: str, prefix: str) -> str:
-    """Rewrite absolute API paths to be room-scoped."""
-    return (html
+def _inject_prefix(html: str, prefix: str, driver_key: str = "") -> str:
+    """Rewrite absolute API paths to be room-scoped and inject driver key."""
+    html = (html
             .replace('"/command"',  f'"{prefix}/command"')
             .replace("'/command'",  f"'{prefix}/command'")
             .replace('"/state"',    f'"{prefix}/state"')
@@ -243,6 +245,16 @@ def _inject_prefix(html: str, prefix: str) -> str:
             .replace('fetch("/touch"', f'fetch("{prefix}/touch"')
             .replace('href="/touch"', f'href="{prefix}/touch"')
             .replace("'/bottle?duration='", f"'{prefix}/bottle?duration='"))
+    if driver_key:
+        key_script = (
+            f'<script>const DRIVER_KEY="{driver_key}";\n'
+            f'const _origFetch=window.fetch;\n'
+            f'window.fetch=function(url,opts={{}}){{'
+            f'opts.headers={{...opts.headers,"X-Driver-Key":DRIVER_KEY}};'
+            f'return _origFetch(url,opts);}}</script>\n'
+        )
+        html = html.replace("</head>", key_script + "</head>", 1)
+    return html
 
 
 _LANDING_HTML = """<!DOCTYPE html>
@@ -408,20 +420,31 @@ async def handle_index(_req):
     return web.Response(text=_LANDING_HTML, content_type="text/html")
 
 
+def _check_driver_key(req, room) -> bool:
+    """Return True if the request carries the correct driver key."""
+    key = (req.rel_url.query.get("key")
+           or req.headers.get("X-Driver-Key", ""))
+    return secrets.compare_digest(key, room.driver_key)
+
+
 async def handle_create(req):
     code = _new_code()
     loop = asyncio.get_event_loop()
-    _rooms[code] = Room(code, loop)
+    room = Room(code, loop)
+    _rooms[code] = room
     print(f"[room] created {code}  (total: {len(_rooms)})")
-    raise web.HTTPFound(f"/room/{code}")
+    raise web.HTTPFound(f"/room/{code}?key={room.driver_key}")
 
 
 async def handle_room_driver(req):
     code = req.match_info["code"]
     if code not in _rooms:
         raise web.HTTPNotFound(text="Room not found or expired")
+    room = _rooms[code]
+    if not _check_driver_key(req, room):
+        raise web.HTTPForbidden(text="Invalid or missing driver key. Use the link you were given when creating this room.")
     prefix = f"/room/{code}"
-    html   = _inject_prefix(DRIVER_HTML, prefix)
+    html   = _inject_prefix(DRIVER_HTML, prefix, driver_key=room.driver_key)
     # Inject room code banner + copy button near top of body
     banner = f"""
 <div id="room-banner" style="
@@ -470,9 +493,8 @@ async def handle_room_command(req):
     room = _rooms.get(code)
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
-    # Delegate to the room's engine command handler — reconstruct a fake request
-    # by monkey-patching the match_info so the engine handler works normally.
-    # Simpler: just replicate the logic by re-routing to engine._handle_command.
+    if not _check_driver_key(req, room):
+        raise web.HTTPForbidden(text="Invalid driver key")
     return await room.engine._handle_command(req)
 
 
@@ -481,6 +503,8 @@ async def handle_room_state(req):
     room = _rooms.get(code)
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
+    if not _check_driver_key(req, room):
+        raise web.HTTPForbidden(text="Invalid driver key")
     state = await room.engine._handle_state(req)
     d = json.loads(state.text)
     d["rider_count"]      = room.rider_count
@@ -494,6 +518,8 @@ async def handle_room_bottle(req):
     room = _rooms.get(code)
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
+    if not _check_driver_key(req, room):
+        raise web.HTTPForbidden(text="Invalid driver key")
     try:
         duration = max(5, min(15, int(req.rel_url.query.get("duration", "10"))))
     except ValueError:
