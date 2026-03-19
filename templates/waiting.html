@@ -4,44 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ReDrive &middot; Waiting for Driver</title>
-<style>
-  :root { --bg:#0e0e10; --bg2:#18181c; --bg3:#222228; --border:#2a2a32;
-          --fg:#f0f0f5; --fg2:#8888a0; --accent:#5fa3ff; --accent2:#a855f7;
-          --ok:#4caf50; --warn:#ff9800; }
-  * { box-sizing:border-box; margin:0; padding:0 }
-  body { background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,sans-serif;
-         display:flex; flex-direction:column; align-items:center;
-         min-height:100vh; padding:2rem }
-  .card { background:var(--bg2); border:1px solid var(--border); border-radius:10px;
-          padding:2rem 2.5rem; width:100%; max-width:420px; margin-bottom:1.5rem;
-          text-align:center }
-  h1 { font-size:1.8rem; margin-bottom:.5rem;
-        background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
-        -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-        background-clip:text }
-  .sub { color:var(--fg2); font-size:.9rem; margin-bottom:1.5rem }
-  .code-display { font-size:2.6rem; font-weight:900; letter-spacing:.18em;
-                   color:var(--accent); font-family:monospace; margin:1rem 0 }
-  @keyframes pulse {
-    0%,100% { opacity:1; transform:scale(1) }
-    50%      { opacity:.6; transform:scale(0.97) }
-  }
-  .waiting-label { animation:pulse 2s ease-in-out infinite; color:var(--fg2);
-                    font-size:1rem; margin-bottom:1rem }
-  .btn { display:inline-block; padding:.7rem 1.5rem;
-          background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);
-          color:#fff; border:none; border-radius:6px; font-size:.95rem; font-weight:700;
-          cursor:pointer; transition:opacity .15s; text-decoration:none; margin:.3rem }
-  .btn:hover { opacity:.85 }
-  .btn-outline { background:none; border:1px solid var(--border); color:var(--fg2) }
-  .btn-outline:hover { border-color:var(--accent); color:var(--accent) }
-  .invite-link { background:var(--bg3); border:1px solid var(--border); border-radius:6px;
-                  padding:.6rem 1rem; font-size:.82rem; color:var(--accent); font-family:monospace;
-                  word-break:break-all; margin:.8rem 0 }
-  #countdown { font-size:.85rem; color:var(--fg2); margin-top:.8rem }
-  .site-footer { color:var(--fg2); font-size:.8rem; margin-top:2rem }
-  .site-footer a { color:var(--accent); text-decoration:none }
-</style>
+<link rel="stylesheet" href="/public/css/waiting.css">
 </head>
 <body>
 <div class="card">
