@@ -55,9 +55,6 @@ PATTERNS = ["Hold", "Sine", "Ramp ↑", "Ramp ↓", "Pulse", "Burst", "Random", 
 # Each preset is a full snapshot of driver state applied atomically on load.
 # beta_sweep.skew: -1..1 (negative = dwell A, positive = dwell B)
 #
-# ⚠  KEEP IN SYNC with JS_PRESETS in DRIVER_HTML below.
-#    When adding a preset here, add a matching entry there (slider raw values
-#    differ from real Hz — see the formula comments above JS_PRESETS).
 PRESETS: dict[str, dict] = {
     "Milking": {
         # Pattern: steady hold (no waveform oscillation) with slow creep feel
@@ -780,107 +777,109 @@ let state = { pattern:"Hold", intensity:0, hz:0.5, depth:1.0,
 let spiralTighten = false;
 
 // ── Presets ───────────────────────────────────────────────────────────────────
-// ⚠  KEEP IN SYNC with Python PRESETS dict above.
-// Slider raw values pre-computed from real Hz:
-//   hz-slider (1-100):   hz = round((v/100)^2 * 795 + 5) / 100
-//   sweep-hz (1-200):    hz = round((v/200)^2 * 498 + 2) / 100
-const JS_PRESETS = {
-  "Milking": {
-    pattern:      "Hold",
-    intensity:    100,   // slider 0-100 → 100%
-    hzSlider:     1,     // slider 1  → 0.05 Hz pattern speed
-    depth:        12,    // 12%
-    alpha:        false,
-    betaMode:     "sweep",
-    sweepHzSlider: 51,   // slider 51 → 0.34 Hz  (round((51/200)^2*498+2)/100 = 0.34)
-    sweepCentre:  7700,  // betaLabel → "54 →"
-    sweepWidth:   2450,  // 49%
-    sweepSkew:    17,    // B +17%
-    rampTarget:   100,
-    rampDuration: 60,
-  },
-};
 
-// Build preset row
-const presetRow = document.getElementById("preset-row");
-Object.keys(JS_PRESETS).forEach(name => {
-  const b = document.createElement("button");
-  b.className = "preset-btn";
-  b.textContent = "\u2605 " + name;
-  b.onclick = () => loadPreset(name);
-  presetRow.appendChild(b);
-});
+function hzToSlider(hz) {
+  return Math.max(1, Math.min(100, Math.round(100 * Math.sqrt(Math.max(0, (hz * 100 - 5) / 795)))));
+}
+function sweepHzToSlider(hz) {
+  return Math.max(1, Math.min(200, Math.round(200 * Math.sqrt(Math.max(0, (hz * 100 - 2) / 498)))));
+}
 
-async function loadPreset(name) {
-  const p = JS_PRESETS[name];
-  if (!p) return;
-  // 1. Tell server to apply preset atomically
-  await sendCmd({ load_preset: name });
-
-  // 2. Sync all driver UI controls (no extra commands — server already handled it)
+function syncUIFromState(d) {
   // Pattern
-  state.pattern = p.pattern;
+  state.pattern = d.pattern;
   document.querySelectorAll(".pat-btn").forEach(b =>
-    b.classList.toggle("active", b.textContent === p.pattern));
+    b.classList.toggle("active", b.textContent === d.pattern));
 
   // Intensity
-  document.getElementById("intensity-slider").value = p.intensity;
-  document.getElementById("int-val").textContent = p.intensity + "%";
-  state.intensity = p.intensity / 100;
+  let intPct = Math.round(d.intensity * 100);
+  document.getElementById("intensity-slider").value = intPct;
+  document.getElementById("int-val").textContent = intPct + "%";
+  state.intensity = d.intensity;
 
   // Speed Hz
-  document.getElementById("hz-slider").value = p.hzSlider;
-  const hzVal = Math.round(Math.pow(p.hzSlider/100, 2) * 795 + 5) / 100;
-  document.getElementById("hz-val").textContent = hzVal.toFixed(2) + " Hz";
-  state.hz = hzVal;
+  let hzSlider = hzToSlider(d.hz);
+  document.getElementById("hz-slider").value = hzSlider;
+  let hzDisplay = Math.round(Math.pow(hzSlider/100, 2) * 795 + 5) / 100;
+  document.getElementById("hz-val").textContent = hzDisplay.toFixed(2) + " Hz";
+  state.hz = d.hz;
 
   // Depth
-  document.getElementById("depth-slider").value = p.depth;
-  document.getElementById("depth-val").textContent = p.depth + "%";
-  state.depth = p.depth / 100;
+  let depthPct = Math.round(d.depth * 100);
+  document.getElementById("depth-slider").value = depthPct;
+  document.getElementById("depth-val").textContent = depthPct + "%";
+  state.depth = d.depth;
 
   // Alpha
-  state.alpha = p.alpha;
-  const abtn = document.getElementById("alpha-toggle");
-  abtn.classList.toggle("active", p.alpha);
-  abtn.textContent = "\u03b1  Alpha oscillation: " + (p.alpha ? "ON" : "OFF");
+  state.alpha = d.alpha_on;
+  let abtn = document.getElementById("alpha-toggle");
+  abtn.classList.toggle("active", d.alpha_on);
+  abtn.textContent = "\u03b1  Alpha oscillation: " + (d.alpha_on ? "ON" : "OFF");
 
   // Beta mode
-  state.betaMode = p.betaMode;
+  state.betaMode = d.beta_mode;
   document.querySelectorAll(".mode-btn").forEach(b =>
-    b.classList.toggle("active", b.dataset.mode === p.betaMode));
+    b.classList.toggle("active", b.dataset.mode === d.beta_mode));
   document.getElementById("sweep-controls").style.display =
-    p.betaMode === "sweep" ? "block" : "none";
+    d.beta_mode === "sweep" ? "block" : "none";
   document.getElementById("hold-controls").style.display =
-    p.betaMode === "hold"  ? "block" : "none";
+    d.beta_mode === "hold"  ? "block" : "none";
 
   // Sweep Hz
-  document.getElementById("sweep-hz").value = p.sweepHzSlider;
-  const swHz = Math.round(Math.pow(p.sweepHzSlider/200, 2) * 498 + 2) / 100;
+  let swSlider = sweepHzToSlider(d.sweep_hz);
+  document.getElementById("sweep-hz").value = swSlider;
+  let swHz = Math.round(Math.pow(swSlider/200, 2) * 498 + 2) / 100;
   document.getElementById("sweep-hz-val").textContent = swHz.toFixed(2) + " Hz";
 
   // Sweep centre
-  document.getElementById("sweep-centre").value = p.sweepCentre;
-  document.getElementById("sweep-ctr-val").textContent = betaLabel(p.sweepCentre);
+  document.getElementById("sweep-centre").value = d.sweep_centre;
+  document.getElementById("sweep-ctr-val").textContent = betaLabel(d.sweep_centre);
 
   // Sweep width
-  document.getElementById("sweep-width").value = p.sweepWidth;
+  document.getElementById("sweep-width").value = d.sweep_width;
   document.getElementById("sweep-width-val").textContent =
-    Math.round(p.sweepWidth / 49.99) + "%";
+    Math.round(d.sweep_width / 49.99) + "%";
 
   // Sweep skew
-  document.getElementById("sweep-skew").value = p.sweepSkew;
+  document.getElementById("sweep-skew").value = d.sweep_skew;
   document.getElementById("sweep-skew-val").textContent =
-    p.sweepSkew === 0 ? "even"
-      : p.sweepSkew < 0 ? "A +" + (-p.sweepSkew) + "%"
-                        : "B +" + p.sweepSkew + "%";
+    d.sweep_skew === 0 ? "even"
+      : d.sweep_skew < 0 ? "A +" + (-d.sweep_skew) + "%"
+                          : "B +" + d.sweep_skew + "%";
 
-  // Ramp sliders (pre-fill without starting)
-  document.getElementById("ramp-target").value = p.rampTarget;
-  document.getElementById("ramp-target-val").textContent = p.rampTarget + "%";
-  document.getElementById("ramp-duration").value = p.rampDuration;
-  onRampDur(p.rampDuration);
-  document.getElementById("ramp-progress-wrap").style.display = "none";
+  // Ramp (pre-fill without starting)
+  let rampPct = Math.round(d.ramp_target * 100);
+  document.getElementById("ramp-target").value = rampPct;
+  document.getElementById("ramp-target-val").textContent = rampPct + "%";
+  document.getElementById("ramp-duration").value = d.ramp_duration;
+  onRampDur(d.ramp_duration);
+  document.getElementById("ramp-progress-wrap").style.display =
+    d.ramp_active ? "block" : "none";
+}
+
+// Build preset buttons from server's preset list
+(async function buildPresetButtons() {
+  try {
+    const resp = await fetch("/state");
+    if (!resp.ok) return;
+    const d = await resp.json();
+    const presetRow = document.getElementById("preset-row");
+    (d.presets || []).forEach(name => {
+      const b = document.createElement("button");
+      b.className = "preset-btn";
+      b.textContent = "\u2605 " + name;
+      b.onclick = () => loadPreset(name);
+      presetRow.appendChild(b);
+    });
+  } catch(e) { console.warn("Could not load presets:", e); }
+})();
+
+async function loadPreset(name) {
+  await sendCmd({ load_preset: name });
+  const resp = await fetch("/state");
+  if (!resp.ok) return;
+  const d = await resp.json();
+  syncUIFromState(d);
 }
 
 // Build pattern buttons
@@ -2710,6 +2709,8 @@ class DriveEngine:
             "alpha":         self._shared.get("__live__l2", 0.0),
             "pattern":       self._pattern.pattern,
             "intensity":     self._pattern.intensity,
+            "hz":            self._pattern.hz,
+            "depth":         self._pattern.depth,
             "ramp_active":   self._ramp_active,
             "ramp_progress": self._shared.get("__ramp_progress__", 0.0),
             "ramp_target":    self._ramp_target,

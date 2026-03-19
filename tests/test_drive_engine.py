@@ -105,6 +105,7 @@ class TestDriveEngineState:
             "sweep_centre", "sweep_width", "sweep_skew", "alpha_on",
             "vol", "beta", "alpha", "spiral_amp", "spiral_tighten",
             "gesture_active", "gesture_dur", "presets",
+            "hz", "depth",
         }
         for key in expected_keys:
             assert key in d, f"Missing key '{key}' in state response"
@@ -134,3 +135,21 @@ class TestDriveEngineState:
         assert env is not None, "sweep_hz_envelope should be activated"
         assert env["base"] == pytest.approx(0.34)
         assert env["peak"] == pytest.approx(5.0)
+
+    @pytest.mark.asyncio
+    async def test_state_has_hz_and_depth(self, drive_engine):
+        """State endpoint should include hz and depth fields."""
+        resp = await drive_engine._handle_state(None)
+        d = json.loads(resp.text)
+        assert "hz" in d, "State missing 'hz' field"
+        assert "depth" in d, "State missing 'depth' field"
+
+    @pytest.mark.asyncio
+    async def test_preset_load_state_roundtrip_with_hz_depth(self, drive_engine):
+        """After loading a preset, state should include hz and depth matching PRESETS values."""
+        await drive_engine._handle_command_data({"load_preset": "Milking"})
+        resp = await drive_engine._handle_state(None)
+        d = json.loads(resp.text)
+        p = PRESETS["Milking"]
+        assert abs(d["hz"] - p["hz"]) < 0.01
+        assert abs(d["depth"] - p["depth"]) < 0.01
