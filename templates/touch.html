@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script>
+const ROOM_CODE = "{{ room_code | default('', true) }}";
+const API_PREFIX = "{{ api_prefix }}";
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ReDrive &middot; Rider</title>
+<style>
+  :root {
+    --bg:#0a0a0a; --bg2:#111111; --bg3:#1a1a1a;
+    --glass:rgba(20,20,35,0.75);
+    --border:rgba(95,163,255,0.20);
+    --accent:#5fa3ff; --accent-glow:#5fa3ff44;
+    --success:#4ade80; --warn:#fbbf24;
+    --text:#f1f1f1; --text2:#a3a3a3;
+    --err:#f43f5e; --ok:#4ade80;
+    --radius:18px;
+  }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  html { min-height:100%; }
+  body {
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:15px;
+    padding:12px;
+    padding-top:calc(12px + env(safe-area-inset-top));
+    padding-bottom:calc(12px + env(safe-area-inset-bottom));
+    max-width:520px; margin:0 auto;
+    min-height:100dvh; overflow-y:auto;
+    display:flex; flex-direction:column; gap:16px;
+    background:linear-gradient(160deg,#0a0a0a 0%,#1a2333 100%);
+    background-attachment:fixed;
+    user-select:none; -webkit-user-select:none;
+  }
+  /* Header */
+  #header {
+    background:var(--glass); backdrop-filter:blur(20px);
+    border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px 20px; display:flex; align-items:center; gap:14px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.45); flex-shrink:0;
+  }
+  #conn { display:flex; align-items:center; gap:8px; }
+  #cdot { width:13px; height:13px; border-radius:50%; background:var(--err); box-shadow:0 0 14px var(--err); flex-shrink:0; }
+  #ctxt { color:var(--text2); font-size:14px; font-weight:500; }
+  #rider-name-input {
+    flex:1; min-width:0;
+    background:rgba(255,255,255,0.06); border:1px solid var(--border);
+    border-radius:12px; padding:12px 16px; color:white; font-size:15px;
+  }
+  #stop-btn {
+    background:#e11d48; color:white; border:none; border-radius:12px;
+    font-weight:700; padding:13px 24px; font-size:15px; cursor:pointer; flex-shrink:0;
+  }
+  #stop-btn:active { background:#be123c; }
+  /* Driven-by banner */
+  #driven-by {
+    display:none; text-align:center; font-size:13px; color:var(--text2);
+    background:var(--glass); border:1px solid var(--border);
+    border-radius:var(--radius); padding:10px; flex-shrink:0;
+  }
+  #driven-by strong { color:var(--accent); }
+  /* Riders panel */
+  #riders-panel { display:none; gap:12px; justify-content:center; flex-wrap:wrap; padding:4px 0; flex-shrink:0; }
+  .rider-card { display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .rider-avatar {
+    width:68px; height:92px; border-radius:14px;
+    border:2px solid var(--border); background:var(--bg3);
+    background-size:cover; background-position:top center;
+    box-shadow:0 6px 20px rgba(0,0,0,0.5);
+  }
+  .rider-name { font-size:10.5px; color:var(--text2); max-width:68px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* Power bar */
+  #power-section {
+    background:var(--glass); border:1px solid var(--border);
+    border-radius:var(--radius); padding:18px 20px; flex-shrink:0;
+  }
+  #power-label {
+    font-size:12px; font-weight:700; letter-spacing:0.8px;
+    color:var(--accent); text-transform:uppercase; margin-bottom:10px;
+  }
+  #power-bar-wrap {
+    position:relative; height:48px; border-radius:14px;
+    background:var(--bg3); border:1px solid var(--border);
+    overflow:hidden; box-shadow:inset 0 2px 8px rgba(0,0,0,0.6);
+  }
+  #power-bar {
+    position:absolute; inset:0; width:0%;
+    background:linear-gradient(to right,#4ade80,#fbbf24,#f97316,#e11d48);
+    transition:width 0.35s ease;
+  }
+  #power-pct {
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:19px; font-weight:700; color:white;
+    text-shadow:0 2px 8px rgba(0,0,0,0.8);
+  }
+  @keyframes power-pulse { 0%,100%{opacity:1} 50%{opacity:0.75} }
+  #power-bar.live { animation:power-pulse 1.4s ease-in-out infinite; }
+  /* Emote grid */
+  #emote-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; flex-shrink:0; }
+  .emote-btn {
+    aspect-ratio:1; background:var(--bg3); border:1px solid var(--border);
+    border-radius:16px; font-size:28px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all 0.18s ease;
+    box-shadow:0 4px 12px rgba(0,0,0,0.4);
+  }
+  .emote-btn:active { transform:scale(0.88); background:var(--accent); border-color:var(--accent); }
+  /* Footer */
+  #footer {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:auto; padding-top:8px; flex-shrink:0;
+  }
+  #room-code-btn {
+    background:var(--bg3); border:1px solid var(--border);
+    border-radius:12px; padding:10px 18px;
+    color:var(--accent); font-family:monospace; font-size:14px;
+    letter-spacing:1px; cursor:pointer;
+  }
+  /* Bottle overlay */
+  #bottle-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(10,10,15,0.96); z-index:9999;
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; padding:20px; text-align:center;
+  }
+  #bottle-overlay img { max-width:65vmin; max-height:38vmin; object-fit:contain; border-radius:16px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="conn"><div id="cdot"></div><span id="ctxt">Connecting&#8230;</span></div>
+  <input id="rider-name-input" placeholder="Your name" maxlength="30">
+  <button id="stop-btn" onclick="doStop()">&#9632; STOP</button>
+</div>
+
+<div id="driven-by">Driven by <strong id="driven-by-name"></strong></div>
+
+<div id="riders-panel"></div>
+
+<div id="power-section">
+  <div id="power-label">POWER</div>
+  <div id="power-bar-wrap">
+    <div id="power-bar"></div>
+    <div id="power-pct">&#8212;</div>
+  </div>
+</div>
+
+<div id="emote-grid">
+  <button class="emote-btn" onclick="sendLike('😍')">😍</button>
+  <button class="emote-btn" onclick="sendLike('⚡')">⚡</button>
+  <button class="emote-btn" onclick="sendLike('💦')">💦</button>
+  <button class="emote-btn" onclick="sendLike('🔥')">🔥</button>
+  <button class="emote-btn" onclick="sendLike('👋')">👋</button>
+  <button class="emote-btn" onclick="sendLike('😈')">😈</button>
+</div>
+
+<div id="footer">
+  <button id="room-code-btn" onclick="copyRoomCode(this)"></button>
+  <label id="upload-avatar-btn" title="Upload your anatomy image (sets your avatar)"
+    style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:4px;
+           color:var(--fg2);font-size:11px;cursor:pointer">
+    &#128247; My Pic
+    <input type="file" id="anat-file-input" accept="image/png,image/jpeg,image/webp"
+           style="display:none" onchange="onAnatFileSelected(this)">
+  </label>
+</div>
+
+<div id="bottle-overlay">
+  <img src="/bottle.png" style="max-width:55vmin;max-height:40vmin;object-fit:contain;border-radius:8px">
+  <div id="bottle-overlay-heading" style="color:#fff;font-size:1.7rem;font-weight:bold;text-align:center"></div>
+  <div id="bottle-overlay-sub"     style="color:#ffcc14;font-size:1.1rem;text-align:center"></div>
+  <div id="bottle-overlay-dots"    style="display:flex;justify-content:center;flex-wrap:wrap;gap:4px"></div>
+  <div id="bottle-overlay-cd"      style="color:#fff;font-size:1.2rem;font-family:monospace;opacity:0.7"></div>
+</div>
+
+<script>
+// ROOM_CODE injected by server
+const _ROOM_CODE = (typeof ROOM_CODE !== 'undefined') ? ROOM_CODE : null;
+const _BASE = _ROOM_CODE ? '/room/' + _ROOM_CODE : '';
+
+// ── Connection status ────────────────────────────────────────────────────────
+function setConn(ok) {
+  document.getElementById('cdot').style.background = ok ? 'var(--ok)' : 'var(--err)';
+  document.getElementById('ctxt').textContent = ok ? 'Connected' : 'Connection lost \u2014 retrying\u2026';
+}
+
+// ── Power bar ────────────────────────────────────────────────────────────────
+function updatePower(v) {
+  v = Math.max(0, Math.min(1, v || 0));
+  const bar = document.getElementById('power-bar');
+  const pct = document.getElementById('power-pct');
+  bar.style.width = Math.round(v * 100) + '%';
+  pct.textContent = v > 0.01 ? Math.round(v * 100) + '%' : '\u2014';
+  v > 0.01 ? bar.classList.add('live') : bar.classList.remove('live');
+}
+
+// ── STOP ─────────────────────────────────────────────────────────────────────
+function doStop() {
+  fetch(_BASE + '/command', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({stop:true})});
+}
+
+// ── Room code copy ────────────────────────────────────────────────────────────
+if (_ROOM_CODE) {
+  const btn = document.getElementById('room-code-btn');
+  btn.textContent = _ROOM_CODE;
+}
+function copyRoomCode(btn) {
+  if (!_ROOM_CODE) return;
+  const url = location.origin + '/room/' + _ROOM_CODE + '/rider';
+  navigator.clipboard.writeText(url)
+    .then(() => { const t = btn.textContent; btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = t, 1500); })
+    .catch(() => {});
+}
+
+// ── State poll (intensity + bottle) ─────────────────────────────────────────
+let _bottleOverlayActive = false;
+let _bottleOverlayMode   = 'normal';
+let _bottleOverlayIv     = null;
+let _bottlePhaseTimer    = null;
+
+setInterval(async () => {
+  try {
+    const d = await (await fetch(_BASE + '/rider-state')).json();
+    setConn(true);
+    updatePower(d.intensity ?? 0);
+    if (d.bottle_active) showBottleOverlay(d.bottle_mode || 'normal', d.bottle_remaining || 0);
+    else if (_bottleOverlayActive) hideBottleOverlay();
+  } catch(_) { setConn(false); }
+}, 1200);
+
+// ── Bottle overlay ───────────────────────────────────────────────────────────
+function showDeepHuffDots(containerEl) {
+  containerEl.innerHTML = '';
+  const dots = [];
+  for (let i = 0; i < 10; i++) {
+    const d = document.createElement('span');
+    d.textContent = '\u25cf';
+    d.style.cssText = 'font-size:20px;margin:0 4px;transition:opacity 0.5s;color:#ffcc14';
+    containerEl.appendChild(d); dots.push(d);
+  }
+  let idx = 0;
+  const iv = setInterval(() => {
+    if (idx < dots.length) { dots[idx].style.opacity = '0'; idx++; }
+    else clearInterval(iv);
+  }, 2000);
+  return iv;
+}
+function _clearBottleTimers() {
+  if (_bottleOverlayIv)  { clearInterval(_bottleOverlayIv);  _bottleOverlayIv  = null; }
+  if (_bottlePhaseTimer) { clearTimeout(_bottlePhaseTimer);  _bottlePhaseTimer = null; }
+}
+function showBottleOverlay(mode, remaining) {
+  const ov      = document.getElementById('bottle-overlay');
+  const heading = document.getElementById('bottle-overlay-heading');
+  const sub     = document.getElementById('bottle-overlay-sub');
+  const dots    = document.getElementById('bottle-overlay-dots');
+  const cd      = document.getElementById('bottle-overlay-cd');
+  if (!ov) return;
+  if (_bottleOverlayActive && _bottleOverlayMode === mode) { cd.textContent = Math.ceil(remaining) + 's'; return; }
+  _clearBottleTimers();
+  _bottleOverlayActive = true; _bottleOverlayMode = mode;
+  dots.innerHTML = ''; ov.style.display = 'flex';
+  if (mode === 'normal') {
+    heading.textContent = 'Take a huff!'; sub.textContent = ''; cd.textContent = Math.ceil(remaining) + 's';
+  } else if (mode === 'deep_huff') {
+    heading.textContent = 'DEEP HUFF'; sub.textContent = 'HOLD IT\u2026'; cd.textContent = '';
+    _bottleOverlayIv = showDeepHuffDots(dots);
+  } else if (mode === 'double_hit') {
+    heading.textContent = 'HIT #1 \ud83e\uddf4'; sub.textContent = ''; cd.textContent = '';
+    _bottlePhaseTimer = setTimeout(() => {
+      ov.style.display = 'none';
+      _bottlePhaseTimer = setTimeout(() => {
+        ov.style.display = 'flex';
+        heading.textContent = 'HIT #2 \ud83e\uddf4'; sub.textContent = ''; cd.textContent = '';
+      }, 15000);
+    }, 10000);
+  }
+}
+function hideBottleOverlay() {
+  _bottleOverlayActive = false; _clearBottleTimers();
+  const ov = document.getElementById('bottle-overlay');
+  if (ov) ov.style.display = 'none';
+}
+
+// ── Rider name ────────────────────────────────────────────────────────────────
+let _riderWs = null, _riderNameTimer = null;
+(function initRiderName() {
+  const inp = document.getElementById('rider-name-input');
+  if (!inp) return;
+  const saved = localStorage.getItem('reDriveRiderName') || '';
+  if (saved) inp.value = saved;
+  inp.addEventListener('input', () => {
+    const val = inp.value;
+    localStorage.setItem('reDriveRiderName', val);
+    clearTimeout(_riderNameTimer);
+    _riderNameTimer = setTimeout(() => {
+      if (_riderWs && _riderWs.readyState === WebSocket.OPEN)
+        _riderWs.send(JSON.stringify({type:'set_name', name:val.trim()}));
+    }, 600);
+  });
+})();
+
+// ── Riders panel ──────────────────────────────────────────────────────────────
+function renderRidersPanel(data) {
+  const panel = document.getElementById('riders-panel');
+  if (!panel) return;
+  const parts = (data.participants || []);
+  if (!parts.length) { panel.style.display = 'none'; return; }
+  panel.style.display = 'flex';
+  panel.innerHTML = parts.map(p => {
+    const url = p.anatomy
+      ? '/touch_assets/anatomy/' + p.anatomy.split('/').map(encodeURIComponent).join('/')
+      : '';
+    const bg = url
+      ? `background-image:url('${url}');background-size:cover;background-position:top center`
+      : 'background:#222';
+    return `<div class="rider-card">
+      <div class="rider-avatar" style="${bg};position:relative">
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);
+          font-size:8px;color:#ccc;text-align:center;padding:2px;
+          border-radius:0 0 5px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          ${(p.name||'Rider').replace(/</g,'&lt;')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Emotes ────────────────────────────────────────────────────────────────────
+function sendLike(emoji) {
+  if (_riderWs && _riderWs.readyState === WebSocket.OPEN)
+    _riderWs.send(JSON.stringify({type:'like', emoji}));
+}
+
+// ── Room WebSocket (participants, driver name) ────────────────────────────────
+(function connectRoomWS() {
+  if (!_ROOM_CODE) return;
+  const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = wsProto + '//' + location.host + '/room/' + _ROOM_CODE + '/rider';
+  function connect() {
+    try {
+      const ws = new WebSocket(wsUrl);
+      _riderWs = ws;
+      ws.onopen = () => {
+        const name = localStorage.getItem('reDriveRiderName') || '';
+        if (name) ws.send(JSON.stringify({type:'set_name', name}));
+      };
+      ws.onmessage = ev => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === 'participants_update') {
+            const dbDiv  = document.getElementById('driven-by');
+            const dbName = document.getElementById('driven-by-name');
+            if (dbDiv && dbName) {
+              if (msg.driver_name) { dbName.textContent = msg.driver_name; dbDiv.style.display = 'block'; }
+              else dbDiv.style.display = 'none';
+            }
+            renderRidersPanel(msg);
+          }
+        } catch(_) {}
+      };
+      ws.onclose = () => { _riderWs = null; setTimeout(connect, 5000); };
+      ws.onerror = () => { try { ws.close(); } catch(_) {} };
+    } catch(_) { setTimeout(connect, 5000); }
+  }
+  connect();
+})();
+
+// ── Anatomy upload (rider avatar) ─────────────────────────────────────────────
+async function onAnatFileSelected(input) {
+  if (!input.files || !input.files[0] || !_ROOM_CODE) return;
+  const file = input.files[0]; input.value = '';
+  const btn = document.getElementById('upload-avatar-btn');
+  const orig = btn ? btn.childNodes[0].textContent : '';
+  if (btn) btn.childNodes[0].textContent = '⏳ Uploading…';
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const r = await fetch(_BASE + '/upload_anatomy', {method:'POST', body:fd});
+    if (r.ok) {
+      // Save for future auto-upload
+      const reader = new FileReader();
+      reader.onload = e => {
+        localStorage.setItem('reDriveAnatomyB64', e.target.result);
+        localStorage.setItem('reDriveAnatomyName', file.name);
+      };
+      reader.readAsDataURL(file);
+      if (btn) { btn.childNodes[0].textContent = '✓ Uploaded!'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
+    } else {
+      if (btn) { btn.childNodes[0].textContent = '✗ Failed'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
+    }
+  } catch(_) {
+    if (btn) { btn.childNodes[0].textContent = '✗ Error'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
+  }
+}
+
+// Auto-upload saved anatomy when joining a room
+(async function autoUploadAnatomy() {
+  if (!_ROOM_CODE) return;
+  const b64  = localStorage.getItem('reDriveAnatomyB64');
+  const name = localStorage.getItem('reDriveAnatomyName') || 'my_pic.png';
+  if (!b64) return;
+  try {
+    // Only upload if room has no custom anatomy yet
+    const res = await fetch(_BASE + '/anatomies');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.custom && data.custom.length > 0) return;
+    const blob = await fetch(b64).then(r => r.blob());
+    const fd = new FormData(); fd.append('file', blob, name);
+    await fetch(_BASE + '/upload_anatomy', {method:'POST', body:fd});
+  } catch(_) {}
+})();
+</script>
+{% if room_code %}
+<script>
+(function(){
+  var btn = document.getElementById("room-code-btn");
+  if(btn){ btn.style.display="inline-block"; btn.textContent="Room: {{ room_code }}"; }
+})();
+</script>
+{% endif %}
+</body>
+</html>

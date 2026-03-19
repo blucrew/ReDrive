@@ -1,0 +1,73 @@
+
+<div id="room-banner" style="
+  position:fixed;top:0;left:0;right:0;z-index:9999;
+  background:#1a1a1a;border-bottom:1px solid #2a2a2a;
+  padding:6px 12px;font-size:13px">
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span style="color:#999;font-size:11px;white-space:nowrap">Room:</span>
+    <code id="rc" style="color:#5fa3ff;letter-spacing:.12em;font-size:15px;font-weight:700">{{ room_code }}</code>
+    <div style="display:flex;gap:4px;flex-shrink:0">
+      <button id="btn-code"  onclick="rdCopy('code')"  title="Copy room code only"
+              style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">&#128203; Code only</button>
+      <button id="btn-rider" onclick="rdCopy('rider')" title="Copy rider join link"
+              style="padding:3px 8px;background:#222;border:1px solid #444;color:#ccc;border-radius:4px;cursor:pointer;font-size:11px">&#128279; Rider link</button>
+      <button id="btn-privacy" onclick="rdTogglePrivacy()" title="Toggle public/private session"
+              style="padding:3px 8px;background:#162012;border:1px solid #426038;color:#7dcc60;border-radius:4px;cursor:pointer;font-size:11px">&#127760; Public</button>
+    </div>
+    <span id="rider-ct" style="color:#666;margin-left:auto;font-size:12px;white-space:nowrap">0 riders</span>
+    <input id="driver-name-input" placeholder="Your name (optional)" maxlength="30"
+      style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:5px;color:#fff;
+             font-size:12px;padding:4px 8px;width:160px;flex-shrink:0"
+      oninput="setDriverName(this.value)">
+  </div>
+</div>
+<div style="height:44px"></div>
+<script>
+const _RC="{{ room_code }}";
+const _BASE=location.origin+"{{ api_prefix }}";
+const _TOUCH_URL=_BASE+"/touch";
+const _RIDER_URL=_TOUCH_URL;
+let _isPublic = true;
+function rdFlash(btnId){
+  const btn=document.getElementById(btnId);
+  if(!btn) return;
+  const orig=btn.textContent;
+  btn.textContent='Copied!';
+  btn.style.color='#4caf50';
+  btn.style.borderColor='#4caf50';
+  clearTimeout(btn._ft);
+  btn._ft=setTimeout(()=>{btn.textContent=orig;btn.style.color='';btn.style.borderColor='';} ,1500);
+}
+function rdCopy(type){
+  let text, btnId;
+  if(type==='code')  { text=_RC;         btnId='btn-code';  }
+  else               { text=_RIDER_URL;  btnId='btn-rider'; }
+  navigator.clipboard.writeText(text).then(()=>rdFlash(btnId));
+}
+function rdSetPrivacyBtn(isPublic){
+  const btn=document.getElementById('btn-privacy');
+  if(!btn) return;
+  if(isPublic){
+    btn.textContent='Public';
+    btn.style.background='#162012'; btn.style.borderColor='#426038';
+    btn.style.color='#7dcc60';
+  }else{
+    btn.textContent='Private';
+    btn.style.background='#1a1208'; btn.style.borderColor='#6b4a10';
+    btn.style.color='#cc9933';
+  }
+}
+async function rdTogglePrivacy(){
+  try{
+    const r=await fetch('{{ api_prefix }}/privacy',{method:'POST'});
+    if(!r.ok) return;
+    const d=await r.json();
+    _isPublic=d.public;
+    rdSetPrivacyBtn(_isPublic);
+  }catch(_){}
+}
+setInterval(async()=>{
+  try{const d=await(await fetch('{{ api_prefix }}/state')).json();
+  document.getElementById('rider-ct').textContent=d.rider_count+' rider'+(d.rider_count===1?'':'s');}catch{}
+},3000);
+</script>
