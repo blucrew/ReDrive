@@ -66,9 +66,9 @@ On first run, `redrive_config.json` is created with defaults. Copy `redrive_conf
 |-----|---------|-------------|
 | `restim_url` | `ws://localhost:12346/tcode` | ReStim WebSocket address |
 | `ctrl_port` | `8765` | Port for the driver browser UI |
-| `axis_volume` | `L0` | T-code axis for intensity |
-| `axis_beta` | `L1` | T-code axis for electrode position |
-| `axis_alpha` | `L2` | T-code axis for alpha oscillation |
+| `axis_volume` | `V0` | T-code axis for volume (ReStim VOLUME_API) |
+| `axis_beta` | `L1` | T-code axis for electrode position (ReStim POSITION_BETA) |
+| `axis_alpha` | `L0` | T-code axis for alpha oscillation (ReStim POSITION_ALPHA) |
 | `tcode_floor` | `0` | Minimum T-code value when intensity > 0 |
 | `send_interval_ms` | `50` | Command send rate (ms) |
 
