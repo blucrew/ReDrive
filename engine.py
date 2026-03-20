@@ -63,7 +63,7 @@ class DriveConfig:
     axis_alpha:       str   = "L2"
     # Output floor: min T-code value sent when intensity > 0
     tcode_floor:      int   = 0
-    # Beta positions  (0 = Left ←── 5000 = Centre ──→ 9999 = Right)
+    # Beta positions  (9999 = L+ ←── 5000 = Centre ──→ 0 = R+)
     beta_off:         int   = 9999
     beta_light:       int   = 8099
     beta_active:      int   = 5000

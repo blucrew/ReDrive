@@ -595,7 +595,7 @@ const TC_TOOLS = {
   hand:    { min:0.25, max:0.80, color:'#ffffff', cursorW:0.55, multiplier:0.75, power:1.0 },
   stroker: { min:0.55, max:1.00, color:'#ff8800', cursorW:0.35, multiplier:1.00, power:0.8 },
 };
-const TC_ELEC_BETA  = { '1':0, '2':5000, '3':9999 };
+const TC_ELEC_BETA  = { '1':9999, '2':5000, '3':0 };
 const TC_ANAT_YF   = { tip:0.0, balls:0.5, anus:1.0 };
 const TC_ELEC_COLOR= { '1':'#ff4444', '2':'#ffcc14', '3':'#4488ff' };
 
