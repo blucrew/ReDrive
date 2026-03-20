@@ -20,15 +20,10 @@ import time
 import uuid
 from pathlib import Path
 from typing import Optional
-from unittest.mock import MagicMock
-
-# ── Mock tkinter so redrive.py can be imported headlessly ────────────────────
-sys.modules.setdefault("tkinter",     MagicMock())
-sys.modules.setdefault("tkinter.ttk", MagicMock())
 
 # ── Import engine from parent package ────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from redrive import DriveEngine, DriveConfig, PRESETS
+from engine import DriveEngine, DriveConfig, PRESETS
 
 import aiohttp
 import jinja2

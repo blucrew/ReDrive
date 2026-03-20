@@ -1,7 +1,7 @@
 """Tests for PatternEngine (redrive.py lines 143-260)."""
 
 import pytest
-from redrive import PatternEngine, PATTERNS
+from engine import PatternEngine, PATTERNS
 
 
 class TestPatternEngineTick:

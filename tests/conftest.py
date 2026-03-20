@@ -10,7 +10,9 @@ sys.modules.setdefault("tkinter", MagicMock())
 sys.modules.setdefault("tkinter.ttk", MagicMock())
 
 import pytest
-from redrive import DriveConfig, DriveEngine, PatternEngine
+from engine import DriveConfig, DriveEngine, PatternEngine
+# Import redrive to attach HTTP handler methods onto DriveEngine for tests
+import redrive  # noqa: F401 — side-effect: patches DriveEngine with HTTP handlers
 from server.server import build_app, _rooms
 
 
