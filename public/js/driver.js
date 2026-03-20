@@ -180,10 +180,10 @@ function setBetaMode(btn) {
 }
 
 function betaLabel(v) {
-  if (v < 1500) return "\u2190 R+";
-  if (v > 8500) return "L+ \u2192";
+  if (v > 8500) return "\u2190 L+";
+  if (v < 1500) return "R+ \u2192";
   if (v > 4500 && v < 5500) return "Centre";
-  return v < 5000 ? "\u2190 " + Math.round((5000-v)/50) : Math.round((v-5000)/50) + " \u2192";
+  return v > 5000 ? "\u2190 " + Math.round((v-5000)/50) : Math.round((5000-v)/50) + " \u2192";
 }
 
 function onSweepHz(v) {
@@ -385,11 +385,11 @@ function drawTriangle(vol, beta, alpha) {
   // Labels
   ctx.font="9px Arial"; ctx.textAlign="center"; ctx.fillStyle="#444";
   ctx.fillText("Vol", vx[0], vy[0]-4);
-  ctx.fillText("R+",  vx[1], vy[1]+11);
-  ctx.fillText("L+",  vx[2], vy[2]+11);
+  ctx.fillText("L+",  vx[1], vy[1]+11);
+  ctx.fillText("R+",  vx[2], vy[2]+11);
   // Dot position: beta=horizontal on base, vol lifts toward apex
-  // T-code: 9999=L+ (right side of triangle), 0=R+ (left side)
-  const bf    = beta / 9999;
+  // T-code: 9999=L+, 0=R+. Invert so L+ renders on left side of triangle.
+  const bf    = 1 - (beta / 9999);
   const baseX = vx[1] + bf * (vx[2] - vx[1]);
   const dotX  = baseX  + vol * (vx[0] - baseX);
   const dotY  = vy[1]  + vol * (vy[0] - vy[1]);
@@ -417,7 +417,7 @@ function handleStateUpdate(d) {
   drawWaveform(d.vol, d.alpha);
   drawTriangle(d.vol, d.beta, d.alpha);
   // Beta position dot
-  document.getElementById("beta-dot").style.left = ((d.beta/9999)*100)+"%";
+  document.getElementById("beta-dot").style.left = ((1 - d.beta/9999)*100)+"%";
   // Ramp progress
   if (d.ramp_active) {
     document.getElementById("intensity-slider").value = Math.round(d.intensity*100);
