@@ -13,7 +13,7 @@ import pytest
 from engine import DriveConfig, DriveEngine, PatternEngine
 # Import redrive to attach HTTP handler methods onto DriveEngine for tests
 import redrive  # noqa: F401 — side-effect: patches DriveEngine with HTTP handlers
-from server.server import build_app, _rooms
+from server import build_app, _rooms
 
 
 @pytest.fixture

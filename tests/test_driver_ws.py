@@ -5,7 +5,7 @@ import json
 import pytest
 import aiohttp
 
-from server.server import build_app, _rooms
+from server import build_app, _rooms
 
 
 async def _receive_until_type(ws, target_type, max_msgs=10):

@@ -34,7 +34,7 @@ sudo -u "$APP_USER" "$APP_DIR/.venv/bin/pip" install -q aiohttp
 sudo -u "$APP_USER" mkdir -p "$APP_DIR/touch_assets/anatomy" "$APP_DIR/touch_assets/tools"
 
 # --- nginx ---
-cp "$APP_DIR/server/nginx.conf" /etc/nginx/sites-available/redrive
+cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/redrive
 ln -sf /etc/nginx/sites-available/redrive /etc/nginx/sites-enabled/redrive
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
@@ -47,7 +47,7 @@ certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m admin@$DOMAIN
 systemctl reload nginx
 
 # --- systemd service ---
-cp "$APP_DIR/server/redrive.service" /etc/systemd/system/redrive.service
+cp "$APP_DIR/deploy/redrive.service" /etc/systemd/system/redrive.service
 systemctl daemon-reload
 systemctl enable --now redrive
 

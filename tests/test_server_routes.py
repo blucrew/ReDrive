@@ -2,7 +2,8 @@
 
 import json
 import pytest
-from server.server import _rooms, PRESETS
+from server import _rooms
+from engine import PRESETS
 
 
 async def _create_room(client):

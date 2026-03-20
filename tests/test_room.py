@@ -5,7 +5,7 @@ import time
 from unittest.mock import patch, MagicMock
 
 import pytest
-from server.server import Room, _ROOM_EXPIRY, _DRIVER_GRACE
+from server import Room, _ROOM_EXPIRY, _DRIVER_GRACE
 
 
 @pytest.fixture

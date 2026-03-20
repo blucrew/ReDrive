@@ -5,7 +5,7 @@ import json
 import pytest
 import aiohttp
 
-from server.server import build_app, _rooms
+from server import build_app, _rooms
 
 
 async def _create_room(client):
