@@ -37,21 +37,22 @@ function copyRoomCode(btn) {
     .catch(() => {});
 }
 
-// ── State poll (intensity + bottle) ─────────────────────────────────────────
+// ── State poll removed - now received via WS pushes ─────────────────────────
 let _bottleOverlayActive = false;
 let _bottleOverlayMode   = 'normal';
 let _bottleOverlayIv     = null;
 let _bottlePhaseTimer    = null;
 
-setInterval(async () => {
+// One initial fetch so the page isn't blank before WS connects
+(async function initialStateFetch() {
   try {
     const d = await (await fetch(_BASE + '/rider-state')).json();
     setConn(true);
     updatePower(d.intensity ?? 0);
     if (d.bottle_active) showBottleOverlay(d.bottle_mode || 'normal', d.bottle_remaining || 0);
     else if (_bottleOverlayActive) hideBottleOverlay();
-  } catch(_) { setConn(false); }
-}, 1200);
+  } catch(_) {}
+})();
 
 // ── Bottle overlay ───────────────────────────────────────────────────────────
 function showDeepHuffDots(containerEl) {
@@ -157,36 +158,89 @@ function sendLike(emoji) {
     _riderWs.send(JSON.stringify({type:'like', emoji}));
 }
 
-// ── Room WebSocket (participants, driver name) ────────────────────────────────
+// ── Driver connected indicator ────────────────────────────────────────────────
+function updateDriverStatus(connected, name) {
+  const el = document.getElementById('driver-status');
+  if (!el) return;
+  const color = connected ? 'var(--ok)' : 'var(--err)';
+  const displayName = name || (connected ? 'Anonymous' : 'None');
+  el.textContent = '';
+  const dot = document.createElement('span');
+  dot.style.color = color;
+  dot.textContent = '\u25cf';
+  el.appendChild(dot);
+  el.appendChild(document.createTextNode(' Driver: ' + displayName));
+}
+
+// ── Room WebSocket (state, participants, driver status, bottle) ──────────────
 (function connectRoomWS() {
-  if (!_ROOM_CODE) return;
   const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = wsProto + '//' + location.host + '/room/' + _ROOM_CODE + '/rider';
+  let wsUrl;
+  if (_ROOM_CODE) {
+    wsUrl = wsProto + '//' + location.host + '/room/' + _ROOM_CODE + '/rider-ws';
+  } else {
+    // LAN mode
+    wsUrl = wsProto + '//' + location.host + '/rider-ws';
+  }
+
+  let pingInterval = null;
+
   function connect() {
     try {
       const ws = new WebSocket(wsUrl);
       _riderWs = ws;
       ws.onopen = () => {
+        setConn(true);
         const name = localStorage.getItem('reDriveRiderName') || '';
         if (name) ws.send(JSON.stringify({type:'set_name', name}));
+        if (pingInterval) clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({type: "ping"}));
+          }
+        }, 30000);
       };
       ws.onmessage = ev => {
+        const d = ev.data;
+        // T-code (raw string, not JSON)
+        if (!d.startsWith('{')) return;
         try {
-          const msg = JSON.parse(ev.data);
-          if (msg.type === 'participants_update') {
-            const dbDiv  = document.getElementById('driven-by');
-            const dbName = document.getElementById('driven-by-name');
-            if (dbDiv && dbName) {
-              if (msg.driver_name) { dbName.textContent = msg.driver_name; dbDiv.style.display = 'block'; }
-              else dbDiv.style.display = 'none';
+          const msg = JSON.parse(d);
+          switch (msg.type) {
+            case 'rider_state':
+              setConn(true);
+              updatePower(msg.intensity ?? 0);
+              break;
+            case 'bottle_status':
+              if (msg.active) showBottleOverlay(msg.mode || 'normal', msg.remaining || 0);
+              else if (_bottleOverlayActive) hideBottleOverlay();
+              break;
+            case 'driver_status':
+              updateDriverStatus(msg.connected, msg.name);
+              break;
+            case 'participants_update': {
+              const dbDiv  = document.getElementById('driven-by');
+              const dbName = document.getElementById('driven-by-name');
+              if (dbDiv && dbName) {
+                if (msg.driver_name) { dbName.textContent = msg.driver_name; dbDiv.style.display = 'block'; }
+                else dbDiv.style.display = 'none';
+              }
+              renderRidersPanel(msg);
+              break;
             }
-            renderRidersPanel(msg);
+            case 'pong':
+              setConn(true);
+              break;
           }
         } catch(_) {}
       };
-      ws.onclose = () => { _riderWs = null; setTimeout(connect, 5000); };
+      ws.onclose = () => {
+        _riderWs = null;
+        if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+        setTimeout(connect, 3000);
+      };
       ws.onerror = () => { try { ws.close(); } catch(_) {} };
-    } catch(_) { setTimeout(connect, 5000); }
+    } catch(_) { setTimeout(connect, 3000); }
   }
   connect();
 })();

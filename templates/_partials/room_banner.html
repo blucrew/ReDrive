@@ -66,8 +66,5 @@ async function rdTogglePrivacy(){
     rdSetPrivacyBtn(_isPublic);
   }catch(_){}
 }
-setInterval(async()=>{
-  try{const d=await(await fetch('{{ api_prefix }}/state')).json();
-  document.getElementById('rider-ct').textContent=d.rider_count+' rider'+(d.rider_count===1?'':'s');}catch{}
-},3000);
+// Rider count polling removed - now updated via WS state push (handleStateUpdate)
 </script>

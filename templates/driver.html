@@ -10,7 +10,6 @@ window.fetch = function(url, opts = {}) {
   opts.headers = {...(opts.headers || {}), "X-Driver-Key": DRIVER_KEY};
   return _origFetch(url, opts);
 };
-setInterval(() => fetch(API_PREFIX + "/ping", {method: "POST"}), 60000);
 {% else %}
 const DRIVER_KEY = "";
 {% endif %}

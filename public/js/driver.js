@@ -2,6 +2,7 @@ const PATTERNS = ["Hold","Sine","Ramp \u2191","Ramp \u2193","Pulse","Burst","Ran
 let state = { pattern:"Hold", intensity:0, hz:0.5, depth:1.0,
               betaMode:"sweep", beta:5000, alpha:true };
 let spiralTighten = false;
+let _driverWs = null;
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 
@@ -297,6 +298,14 @@ function sendBottle() {
 }
 
 async function sendCmd(cmd) {
+  if (_driverWs && _driverWs.readyState === WebSocket.OPEN) {
+    try {
+      _driverWs.send(JSON.stringify({type: "command", data: cmd}));
+      setConnected(true);
+      return;
+    } catch(e) {}
+  }
+  // Fallback to HTTP POST when WS not connected
   try {
     const r = await fetch(API_PREFIX + "/command", {
       method:"POST",
@@ -401,56 +410,64 @@ function drawTriangle(vol, beta, alpha) {
   }
 }
 
-// ── Poll state ────────────────────────────────────────────────────────────────
-async function pollState() {
-  try {
-    const r = await fetch(API_PREFIX + "/state");
-    const d = await r.json();
-    setConnected(true);
-    drawWaveform(d.vol, d.alpha);
-    drawTriangle(d.vol, d.beta, d.alpha);
-    // Beta position dot
-    document.getElementById("beta-dot").style.left = ((d.beta/9999)*100)+"%";
-    // Ramp progress
-    if (d.ramp_active) {
-      document.getElementById("intensity-slider").value = Math.round(d.intensity*100);
-      document.getElementById("int-val").textContent = Math.round(d.intensity*100)+"%";
-      document.getElementById("ramp-progress-wrap").style.display = "flex";
-      document.getElementById("ramp-bar").style.width = (d.ramp_progress*100)+"%";
-      document.getElementById("ramp-pct").textContent =
-        Math.round(d.ramp_progress*100)+"% \u2192 "+Math.round(d.ramp_target*100)+"%";
-    } else {
-      if (document.getElementById("ramp-progress-wrap").style.display === "flex")
-        document.getElementById("ramp-progress-wrap").style.display = "none";
-    }
-    // Sync beta mode buttons if server state differs
-    if (d.beta_mode && d.beta_mode !== state.betaMode) {
-      state.betaMode = d.beta_mode;
-      document.querySelectorAll(".mode-btn").forEach(b =>
-        b.classList.toggle("active", b.dataset.mode === d.beta_mode));
-      document.getElementById("sweep-controls").style.display   =
-        d.beta_mode === "sweep"  ? "block" : "none";
-      document.getElementById("spiral-controls").style.display  =
-        d.beta_mode === "spiral" ? "block" : "none";
-      document.getElementById("hold-controls").style.display    =
-        d.beta_mode === "hold"   ? "block" : "none";
-    }
-    // Spiral amplitude bar
-    if (d.beta_mode === "spiral" && d.spiral_amp !== undefined) {
-      const pct = Math.round(d.spiral_amp * 100);
-      document.getElementById("spiral-amp-bar").style.width = pct + "%";
-      document.getElementById("spiral-amp-pct").textContent = pct + "%";
-    }
-    document.getElementById("live").textContent =
-      `Vol ${Math.round(d.vol*100)}%  \u03b2 ${d.beta} (${betaLabel(d.beta)})  \u03b1 ${Math.round(d.alpha*100)}%  ${d.pattern}`;
-    if (d.likes && d.likes.length) {
-      d.likes.forEach(like => triggerLikeAnimation(like));
-    }
-  } catch { setConnected(false); }
+// ── State update handler (shared by WS push and HTTP poll fallback) ──────────
+function handleStateUpdate(d) {
+  setConnected(true);
+  drawWaveform(d.vol, d.alpha);
+  drawTriangle(d.vol, d.beta, d.alpha);
+  // Beta position dot
+  document.getElementById("beta-dot").style.left = ((d.beta/9999)*100)+"%";
+  // Ramp progress
+  if (d.ramp_active) {
+    document.getElementById("intensity-slider").value = Math.round(d.intensity*100);
+    document.getElementById("int-val").textContent = Math.round(d.intensity*100)+"%";
+    document.getElementById("ramp-progress-wrap").style.display = "flex";
+    document.getElementById("ramp-bar").style.width = (d.ramp_progress*100)+"%";
+    document.getElementById("ramp-pct").textContent =
+      Math.round(d.ramp_progress*100)+"% \u2192 "+Math.round(d.ramp_target*100)+"%";
+  } else {
+    if (document.getElementById("ramp-progress-wrap").style.display === "flex")
+      document.getElementById("ramp-progress-wrap").style.display = "none";
+  }
+  // Sync beta mode buttons if server state differs
+  if (d.beta_mode && d.beta_mode !== state.betaMode) {
+    state.betaMode = d.beta_mode;
+    document.querySelectorAll(".mode-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.mode === d.beta_mode));
+    document.getElementById("sweep-controls").style.display   =
+      d.beta_mode === "sweep"  ? "block" : "none";
+    document.getElementById("spiral-controls").style.display  =
+      d.beta_mode === "spiral" ? "block" : "none";
+    document.getElementById("hold-controls").style.display    =
+      d.beta_mode === "hold"   ? "block" : "none";
+  }
+  // Spiral amplitude bar
+  if (d.beta_mode === "spiral" && d.spiral_amp !== undefined) {
+    const pct = Math.round(d.spiral_amp * 100);
+    document.getElementById("spiral-amp-bar").style.width = pct + "%";
+    document.getElementById("spiral-amp-pct").textContent = pct + "%";
+  }
+  document.getElementById("live").textContent =
+    `Vol ${Math.round(d.vol*100)}%  \u03b2 ${d.beta} (${betaLabel(d.beta)})  \u03b1 ${Math.round(d.alpha*100)}%  ${d.pattern}`;
+  if (d.likes && d.likes.length) {
+    d.likes.forEach(like => triggerLikeAnimation(like));
+  }
+  // Update rider count in banner if present
+  if (d.rider_count !== undefined) {
+    const rc = document.getElementById('rider-ct');
+    if (rc) rc.textContent = d.rider_count + ' rider' + (d.rider_count === 1 ? '' : 's');
+  }
 }
 
-setInterval(pollState, 350);
-pollState();
+// ── Poll state (kept as fallback, no longer on interval) ─────────────────────
+async function pollState() {
+  try {
+    const resp = await fetch(API_PREFIX + "/state");
+    if (!resp.ok) return;
+    const d = await resp.json();
+    handleStateUpdate(d);
+  } catch { setConnected(false); }
+}
 
 // ── Room code / rider link ─────────────────────────────────────────────────
 const _m = window.location.pathname.match(/\/room\/([^/]+)/);
@@ -547,17 +564,7 @@ function triggerLikeAnimation(like) {
   setTimeout(() => el.remove(), 1900);
 }
 
-(function initParticipantsPoll() {
-  if (!_ROOM_CODE) return;
-  async function fetchParticipants() {
-    try {
-      const d = await (await fetch('/room/' + _ROOM_CODE + '/participants')).json();
-      renderParticipants(d);
-    } catch(_) {}
-  }
-  fetchParticipants();
-  setInterval(fetchParticipants, 5000);
-})();
+// Participants poll removed - now received via WS participants_update
 
 // ── Tab switching (controls / touch) ─────────────────────────────────────────
 let _driverMode = 'controls';
@@ -1131,13 +1138,7 @@ function initTouchPanel() {
     }
     requestAnimationFrame(tcTrailTick);
   })();
-  // Poll server intensity for tool scaling
-  setInterval(async()=>{
-    try {
-      const d=await(await fetch(API_PREFIX + '/state')).json();
-      if (d.intensity!=null) tcServerInt=d.intensity;
-    } catch(_) {}
-  }, 1500);
+  // Server intensity for tool scaling now comes via WS state pushes
 }
 
 // ── Cursor mode ───────────────────────────────────────────────────────────────
@@ -1236,29 +1237,62 @@ function _applyImage() {
   img.src = src;
 }
 
-// ── Driver WebSocket — receive participants_update ────────────────────────────
+// ── Driver WebSocket — state push, participants, commands ─────────────────────
 (function connectDriverWS() {
-  if (typeof DRIVER_KEY === 'undefined' || !_ROOM_CODE) return;
   const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = wsProto + '//' + location.host + '/room/' + _ROOM_CODE + '/driver-ws?key=' + encodeURIComponent(DRIVER_KEY);
-  let _driverWs = null;
+  let wsUrl;
+  if (typeof _ROOM_CODE !== 'undefined' && _ROOM_CODE) {
+    if (typeof DRIVER_KEY === 'undefined') return;
+    wsUrl = wsProto + '//' + location.host + '/room/' + _ROOM_CODE + '/driver-ws?key=' + encodeURIComponent(DRIVER_KEY);
+  } else {
+    // LAN mode
+    wsUrl = wsProto + '//' + location.host + '/driver-ws';
+  }
+
+  let pingInterval = null;
+
   function connect() {
     try {
       const ws = new WebSocket(wsUrl);
-      _driverWs = ws;
+      ws.onopen = () => {
+        _driverWs = ws;
+        setConnected(true);
+        if (pingInterval) clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({type: "ping"}));
+          }
+        }, 30000);
+      };
       ws.onmessage = ev => {
         try {
           const msg = JSON.parse(ev.data);
-          if (msg.type === 'participants_update') {
-            _tcParticipants = msg.participants || [];
-            renderParticipants({participants: _tcParticipants});
-            if (_driverMode === 'touch') { _tcRefreshPickerNames(); _applyImage(); }
+          switch (msg.type) {
+            case 'state':
+              handleStateUpdate(msg.data);
+              if (msg.data && msg.data.intensity != null) tcServerInt = msg.data.intensity;
+              break;
+            case 'participants_update':
+              _tcParticipants = msg.participants || [];
+              renderParticipants({participants: _tcParticipants});
+              if (_driverMode === 'touch') { _tcRefreshPickerNames(); _applyImage(); }
+              break;
+            case 'command_ack':
+              setConnected(msg.ok !== false);
+              break;
+            case 'pong':
+              setConnected(true);
+              break;
           }
         } catch(_) {}
       };
-      ws.onclose = () => { _driverWs = null; setTimeout(connect, 5000); };
+      ws.onclose = () => {
+        _driverWs = null;
+        if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+        setTimeout(connect, 3000);
+      };
       ws.onerror = () => { try { ws.close(); } catch(_) {} };
-    } catch(_) { setTimeout(connect, 5000); }
+    } catch(_) { setTimeout(connect, 3000); }
   }
   connect();
 })();
