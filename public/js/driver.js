@@ -513,23 +513,31 @@ function renderParticipants(data) {
   const col = document.getElementById('rider-cards');
   if (!col) return;
   const parts = (data.participants || []).slice().sort((a, b) => {
-    const aHas = a.anatomy && a.anatomy.includes('_uploads') ? 0 : 1;
-    const bHas = b.anatomy && b.anatomy.includes('_uploads') ? 0 : 1;
+    const aHas = a.avatar ? 0 : 1;
+    const bHas = b.avatar ? 0 : 1;
     return aHas - bHas;
   });
-  col.innerHTML = parts.map(p => {
-    const url = p.anatomy
-      ? '/touch_assets/anatomy/' + p.anatomy.split('/').map(encodeURIComponent).join('/')
-      : '';
-    const bg = url
-      ? 'background-image:url(\'' + url + '\');background-size:cover;background-position:top center'
-      : 'background:#222';
-    return '<div class="rider-card" data-idx="' + p.idx + '" style="' + bg + '">' +
-      '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);' +
-      'font-size:8px;color:#ccc;text-align:center;padding:2px;border-radius:0 0 5px 5px;' +
-      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + p.name + '</div>' +
-      '</div>';
-  }).join('');
+  col.innerHTML = '';
+  parts.forEach(p => {
+    let bg;
+    if (p.avatar && p.avatar.startsWith('data:image/')) {
+      bg = 'background-image:url(' + JSON.stringify(p.avatar) + ');background-size:cover;background-position:top center';
+    } else if (p.anatomy) {
+      const url = '/touch_assets/anatomy/' + p.anatomy.split('/').map(encodeURIComponent).join('/');
+      bg = "background-image:url('" + url + "');background-size:cover;background-position:top center";
+    } else {
+      bg = 'background:#222';
+    }
+    const card = document.createElement('div');
+    card.className = 'rider-card';
+    card.dataset.idx = p.idx;
+    card.style.cssText = bg;
+    const label = document.createElement('div');
+    label.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);font-size:8px;color:#ccc;text-align:center;padding:2px;border-radius:0 0 5px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    label.textContent = p.name;
+    card.appendChild(label);
+    col.appendChild(card);
+  });
 }
 
 // ── Like animation ──────────────────────────────────────────────────────────

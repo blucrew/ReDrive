@@ -518,6 +518,13 @@ async def handle_rider_ws(req):
                         if ws_id in room.participants:
                             room.participants[ws_id]["name"] = name
                         await room._broadcast_participants()
+                    elif data.get("type") == "set_avatar":
+                        avatar_data = str(data.get("data", ""))
+                        # Limit to 512KB of base64 data
+                        if len(avatar_data) <= 512 * 1024 and avatar_data.startswith("data:image/"):
+                            if ws_id in room.participants:
+                                room.participants[ws_id]["avatar"] = avatar_data
+                            await room._broadcast_participants()
                     elif data.get("type") == "like":
                         emoji = str(data.get("emoji", ""))[:4]
                         rider_info = room.participants.get(ws_id, {})

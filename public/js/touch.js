@@ -273,6 +273,9 @@ function updateDriverStatus(connected, name) {
         setConn(true);
         const name = localStorage.getItem('reDriveRiderName') || '';
         if (name) ws.send(JSON.stringify({type:'set_name', name}));
+        // Send saved avatar immediately so driver sees it on first connect
+        const savedAvatar = localStorage.getItem('reDriveAnatomyB64');
+        if (savedAvatar) ws.send(JSON.stringify({type:'set_avatar', data: savedAvatar}));
         if (pingInterval) clearInterval(pingInterval);
         pingInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -333,30 +336,28 @@ function updateDriverStatus(connected, name) {
   connect();
 })();
 
-// ── Anatomy upload (rider avatar) ─────────────────────────────────────────────
+// ── Rider avatar ─────────────────────────────────────────────────────────────
 async function onAnatFileSelected(input) {
-  if (!input.files || !input.files[0] || !_ROOM_CODE) return;
+  if (!input.files || !input.files[0]) return;
   const file = input.files[0]; input.value = '';
   const btn = document.getElementById('upload-avatar-btn');
   const orig = btn ? btn.childNodes[0].textContent : '';
-  if (btn) btn.childNodes[0].textContent = '⏳ Uploading…';
+  if (btn) btn.childNodes[0].textContent = 'Saving...';
   try {
-    const fd = new FormData(); fd.append('file', file);
-    const r = await fetch(_BASE + '/upload_anatomy', {method:'POST', body:fd});
-    if (r.ok) {
-      // Save for future auto-upload
-      const reader = new FileReader();
-      reader.onload = e => {
-        localStorage.setItem('reDriveAnatomyB64', e.target.result);
-        localStorage.setItem('reDriveAnatomyName', file.name);
-      };
-      reader.readAsDataURL(file);
-      if (btn) { btn.childNodes[0].textContent = '✓ Uploaded!'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
-    } else {
-      if (btn) { btn.childNodes[0].textContent = '✗ Failed'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
-    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      // Save locally for persistence across sessions
+      localStorage.setItem('reDriveAnatomyB64', dataUrl);
+      // Send to server via WS for immediate broadcast to driver
+      if (_riderWs && _riderWs.readyState === WebSocket.OPEN) {
+        _riderWs.send(JSON.stringify({type: 'set_avatar', data: dataUrl}));
+      }
+      if (btn) { btn.childNodes[0].textContent = 'Saved!'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
+    };
+    reader.readAsDataURL(file);
   } catch(_) {
-    if (btn) { btn.childNodes[0].textContent = '✗ Error'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
+    if (btn) { btn.childNodes[0].textContent = 'Error'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
   }
 }
 
@@ -396,20 +397,4 @@ function saveRestimUrl() {
   if (_restimEnabled) connectRestim();
 })();
 
-// Auto-upload saved anatomy when joining a room
-(async function autoUploadAnatomy() {
-  if (!_ROOM_CODE) return;
-  const b64  = localStorage.getItem('reDriveAnatomyB64');
-  const name = localStorage.getItem('reDriveAnatomyName') || 'my_pic.png';
-  if (!b64) return;
-  try {
-    // Only upload if room has no custom anatomy yet
-    const res = await fetch(_BASE + '/anatomies');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.custom && data.custom.length > 0) return;
-    const blob = await fetch(b64).then(r => r.blob());
-    const fd = new FormData(); fd.append('file', blob, name);
-    await fetch(_BASE + '/upload_anatomy', {method:'POST', body:fd});
-  } catch(_) {}
-})();
+// Avatar is sent via WS on connect (see ws.onopen above). No filesystem upload needed.
