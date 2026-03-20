@@ -314,6 +314,17 @@ class DriveEngine:
     # ── ReStim connection ────────────────────────────────────────────────────
 
     async def _connect(self) -> bool:
+        # Close existing resources before creating new ones
+        if self._ws is not None and not self._ws.closed:
+            try:
+                await self._ws.close()
+            except Exception:
+                pass
+        if self._session is not None and not self._session.closed:
+            try:
+                await self._session.close()
+            except Exception:
+                pass
         try:
             self._session = aiohttp.ClientSession()
             self._ws = await self._session.ws_connect(
@@ -340,7 +351,18 @@ class DriveEngine:
             await self._ws.send_str(cmd)
         except Exception as e:
             self._log(f"Send error: {e}")
+            try:
+                if self._ws is not None and not self._ws.closed:
+                    await self._ws.close()
+            except Exception:
+                pass
             self._ws = None
+            try:
+                if self._session is not None and not self._session.closed:
+                    await self._session.close()
+            except Exception:
+                pass
+            self._session = None
 
     # ── HTTP server (driver browser UI) ─────────────────────────────────────
 

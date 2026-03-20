@@ -4,8 +4,10 @@ Uses _handle_command_data(cmd) directly (async) and _handle_state(None)
 to inspect engine state.
 """
 
+import asyncio
 import json
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 from redrive import PRESETS
 
 
@@ -153,3 +155,104 @@ class TestDriveEngineState:
         p = PRESETS["Milking"]
         assert abs(d["hz"] - p["hz"]) < 0.01
         assert abs(d["depth"] - p["depth"]) < 0.01
+
+
+class TestSessionManagement:
+    """Tests for proper cleanup of aiohttp ClientSession and WebSocket."""
+
+    @pytest.mark.asyncio
+    async def test_session_initialized_to_none(self, drive_engine):
+        """Session should start as None."""
+        assert drive_engine._session is None
+
+    @pytest.mark.asyncio
+    async def test_connect_closes_existing_session(self, drive_engine):
+        """Reconnecting should close the previous session and ws."""
+        old_session = AsyncMock()
+        old_session.closed = False
+        drive_engine._session = old_session
+
+        old_ws = AsyncMock()
+        old_ws.closed = False
+        drive_engine._ws = old_ws
+
+        # Disable send_hook so _connect actually runs the real path
+        drive_engine._send_hook = None
+
+        # _connect will fail (no real server) but should still close old resources
+        with patch("aiohttp.ClientSession") as mock_cls:
+            mock_new_session = AsyncMock()
+            mock_new_session.ws_connect = AsyncMock(side_effect=Exception("no server"))
+            mock_cls.return_value = mock_new_session
+            await drive_engine._connect()
+
+        old_ws.close.assert_awaited()
+        old_session.close.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_connect_skips_close_if_already_closed(self, drive_engine):
+        """Should not close resources that are already closed."""
+        old_session = AsyncMock()
+        old_session.closed = True
+        drive_engine._session = old_session
+
+        old_ws = AsyncMock()
+        old_ws.closed = True
+        drive_engine._ws = old_ws
+
+        drive_engine._send_hook = None
+
+        with patch("aiohttp.ClientSession") as mock_cls:
+            mock_new_session = AsyncMock()
+            mock_new_session.ws_connect = AsyncMock(side_effect=Exception("no server"))
+            mock_cls.return_value = mock_new_session
+            await drive_engine._connect()
+
+        old_ws.close.assert_not_awaited()
+        old_session.close.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_send_error_closes_ws_and_session(self, drive_engine):
+        """On send error, both ws and session should be closed."""
+        mock_ws = AsyncMock()
+        mock_ws.closed = False
+        mock_ws.send_str = AsyncMock(side_effect=Exception("broken pipe"))
+        drive_engine._ws = mock_ws
+
+        mock_session = AsyncMock()
+        mock_session.closed = False
+        drive_engine._session = mock_session
+
+        # Disable send_hook so _send uses the real ws path
+        drive_engine._send_hook = None
+        # Need a loop for the cooldown check
+        drive_engine._loop = asyncio.get_event_loop()
+
+        await drive_engine._send("L0500I50")
+
+        mock_ws.close.assert_awaited()
+        mock_session.close.assert_awaited()
+        assert drive_engine._ws is None
+        assert drive_engine._session is None
+
+    @pytest.mark.asyncio
+    async def test_send_error_handles_close_failure(self, drive_engine):
+        """If closing ws/session raises, should still set them to None."""
+        mock_ws = AsyncMock()
+        mock_ws.closed = False
+        mock_ws.send_str = AsyncMock(side_effect=Exception("broken pipe"))
+        mock_ws.close = AsyncMock(side_effect=Exception("close failed"))
+        drive_engine._ws = mock_ws
+
+        mock_session = AsyncMock()
+        mock_session.closed = False
+        mock_session.close = AsyncMock(side_effect=Exception("close failed"))
+        drive_engine._session = mock_session
+
+        drive_engine._send_hook = None
+        drive_engine._loop = asyncio.get_event_loop()
+
+        await drive_engine._send("L0500I50")
+
+        assert drive_engine._ws is None
+        assert drive_engine._session is None
