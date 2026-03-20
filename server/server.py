@@ -82,11 +82,13 @@ class Room:
         self._rider_counter: int = 0       # increments for each new rider
         # Driver WebSocket connections (for participants_update broadcast)
         self.driver_wss: set[web.WebSocketResponse] = set()
+        self._push_task = None
         if not waiting:
             cfg          = DriveConfig()   # defaults — no ReStim URL needed
             self.engine  = DriveEngine(cfg, {}, self._log_q,
                                        send_hook=self._hook)
             self.engine.start()
+            self._start_push_loop()
         else:
             self.engine  = None
 
@@ -147,7 +149,117 @@ class Room:
             return True
         return False
 
+    async def _build_driver_state(self) -> dict:
+        """Build the full driver state dict (extracted from handle_room_state)."""
+        if self.engine is None:
+            return {}
+        resp = await self.engine._handle_state(None)
+        d = json.loads(resp.text)
+        d["rider_count"]      = self.rider_count
+        d["bottle_active"]    = time.monotonic() < self.bottle_until
+        d["bottle_remaining"] = max(0.0, round(self.bottle_until - time.monotonic(), 1))
+        d["bottle_mode"]      = self.bottle_mode
+        d["likes"]            = self.pending_likes[:]
+        self.pending_likes.clear()
+        return d
+
+    def _build_rider_state(self) -> dict:
+        """Build the rider state dict."""
+        now = time.monotonic()
+        intensity = 0.0
+        if self.engine:
+            intensity = self.engine._pattern.intensity
+        bottle_active = now < self.bottle_until
+        return {
+            "intensity":        round(intensity, 4),
+            "bottle_active":    bottle_active,
+            "bottle_remaining": max(0.0, round(self.bottle_until - now, 1)),
+            "bottle_mode":      self.bottle_mode,
+            "driver_name":      self.driver_name,
+            "driver_connected": len(self.driver_wss) > 0,
+        }
+
+    async def _state_push_loop(self):
+        """Push state to connected WebSockets at regular intervals."""
+        tick = 0
+        try:
+            while True:
+                await asyncio.sleep(0.2)  # 5 Hz
+                tick += 1
+
+                # Push to driver WS connections every tick (5 Hz)
+                if self.driver_wss and self.engine is not None:
+                    try:
+                        state = await self._build_driver_state()
+                        msg = json.dumps({"type": "state", "data": state})
+                        dead = set()
+                        for ws in list(self.driver_wss):
+                            try:
+                                await ws.send_str(msg)
+                            except Exception:
+                                dead.add(ws)
+                        self.driver_wss -= dead
+                    except Exception:
+                        pass
+
+                # Push to rider WS connections every 3rd tick (~1.7 Hz)
+                if tick % 3 == 0 and self.rider_wss:
+                    try:
+                        rstate = self._build_rider_state()
+                        rmsg = json.dumps({"type": "rider_state", "data": rstate})
+                        dead = set()
+                        for ws in list(self.rider_wss):
+                            try:
+                                await ws.send_str(rmsg)
+                            except Exception:
+                                dead.add(ws)
+                        self.rider_wss -= dead
+                    except Exception:
+                        pass
+        except asyncio.CancelledError:
+            pass
+
+    def _start_push_loop(self):
+        """Start the state push loop as an asyncio task."""
+        self._push_task = asyncio.ensure_future(
+            self._state_push_loop(), loop=self._main_loop
+        )
+
+    async def _broadcast_driver_status(self, connected: bool):
+        """Broadcast driver_status to all rider WS connections."""
+        msg = json.dumps({
+            "type": "driver_status",
+            "connected": connected,
+            "name": self.driver_name if connected else "",
+        })
+        dead = set()
+        for ws in list(self.rider_wss):
+            try:
+                await ws.send_str(msg)
+            except Exception:
+                dead.add(ws)
+        self.rider_wss -= dead
+
+    async def _broadcast_bottle_status(self, mode: str, duration: int):
+        """Push bottle_status to all rider WS connections."""
+        msg = json.dumps({
+            "type": "bottle_status",
+            "active": True,
+            "remaining": duration,
+            "mode": mode,
+        })
+        dead = set()
+        for ws in list(self.rider_wss):
+            try:
+                await ws.send_str(msg)
+            except Exception:
+                dead.add(ws)
+        self.rider_wss -= dead
+
     def stop(self):
+        if hasattr(self, "_push_task") and self._push_task is not None:
+            self._push_task.cancel()
+            self._push_task = None
         if self.engine is not None:
             self.engine.stop()
 
@@ -226,29 +338,15 @@ async def handle_room_command(req):
     if not _check_driver_key(req, room):
         raise web.HTTPForbidden(text="Invalid driver key")
     room.touch_driver()
-    # Intercept set_driver_name before passing to engine
     try:
         body = await req.read()
         cmd = json.loads(body)
     except Exception:
         return web.Response(status=400)
-    if "set_driver_name" in cmd:
-        room.driver_name = str(cmd["set_driver_name"])[:30]
-        await room._broadcast_participants()
-        return web.Response(text="{}", content_type="application/json")
-    if "bottle" in cmd:
-        b = cmd["bottle"]
-        if isinstance(b, dict):
-            mode = str(b.get("mode", "normal"))
-            duration = max(5, min(60, int(b.get("duration", 10))))
-        else:
-            mode = "normal"
-            duration = 10
-        room.bottle_mode  = mode
-        room.bottle_until = time.monotonic() + duration
-        return web.Response(text="{}", content_type="application/json")
-    # Reconstruct a fake request-like object isn't possible; use engine directly
-    return await room.engine._handle_command_data(cmd)
+    result = await _process_driver_command(room, cmd)
+    if isinstance(result, web.Response):
+        return result
+    return web.Response(text="{}", content_type="application/json")
 
 
 async def handle_rider_state(req):
@@ -257,20 +355,9 @@ async def handle_rider_state(req):
     room = _rooms.get(code)
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
-    now = time.monotonic()
-    intensity = 0.0
-    if room.engine:
-        state = await room.engine._handle_state(req)
-        d = json.loads(state.text)
-        intensity = d.get("intensity", 0.0)
-    bottle_active = now < room.bottle_until
+    d = room._build_rider_state()
     return web.Response(
-        text=json.dumps({
-            "intensity":        round(intensity, 4),
-            "bottle_active":    bottle_active,
-            "bottle_remaining": max(0.0, round(room.bottle_until - now, 1)),
-            "bottle_mode":      room.bottle_mode,
-        }),
+        text=json.dumps(d),
         content_type="application/json"
     )
 
@@ -283,14 +370,7 @@ async def handle_room_state(req):
     if not _check_driver_key(req, room):
         raise web.HTTPForbidden(text="Invalid driver key")
     room.touch_driver()
-    state = await room.engine._handle_state(req)
-    d = json.loads(state.text)
-    d["rider_count"]      = room.rider_count
-    d["bottle_active"]    = time.monotonic() < room.bottle_until
-    d["bottle_remaining"] = max(0.0, round(room.bottle_until - time.monotonic(), 1))
-    d["bottle_mode"]      = room.bottle_mode
-    d["likes"]            = room.pending_likes[:]
-    room.pending_likes.clear()
+    d = await room._build_driver_state()
     return web.Response(text=json.dumps(d), content_type="application/json")
 
 
@@ -325,38 +405,87 @@ async def handle_driver_ping(req):
 
 
 async def handle_driver_ws(req):
-    """Driver connects here via WebSocket to receive participants_update broadcasts."""
+    """Driver connects here via WebSocket for bidirectional command/state."""
     code = req.match_info["code"]
     room = _rooms.get(code)
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
     key = req.rel_url.query.get("key", "")
     if not secrets.compare_digest(key, room.driver_key):
-        raise web.HTTPForbidden(text="Invalid driver key")
+        ws = web.WebSocketResponse(max_msg_size=65536)
+        await ws.prepare(req)
+        await ws.close(code=4403, message=b"Invalid driver key")
+        return ws
 
-    ws = web.WebSocketResponse(heartbeat=30)
+    ws = web.WebSocketResponse(heartbeat=30, max_msg_size=65536)
     await ws.prepare(req)
     room.driver_wss.add(ws)
+    room.touch_driver()
 
-    # Send current participants immediately on connect
+    # Send full state immediately on connect
     try:
-        parts = list(room.participants.values())
-        await ws.send_str(json.dumps({
-            "type": "participants_update",
-            "participants": parts,
-            "driver_name": room.driver_name,
-        }))
+        state = await room._build_driver_state()
+        await ws.send_str(json.dumps({"type": "state", "data": state}))
     except Exception:
         pass
 
+    # Notify riders that driver is connected
+    await room._broadcast_driver_status(True)
+
     try:
         async for msg in ws:
-            if msg.type in (aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSE):
+            if msg.type == aiohttp.WSMsgType.TEXT:
+                try:
+                    data = json.loads(msg.data)
+                except Exception:
+                    continue
+
+                msg_type = data.get("type", "")
+
+                if msg_type == "ping":
+                    room.touch_driver()
+                    await ws.send_str(json.dumps({"type": "pong"}))
+
+                elif msg_type == "command":
+                    room.touch_driver()
+                    cmd = data.get("data", {})
+                    ok = True
+                    try:
+                        await _process_driver_command(room, cmd)
+                    except Exception:
+                        ok = False
+                    await ws.send_str(json.dumps({"type": "command_ack", "ok": ok}))
+
+            elif msg.type in (aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSE):
                 break
     finally:
         room.driver_wss.discard(ws)
+        if not room.driver_wss:
+            await room._broadcast_driver_status(False)
 
     return ws
+
+
+async def _process_driver_command(room, cmd: dict):
+    """Process a command dict from either WS or HTTP, applying it to the room/engine."""
+    if "set_driver_name" in cmd:
+        room.driver_name = str(cmd["set_driver_name"])[:30]
+        await room._broadcast_participants()
+        return
+    if "bottle" in cmd:
+        b = cmd["bottle"]
+        if isinstance(b, dict):
+            mode = str(b.get("mode", "normal"))
+            duration = max(5, min(60, int(b.get("duration", 10))))
+        else:
+            mode = "normal"
+            duration = 10
+        room.bottle_mode  = mode
+        room.bottle_until = time.monotonic() + duration
+        await room._broadcast_bottle_status(mode, duration)
+        return
+    if room.engine is not None:
+        return await room.engine._handle_command_data(cmd)
 
 
 async def handle_rider_ws(req):
@@ -366,7 +495,7 @@ async def handle_rider_ws(req):
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
 
-    ws = web.WebSocketResponse(heartbeat=30)
+    ws = web.WebSocketResponse(heartbeat=30, max_msg_size=65536)
     await ws.prepare(req)
     room.rider_wss.add(ws)
 
@@ -563,6 +692,7 @@ async def handle_waiting_claim(req):
     room._log_q = queue.Queue()
     room.engine = DriveEngine(cfg, {}, room._log_q, send_hook=room._hook)
     room.engine.start()
+    room._start_push_loop()
 
     # Broadcast to any connected WebSocket riders
     msg = json.dumps({"type": "driver_joined"})
@@ -807,7 +937,7 @@ def build_app() -> web.Application:
     app.router.add_get("/room/{code}/state",                   handle_room_state)
     app.router.add_get("/room/{code}/rider-state",             handle_rider_state)
     app.router.add_post("/room/{code}/bottle",                 handle_room_bottle)
-    app.router.add_get("/room/{code}/rider",                   handle_rider_ws)
+    app.router.add_get("/room/{code}/rider-ws",                handle_rider_ws)
     app.router.add_get("/room/{code}/driver-ws",               handle_driver_ws)
     app.router.add_post("/room/{code}/ping",                   handle_driver_ping)
     app.router.add_post("/room/{code}/privacy",                handle_room_privacy)
