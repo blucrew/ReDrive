@@ -822,26 +822,39 @@ function tcDraw() {
     ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(curX,curY,glowR,0,Math.PI*2); ctx.fill();
     if (_tcCursorMode==='grid') {
       // Crosshair: full-width H line + full-height V line, thin stroke that thickens with power
+      // Dark shadow for contrast against anatomy image
+      ctx.shadowColor='rgba(0,0,0,0.8)';
+      ctx.shadowBlur=4;
       ctx.strokeStyle=_tcPowerColor(power,0.55+power*0.40);
       ctx.lineWidth=1.5+power*4; ctx.lineCap='butt';
       ctx.beginPath(); ctx.moveTo(0,curY); ctx.lineTo(W,curY); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(curX,0); ctx.lineTo(curX,H); ctx.stroke();
+      ctx.shadowColor='transparent';
+      ctx.shadowBlur=0;
     } else {
       // Core dot
       ctx.beginPath(); ctx.arc(curX,curY,dotR,0,Math.PI*2);
       ctx.fillStyle=_tcPowerColor(power,0.55+power*0.40); ctx.fill();
+      // Dark outline for contrast against anatomy image
+      ctx.strokeStyle='rgba(0,0,0,0.7)';
+      ctx.lineWidth=2; ctx.stroke();
       // Ring — thicker/harder at high power
       ctx.beginPath(); ctx.arc(curX,curY,dotR,0,Math.PI*2);
       ctx.strokeStyle=_tcPowerColor(power,0.85);
       ctx.lineWidth=1+power*2.5; ctx.stroke();
     }
     // % label (same for both modes) — floats above cursor point
+    // Dark shadow for text contrast against anatomy image
+    ctx.shadowColor='rgba(0,0,0,0.9)';
+    ctx.shadowBlur=3;
     const pct=Math.round(power*100)+'%';
     ctx.fillStyle=_tcPowerColor(power,0.95);
     ctx.font=`bold ${11+Math.round(power*5)}px Arial`;
     ctx.textAlign='center'; ctx.textBaseline='bottom';
     ctx.fillText(pct,curX,curY-dotR-4);
     ctx.textBaseline='alphabetic';
+    ctx.shadowColor='transparent';
+    ctx.shadowBlur=0;
   }
 }
 
