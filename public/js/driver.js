@@ -1189,19 +1189,23 @@ let _tcOverlayOn = localStorage.getItem('reDriveOverlay') !== 'false'; // defaul
     const img = new Image();
     img.onload = () => {
       tcOverlayImg = img;
+      console.log('Overlay image loaded:', overlayFile);
       if (_tcOverlayOn && _driverMode === 'touch') tcDraw();
     };
+    img.onerror = () => { console.warn('Overlay image failed to load:', overlayFile); };
     img.src = '/touch_assets/anatomy/' + encodeURIComponent(overlayFile);
-  } catch(_) {}
+  } catch(e) { console.warn('Failed to fetch touch_config:', e); }
 })();
 
 function setOverlay(on) {
   _tcOverlayOn = on;
   localStorage.setItem('reDriveOverlay', String(on));
+  const cb = document.getElementById('overlay-check');
+  if (cb) cb.checked = on;
   if (_driverMode === 'touch') tcDraw();
 }
 
-// Init overlay checkbox from localStorage
+// Init overlay checkbox from variable (default true unless localStorage says false)
 (function initOverlayCheck() {
   const cb = document.getElementById('overlay-check');
   if (cb) cb.checked = _tcOverlayOn;
