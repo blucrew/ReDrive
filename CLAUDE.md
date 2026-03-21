@@ -17,7 +17,7 @@ templates/    Jinja2 templates for all pages
 - `python server.py --local` - LAN mode. Auto-creates one room, engine connects to local ReStim directly. Driver at `http://localhost:8765`, rider at the printed URL.
 - `python server.py` - Relay mode. Multi-room server for VPS deployment. Riders connect to ReStim from their browser via the ReStim Bridge (WebSocket from browser to `ws://localhost:12346/tcode`).
 
-**Deleted in simplify-architecture branch:** `redrive.py` (tkinter monolith), `rider_app.py` (tkinter rider), all build scripts. Everything is browser-based now.
+**Deleted:** `redrive.py` (tkinter monolith), `rider_app.py` (tkinter rider), `rider_client.py` (headless bridge, replaced by browser ReStim Bridge), all build scripts, `HANDOFF.md`, `version.json`. Everything is browser-based now.
 
 ## Branch Status
 
@@ -32,7 +32,6 @@ templates/    Jinja2 templates for all pages
 | `server.py` | Room management, WS handlers (driver + rider), state push loop, HTTP routes, Jinja2 rendering. |
 | `public/js/driver.js` | Driver controls: patterns, intensity, sweep, spiral, touch panel, gesture recording. |
 | `public/js/touch.js` | Rider page: power meter, emotes, poppers overlay, ReStim bridge, avatar upload, stop/resume. |
-| `rider_client.py` | Headless CLI bridge (88 lines). Forwards T-code from relay to local ReStim. |
 | `template_env.py` | Shared Jinja2 Environment helper. |
 | `redrive_config.json` | Server config (axis mappings, ReStim URL, touch images, overlay). Gitignored. |
 
@@ -124,11 +123,9 @@ python server.py --port 8765
 
 2. **Touch X-axis feels like it does nothing** - it does work, but only adjusts intensity within a 25% window of the base power slider. At low base power, the change is subtle. This is by design but might confuse users. Consider making the window wider or adding visual feedback.
 
-3. **Build scripts deleted** - The AppImage/Windows/Mac builds packaged the old `rider_app.py` which no longer exists. If distributable builds are needed, new build scripts for `server.py --local` would need to be created.
+3. **`deploy/` directory** - Contains nginx.conf, systemd service, setup.sh for VPS deployment. Was renamed from `server/` to avoid Python import conflict. Deployment configs reference `server.py` at project root.
 
-4. **`deploy/` directory** - Contains nginx.conf, systemd service, setup.sh for VPS deployment. Was renamed from `server/` to avoid Python import conflict. Deployment configs reference `server.py` at project root.
-
-5. **Poppers modes** - Normal mode countdown works. Deep Huff and Double Hit modes have visual implementations in touch.js but haven't been thoroughly tested end-to-end.
+4. **Poppers modes** - Normal mode countdown works. Deep Huff and Double Hit modes have visual implementations in touch.js but haven't been thoroughly tested end-to-end.
 
 ## Don't
 
