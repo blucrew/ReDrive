@@ -176,6 +176,13 @@ function setBetaMode(btn) {
   document.getElementById("sweep-controls").style.display   = mode === "sweep"  ? "block" : "none";
   document.getElementById("spiral-controls").style.display  = mode === "spiral" ? "block" : "none";
   document.getElementById("hold-controls").style.display    = mode === "hold"   ? "block" : "none";
+  // Sync touch gesture visual with mode
+  if (mode === "touch" && _tcGesturePath.length > 1) {
+    _tcLoopStart = performance.now(); tcSetLooping(true);
+  } else if (mode !== "touch") {
+    tcSetLooping(false);
+  }
+  _updateResumeBtn();
   sendCmd({ beta_mode: mode });
 }
 
@@ -934,14 +941,46 @@ function tcOnUp() {
       intensity: tcIntFromX(p.x),
     }));
     sendCmd({gesture_record: pts});
+    sendCmd({beta_mode: 'touch'});
+    // Highlight the touch mode button
+    document.querySelectorAll('.mode-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === 'touch'));
   }
+  _updateResumeBtn();
   tcDraw();
 }
 function tcSetLooping(on) {
   _tcLooping=on;
   const m=document.getElementById('tc-main');
   if (m) m.classList.toggle('looping',on);
+  _updateResumeBtn();
 }
+function _updateResumeBtn() {
+  const btn = document.getElementById('tc-resume-btn');
+  if (!btn) return;
+  // Show resume when we have a gesture but it's not playing
+  btn.style.display = (_tcGesturePath.length > 1 && !_tcLooping) ? 'inline-block' : 'none';
+}
+
+function resumeTouchGesture() {
+  if (_tcGesturePath.length < 2) return;
+  // Re-send gesture to engine and switch to touch mode
+  const pts = _tcGesturePath.map(p => ({
+    t: p.t / 1000,
+    beta: tcBetaFromY(p.y),
+    intensity: tcIntFromX(p.x),
+  }));
+  sendCmd({gesture_record: pts});
+  sendCmd({beta_mode: 'touch'});
+  _tcLoopStart = performance.now();
+  _tcLoopDur = _tcGesturePath[_tcGesturePath.length - 1].t;
+  tcSetLooping(true);
+  _updateResumeBtn();
+  // Highlight the touch mode button
+  document.querySelectorAll('.mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === 'touch'));
+}
+
 function _tcPathAt(t) {
   const path=_tcGesturePath;
   if (!path.length) return null;

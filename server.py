@@ -203,7 +203,7 @@ class Room:
                 if tick % 3 == 0 and self.rider_wss:
                     try:
                         rstate = self._build_rider_state()
-                        rmsg = json.dumps({"type": "rider_state", "data": rstate})
+                        rmsg = json.dumps({"type": "rider_state", **rstate})
                         dead = set()
                         for ws in list(self.rider_wss):
                             try:

@@ -473,10 +473,18 @@ class DriveEngine:
                     "mode": self._bottle_mode,
                 }))
         else:
-            # gesture_stop or any explicit beta_mode change cancels loop
-            if cmd.get("gesture_stop") or "beta_mode" in cmd:
+            # gesture_stop clears the gesture entirely
+            if cmd.get("gesture_stop"):
                 self._gesture_active = False
                 self._gesture_seq    = []
+            # beta_mode change pauses gesture (preserved for resume) unless switching TO touch
+            elif "beta_mode" in cmd:
+                if cmd["beta_mode"] == "touch":
+                    # Resume gesture if we have one
+                    if self._gesture_seq:
+                        self._gesture_active = True
+                else:
+                    self._gesture_active = False
             # Manual intensity cancels any active ramp
             if "intensity" in cmd and self._ramp_active:
                 self._ramp_active = False
@@ -487,7 +495,7 @@ class DriveEngine:
                 self._alpha_on = bool(cmd["alpha"])
             if "beta_mode" in cmd:
                 mode = cmd["beta_mode"]
-                if mode in ("auto", "sweep", "hold", "spiral"):
+                if mode in ("auto", "sweep", "hold", "spiral", "touch"):
                     self._beta_mode = mode
                     self._beta_sweep_phase = 0.0
                     if mode == "spiral":

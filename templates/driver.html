@@ -157,6 +157,7 @@ const DRIVER_KEY = "";
         <button class="mode-btn active" data-mode="sweep" onclick="setBetaMode(this)">Sweep &#8596;</button>
         <button class="mode-btn" data-mode="spiral" onclick="setBetaMode(this)">Spiral &#9678;</button>
         <button class="mode-btn" data-mode="hold" onclick="setBetaMode(this)">Hold</button>
+        <button class="mode-btn" data-mode="touch" onclick="setBetaMode(this)">Touch</button>
       </div>
 
       <div id="sweep-controls">
@@ -268,6 +269,7 @@ const DRIVER_KEY = "";
         <label style="font-size:11px;color:var(--fg2);display:flex;align-items:center;gap:4px;cursor:pointer">
           <input type="checkbox" id="overlay-check" checked onchange="setOverlay(this.checked)"> Show overlay
         </label>
+        <button id="tc-resume-btn" onclick="resumeTouchGesture()" style="display:none;font-size:10px;padding:3px 10px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer">Resume</button>
         <span id="tc-status" style="color:var(--fg2);font-size:11px;font-family:monospace;flex:1">Tap or drag &middot; Y = position &middot; X = intensity</span>
       </div>
     </div><!-- end #touch-panel -->
