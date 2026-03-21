@@ -213,23 +213,29 @@ function renderRidersPanel(data) {
   const parts = (data.participants || []);
   if (!parts.length) { panel.style.display = 'none'; return; }
   panel.style.display = 'flex';
-  panel.innerHTML = parts.map(p => {
-    const url = p.anatomy
-      ? '/touch_assets/anatomy/' + p.anatomy.split('/').map(encodeURIComponent).join('/')
-      : '';
-    const bg = url
-      ? `background-image:url('${url}');background-size:cover;background-position:top center`
-      : 'background:#222';
-    return `<div class="rider-card">
-      <div class="rider-avatar" style="${bg};position:relative">
-        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);
-          font-size:8px;color:#ccc;text-align:center;padding:2px;
-          border-radius:0 0 5px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-          ${(p.name||'Rider').replace(/</g,'&lt;')}
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  panel.textContent = '';
+  parts.forEach(p => {
+    let bg;
+    if (p.avatar && p.avatar.startsWith('data:image/')) {
+      bg = 'background-image:url(' + JSON.stringify(p.avatar) + ');background-size:cover;background-position:top center';
+    } else if (p.anatomy) {
+      const url = '/touch_assets/anatomy/' + p.anatomy.split('/').map(encodeURIComponent).join('/');
+      bg = "background-image:url('" + url + "');background-size:cover;background-position:top center";
+    } else {
+      bg = 'background:#222';
+    }
+    const card = document.createElement('div');
+    card.className = 'rider-card';
+    const avatar = document.createElement('div');
+    avatar.className = 'rider-avatar';
+    avatar.style.cssText = bg + ';position:relative';
+    const label = document.createElement('div');
+    label.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);font-size:8px;color:#ccc;text-align:center;padding:2px;border-radius:0 0 5px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+    label.textContent = p.name || 'Rider';
+    avatar.appendChild(label);
+    card.appendChild(avatar);
+    panel.appendChild(card);
+  });
 }
 
 // ── Emotes ────────────────────────────────────────────────────────────────────
