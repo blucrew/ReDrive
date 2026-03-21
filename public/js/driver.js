@@ -799,9 +799,7 @@ function tcDraw() {
   }
   // Overlay guide — drawn between base image and cursor effects
   if (_tcOverlayOn && tcOverlayImg) {
-    ctx.globalAlpha = 0.28;
     ctx.drawImage(tcOverlayImg, 0, 0, W, H);
-    ctx.globalAlpha = 1.0;
   }
   // Power window tint — subtle gradient showing current lo→hi range
   const _lo=_tcPowerSlider*0.75, _hi=_lo+0.25;
