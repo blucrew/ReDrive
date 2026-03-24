@@ -1,4 +1,4 @@
-"""engine.py — ReDrive core: pattern generation + ReStim connection.
+﻿"""engine.py — ReDrive core: pattern generation + ReStim connection.
 
 Pure engine logic with no tkinter dependencies.
 Import this from server.py to drive the ReStim hardware.

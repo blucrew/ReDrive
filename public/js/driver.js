@@ -1,4 +1,4 @@
-const PATTERNS = ["Hold","Sine","Ramp \u2191","Ramp \u2193","Pulse","Burst","Random","Edge"];
+﻿const PATTERNS = ["Hold","Sine","Ramp \u2191","Ramp \u2193","Pulse","Burst","Random","Edge"];
 let state = { pattern:"Hold", intensity:0, hz:0.5, depth:1.0,
               betaMode:"sweep", beta:5000, alpha:true };
 let spiralTighten = false;
@@ -670,6 +670,8 @@ const TC_TOOLS = {
 const TC_ELEC_BETA  = { '1':9999, '2':5000, '3':0 };
 const TC_ANAT_YF   = { tip:0.0, balls:0.5, anus:1.0 };
 const TC_ELEC_COLOR= { '1':'#ff4444', '2':'#ffcc14', '3':'#4488ff' };
+const TC_ARC_ALPHA_MIN = 0.20;  // arc amplitude at zero intensity
+const TC_ARC_ALPHA_MAX = 0.45;  // arc amplitude at full intensity
 
 let tcTool        = 'feather';
 let tcPointerDown = false;
