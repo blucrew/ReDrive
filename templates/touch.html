@@ -71,6 +71,17 @@ const API_PREFIX = "{{ api_prefix }}";
   </label>
 </div>
 
+<div id="crop-modal" style="display:none">
+  <div id="crop-sheet">
+    <div style="font-size:13px;color:var(--text);font-weight:600;text-align:center">Position your photo</div>
+    <div id="crop-viewport"><img id="crop-img" draggable="false"></div>
+    <div style="display:flex;gap:12px;justify-content:center">
+      <button id="crop-cancel-btn" onclick="_cropCancel()">Cancel</button>
+      <button id="crop-confirm-btn" onclick="_cropConfirm()">Use this</button>
+    </div>
+  </div>
+</div>
+
 <div id="bottle-overlay">
   <img src="/bottle.png" style="max-width:55vmin;max-height:40vmin;object-fit:contain;border-radius:8px">
   <div id="bottle-overlay-heading" style="color:#fff;font-size:1.7rem;font-weight:bold;text-align:center"></div>

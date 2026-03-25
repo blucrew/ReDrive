@@ -539,12 +539,62 @@ function renderParticipants(data) {
     card.className = 'rider-card';
     card.dataset.idx = p.idx;
     card.style.cssText = bg;
+    if (_tcRiderImageSource == p.idx) card.classList.add('active');
+    if (p.avatar && p.avatar.startsWith('data:image/')) {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        _tcRiderImageManual = true;
+        _loadRiderAvatar(p);
+      });
+    }
     const label = document.createElement('div');
     label.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);font-size:8px;color:#ccc;text-align:center;padding:2px;border-radius:0 0 5px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
     label.textContent = p.name;
     card.appendChild(label);
     col.appendChild(card);
   });
+}
+
+// ── Rider avatar → touch image ──────────────────────────────────────────────
+
+function _highlightRiderCard(idx) {
+  document.querySelectorAll('.rider-card').forEach(card => {
+    card.classList.toggle('active', card.dataset.idx == idx);
+  });
+}
+
+function _loadRiderAvatar(rider) {
+  const img = new Image();
+  img.onload = () => {
+    tcCustomImg = img;
+    _tcRiderImageSource = rider.idx;
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    _highlightRiderCard(rider.idx);
+    tcDraw();
+  };
+  img.src = rider.avatar;
+}
+
+function _applyImage() {
+  if (_tcRiderImageManual) return;
+  const withAvatars = _tcParticipants.filter(
+    p => p.avatar && p.avatar.startsWith('data:image/'));
+  if (withAvatars.length === 1) {
+    const rider = withAvatars[0];
+    if (_tcRiderImageSource === rider.idx) return;
+    _loadRiderAvatar(rider);
+  } else if (withAvatars.length === 0 && _tcRiderImageSource !== null) {
+    _tcRiderImageSource = null;
+    const savedIdx = parseInt(localStorage.getItem('reDriveTouchIdx') || '0', 10);
+    if (savedIdx >= 0 && savedIdx < _tcImages.length) {
+      selectTouchImage(savedIdx);
+    } else {
+      tcCustomImg = null;
+      tcDraw();
+    }
+    // Reset AFTER selectTouchImage (which sets manual=true) so auto-select rearms
+    _tcRiderImageManual = false;
+  }
 }
 
 // ── Like animation ──────────────────────────────────────────────────────────
@@ -629,6 +679,8 @@ let tcServerInt   = 0.5;
 let _tcGesturePath= [], _tcLooping=false, _tcLoopStart=0, _tcLoopDur=0, _tcGestureStart=0;
 let _tcPowerSlider = 0.5; // 0=min 1=max, default middle
 let _tcParticipants = []; // latest participants list from WS
+let _tcRiderImageSource = null;   // idx of rider whose avatar is on the touch canvas
+let _tcRiderImageManual = false;  // true if driver manually picked a rider/preset
 
 function tcElecAt() {
   const valid = ['1','2','3'];
@@ -758,9 +810,10 @@ function tcBetaFromY(y) {
 }
 
 function tcIntFromX(x) {
-  // Sliding 25% window: lo = slider*0.75, hi = lo+0.25
-  const lo = _tcPowerSlider * 0.75;
-  return lo + 0.25 * Math.max(0, Math.min(1, x));
+  // Slider IS the floor; X adds up to 0.25 above it, capped at 1.0
+  const floor = _tcPowerSlider;
+  const ceiling = Math.min(1.0, floor + 0.25);
+  return floor + (ceiling - floor) * Math.max(0, Math.min(1, x));
 }
 
 function _tcPowerColor(power, alpha) {
@@ -809,7 +862,7 @@ function tcDraw() {
     ctx.drawImage(tcOverlayImg, 0, 0, W, H);
   }
   // Power window tint — subtle gradient showing current lo→hi range
-  const _lo=_tcPowerSlider*0.75, _hi=_lo+0.25;
+  const _lo=_tcPowerSlider, _hi=Math.min(1.0,_lo+0.25);
   const _tint=ctx.createLinearGradient(0,0,W,0);
   _tint.addColorStop(0,_tcPowerColor(_lo,0.06));
   _tint.addColorStop(1,_tcPowerColor(_hi,0.06));
@@ -1278,6 +1331,9 @@ let _tcSelectedIdx = -1;
 
 function selectTouchImage(idx) {
   if (idx < 0 || idx >= _tcImages.length) return;
+  _tcRiderImageManual = true;
+  _tcRiderImageSource = null;
+  _highlightRiderCard(null);
   _tcSelectedIdx = idx;
   localStorage.setItem('reDriveTouchIdx', String(idx));
   const entry = _tcImages[idx];
@@ -1327,7 +1383,8 @@ function selectTouchImage(idx) {
             case 'participants_update':
               _tcParticipants = msg.participants || [];
               renderParticipants({participants: _tcParticipants});
-              if (_driverMode === 'touch') { _tcRefreshPickerNames(); _applyImage(); }
+              _applyImage();
+              if (_driverMode === 'touch') { _tcRefreshPickerNames(); }
               break;
             case 'command_ack':
               setConnected(msg.ok !== false);

@@ -346,58 +346,120 @@ function updateDriverStatus(connected, name) {
 const _AVATAR_MAX_BYTES = 400 * 1024; // 400KB base64 limit (server caps at 512KB)
 const _AVATAR_MAX_DIM = 512;          // max width or height in pixels
 
-function _resizeImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      // Scale down if larger than max dimension
-      if (w > _AVATAR_MAX_DIM || h > _AVATAR_MAX_DIM) {
-        const scale = _AVATAR_MAX_DIM / Math.max(w, h);
-        w = Math.round(w * scale);
-        h = Math.round(h * scale);
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      // Start at high quality JPEG, reduce until under limit
-      let quality = 0.85;
-      let dataUrl = canvas.toDataURL('image/jpeg', quality);
-      while (dataUrl.length > _AVATAR_MAX_BYTES && quality > 0.2) {
-        quality -= 0.1;
-        dataUrl = canvas.toDataURL('image/jpeg', quality);
-      }
-      if (dataUrl.length > _AVATAR_MAX_BYTES) {
-        // Still too big - scale down further
-        const scale2 = 0.5;
-        canvas.width = Math.round(w * scale2);
-        canvas.height = Math.round(h * scale2);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-      }
-      resolve(dataUrl);
-    };
-    img.onerror = () => reject(new Error('Failed to load image'));
-    img.src = URL.createObjectURL(file);
-  });
-}
+// ── Crop modal state ──────────────────────────────────────────────────────────
+let _cropImg = null;      // original Image element
+let _cropObjUrl = null;   // object URL to revoke
+let _cropOff = { x:0, y:0 };
+let _cropDrag = null;     // {startX, startY, origX, origY} during drag
+let _cropScale = 1;
+let _cropW = 0, _cropH = 0; // scaled image dimensions
 
-async function onAnatFileSelected(input) {
+function onAnatFileSelected(input) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0]; input.value = '';
-  const btn = document.getElementById('upload-avatar-btn');
-  const orig = btn ? btn.childNodes[0].textContent : '';
-  if (btn) btn.childNodes[0].textContent = 'Saving...';
-  try {
-    const dataUrl = await _resizeImage(file);
-    localStorage.setItem('reDriveAnatomyB64', dataUrl);
-    if (_riderWs && _riderWs.readyState === WebSocket.OPEN) {
-      _riderWs.send(JSON.stringify({type: 'set_avatar', data: dataUrl}));
-    }
-    if (btn) { btn.childNodes[0].textContent = 'Saved!'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
-  } catch(_) {
-    if (btn) { btn.childNodes[0].textContent = 'Error'; setTimeout(()=>{ btn.childNodes[0].textContent = orig; }, 2000); }
+  _showCropModal(file);
+}
+
+function _showCropModal(file) {
+  const modal = document.getElementById('crop-modal');
+  const imgEl = document.getElementById('crop-img');
+  const vp = document.getElementById('crop-viewport');
+  const img = new Image();
+  _cropObjUrl = URL.createObjectURL(file);
+  img.onload = () => {
+    _cropImg = img;
+    imgEl.src = img.src;
+    modal.style.display = 'flex';
+    // Read dimensions after the modal is visible
+    requestAnimationFrame(() => {
+      const vpW = vp.offsetWidth, vpH = vp.offsetHeight;
+      _cropScale = Math.max(vpW / img.width, vpH / img.height);
+      _cropW = img.width * _cropScale;
+      _cropH = img.height * _cropScale;
+      imgEl.style.width = _cropW + 'px';
+      imgEl.style.height = _cropH + 'px';
+      _cropOff.x = (vpW - _cropW) / 2;
+      _cropOff.y = (vpH - _cropH) / 2;
+      _cropApplyOffset();
+    });
+  };
+  img.onerror = () => { URL.revokeObjectURL(_cropObjUrl); _cropObjUrl = null; };
+  img.src = _cropObjUrl;
+  // Attach drag listeners to viewport
+  vp.onpointerdown = _cropPointerDown;
+  vp.onpointermove = _cropPointerMove;
+  vp.onpointerup = _cropPointerUp;
+  vp.onpointercancel = _cropPointerUp;
+}
+
+function _cropApplyOffset() {
+  const el = document.getElementById('crop-img');
+  el.style.left = _cropOff.x + 'px';
+  el.style.top = _cropOff.y + 'px';
+}
+
+function _cropClamp() {
+  const vp = document.getElementById('crop-viewport');
+  const vpW = vp.offsetWidth, vpH = vp.offsetHeight;
+  _cropOff.x = Math.min(0, Math.max(vpW - _cropW, _cropOff.x));
+  _cropOff.y = Math.min(0, Math.max(vpH - _cropH, _cropOff.y));
+}
+
+function _cropPointerDown(e) {
+  e.preventDefault();
+  this.setPointerCapture(e.pointerId);
+  _cropDrag = { startX: e.clientX, startY: e.clientY, origX: _cropOff.x, origY: _cropOff.y };
+}
+function _cropPointerMove(e) {
+  if (!_cropDrag) return;
+  _cropOff.x = _cropDrag.origX + (e.clientX - _cropDrag.startX);
+  _cropOff.y = _cropDrag.origY + (e.clientY - _cropDrag.startY);
+  _cropClamp();
+  _cropApplyOffset();
+}
+function _cropPointerUp() { _cropDrag = null; }
+
+function _cropConfirm() {
+  if (!_cropImg) return;
+  const vp = document.getElementById('crop-viewport');
+  const vpW = vp.offsetWidth, vpH = vp.offsetHeight;
+  // Source rect in original image coordinates
+  const srcX = -_cropOff.x / _cropScale;
+  const srcY = -_cropOff.y / _cropScale;
+  const srcW = vpW / _cropScale;
+  const srcH = vpH / _cropScale;
+  // Output at 9:16, max 512px tall
+  const outH = Math.min(_AVATAR_MAX_DIM, Math.round(srcH));
+  const outW = Math.round(outH * 9 / 16);
+  const canvas = document.createElement('canvas');
+  canvas.width = outW; canvas.height = outH;
+  canvas.getContext('2d').drawImage(_cropImg, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+  // Compress to JPEG under size limit
+  let quality = 0.85;
+  let dataUrl = canvas.toDataURL('image/jpeg', quality);
+  while (dataUrl.length > _AVATAR_MAX_BYTES && quality > 0.2) {
+    quality -= 0.1;
+    dataUrl = canvas.toDataURL('image/jpeg', quality);
   }
+  // Save and send
+  localStorage.setItem('reDriveAnatomyB64', dataUrl);
+  if (_riderWs && _riderWs.readyState === WebSocket.OPEN) {
+    _riderWs.send(JSON.stringify({ type: 'set_avatar', data: dataUrl }));
+  }
+  _cropCleanup();
+  const btn = document.getElementById('upload-avatar-btn');
+  if (btn) {
+    btn.childNodes[0].textContent = 'Saved!';
+    setTimeout(() => { btn.childNodes[0].textContent = '\u{1F4F7} My Pic'; }, 2000);
+  }
+}
+
+function _cropCancel() { _cropCleanup(); }
+
+function _cropCleanup() {
+  document.getElementById('crop-modal').style.display = 'none';
+  if (_cropObjUrl) { URL.revokeObjectURL(_cropObjUrl); _cropObjUrl = null; }
+  _cropImg = null; _cropDrag = null;
 }
 
 // ── ReStim settings UI ─────────────────────────────────────────────────────

@@ -110,6 +110,35 @@
     color:var(--accent); font-family:monospace; font-size:14px;
     letter-spacing:1px; cursor:pointer;
   }
+  /* Crop modal */
+  #crop-modal {
+    position:fixed; inset:0; z-index:10000;
+    background:rgba(0,0,0,0.88); backdrop-filter:blur(8px);
+    display:flex; align-items:center; justify-content:center;
+  }
+  #crop-sheet {
+    display:flex; flex-direction:column; gap:14px; padding:18px;
+    background:var(--bg2); border:1px solid var(--border);
+    border-radius:var(--radius); max-width:90vw;
+  }
+  #crop-viewport {
+    width:70vw; max-width:270px; aspect-ratio:9/16;
+    overflow:hidden; border-radius:12px;
+    border:2px solid var(--accent); position:relative;
+    touch-action:none; align-self:center;
+  }
+  #crop-img {
+    position:absolute; user-select:none;
+    -webkit-user-drag:none; pointer-events:none;
+  }
+  #crop-cancel-btn {
+    padding:8px 20px; background:var(--bg3); border:1px solid var(--border);
+    border-radius:8px; color:var(--text2); font-size:13px; cursor:pointer;
+  }
+  #crop-confirm-btn {
+    padding:8px 20px; background:var(--accent); border:none;
+    border-radius:8px; color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+  }
   /* Bottle overlay */
   #bottle-overlay {
     display:none; position:fixed; inset:0;
