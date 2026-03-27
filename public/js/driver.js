@@ -792,22 +792,20 @@ function tcDrawSimple(ctx, W, H, thumb) {
   }
 }
 
-function tcBetaFromY(y) {
-  const ea = tcElecAt();
-  const pts = Object.entries(ea)
-    .map(([anat,elec]) => ({ y:TC_ANAT_YF[anat] ?? null, beta:TC_ELEC_BETA[elec] ?? 0 }))
-    .filter(p => p.y !== null)
-    .sort((a,b) => a.y - b.y);
-  if (y <= pts[0].y) return pts[0].beta;
-  if (y >= pts[pts.length-1].y) return pts[pts.length-1].beta;
-  for (let i=0; i<pts.length-1; i++) {
-    if (y>=pts[i].y && y<=pts[i+1].y) {
-      const f=(y-pts[i].y)/(pts[i+1].y-pts[i].y);
-      return Math.round(pts[i].beta+f*(pts[i+1].beta-pts[i].beta));
-    }
-  }
-  return 5000;
+function tcPositionFromY(y) {
+  // Triphase triangle: L+(120deg) -> N(0deg) -> R+(-120deg) on the unit circle
+  // y=0 top=L+, y=0.5 middle=N (neutral/commons), y=1 bottom=R+
+  const theta = (2 * Math.PI / 3) * (1 - 2 * Math.max(0, Math.min(1, y)));
+  const alphaNorm = Math.cos(theta);
+  const betaNorm = Math.sin(theta);
+  return {
+    beta: Math.round(Math.max(0, Math.min(9999, (betaNorm + 1) / 2 * 9999))),
+    alpha: Math.max(0, Math.min(1, (alphaNorm + 1) / 2))
+  };
 }
+
+// Backward compat wrapper for anything that only needs beta
+function tcBetaFromY(y) { return tcPositionFromY(y).beta; }
 
 function tcIntFromX(x) {
   // Slider IS the floor; X adds up to 0.25 above it, capped at 1.0
@@ -966,7 +964,8 @@ function tcOnDown(e) {
   tcLastX=pos.x; tcLastY=pos.y;
   tcTrail=[{x:pos.x,y:pos.y,p:tcIntFromX(pos.x),t:Date.now()}];
   _tcGesturePath.push({t:0, x:pos.x, y:pos.y});
-  sendCmd({beta_mode:'hold',beta:tcBetaFromY(pos.y),intensity:tcIntFromX(pos.x)});
+  const p0 = tcPositionFromY(pos.y);
+  sendCmd({beta_mode:'hold',beta:p0.beta,alpha_pos:p0.alpha,intensity:tcIntFromX(pos.x)});
   tcDraw();
 }
 function tcOnMove(e) {
@@ -977,7 +976,8 @@ function tcOnMove(e) {
   tcTrail.push({x:pos.x,y:pos.y,p:tcIntFromX(pos.x),t:Date.now()});
   if (tcTrail.length>60) tcTrail.shift();
   _tcGesturePath.push({t:performance.now()-_tcGestureStart, x:pos.x, y:pos.y});
-  sendCmd({beta:tcBetaFromY(pos.y),intensity:tcIntFromX(pos.x)});
+  const pm = tcPositionFromY(pos.y);
+  sendCmd({beta:pm.beta,alpha_pos:pm.alpha,intensity:tcIntFromX(pos.x)});
   tcDraw();
 }
 function tcOnUp() {
@@ -988,11 +988,11 @@ function tcOnUp() {
     _tcLoopStart=performance.now(); _tcLoopDur=dur*1000;
     tcSetLooping(true);
     // Send gesture to engine for server-side looping
-    const pts = _tcGesturePath.map(p => ({
-      t: p.t / 1000,
-      beta: tcBetaFromY(p.y),
-      intensity: tcIntFromX(p.x),
-    }));
+    const pts = _tcGesturePath.map(p => {
+      const gp = tcPositionFromY(p.y);
+      return { t: p.t / 1000, beta: gp.beta, alpha: gp.alpha,
+               intensity: tcIntFromX(p.x) };
+    });
     sendCmd({gesture_record: pts});
     sendCmd({beta_mode: 'touch'});
     // Highlight the touch mode button
@@ -1018,11 +1018,11 @@ function _updateResumeBtn() {
 function resumeTouchGesture() {
   if (_tcGesturePath.length < 2) return;
   // Re-send gesture to engine and switch to touch mode
-  const pts = _tcGesturePath.map(p => ({
-    t: p.t / 1000,
-    beta: tcBetaFromY(p.y),
-    intensity: tcIntFromX(p.x),
-  }));
+  const pts = _tcGesturePath.map(p => {
+    const rp = tcPositionFromY(p.y);
+    return { t: p.t / 1000, beta: rp.beta, alpha: rp.alpha,
+             intensity: tcIntFromX(p.x) };
+  });
   sendCmd({gesture_record: pts});
   sendCmd({beta_mode: 'touch'});
   _tcLoopStart = performance.now();
