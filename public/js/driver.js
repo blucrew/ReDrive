@@ -639,6 +639,8 @@ function setTab(tab) {
   document.getElementById('controls-panel').style.display = tab === 'controls' ? 'flex' : 'none';
   const tp = document.getElementById('touch-panel');
   tp.style.display = tab === 'touch' ? 'flex' : 'none';
+  const sp = document.getElementById('script-panel');
+  if (sp) sp.style.display = tab === 'script' ? 'flex' : 'none';
   const touchOnly = tab === 'touch' ? '' : 'none';
   const cursorBtn = document.getElementById('cursor-btn');
   if (cursorBtn) cursorBtn.style.display = touchOnly;
@@ -652,6 +654,10 @@ function setTab(tab) {
       if (w && w.offsetHeight > 10) { if (!c || c.width !== w.offsetWidth || c.height !== w.offsetHeight) tcDraw(); }
       if (Date.now() < _until) requestAnimationFrame(sync);
     })();
+  }
+  if (tab === 'script') {
+    // Redraw mini waveform now that the panel is visible and has layout
+    requestAnimationFrame(fsDrawMini);
   }
 }
 
@@ -1405,3 +1411,301 @@ function selectTouchImage(idx) {
   }
   connect();
 })();
+
+// ── Funscript player ─────────────────────────────────────────────────────────
+// Plays a .funscript file and streams the interpolated position value to the
+// engine as intensity at FS_HZ. If a video is loaded, its currentTime drives
+// the timeline instead of performance.now(), keeping stim locked to the video.
+
+const FS_HZ    = 20;          // send rate (Hz)
+let _fsActions   = [];        // [{at:ms, pos:0-100}, …] sorted by at
+let _fsDuration  = 0;         // ms of last action
+let _fsPlaying   = false;
+let _fsOffset    = 0;         // ms position when paused / before play
+let _fsWallStart = 0;         // performance.now() at last fsPlay()
+let _fsSendTimer = null;
+let _fsSeekDrag  = false;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function _fsFmt(ms) {
+  const s = Math.floor(ms / 1000);
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
+
+function _fsMsNow() {
+  // If a video element is driving timing, use its currentTime
+  const v = document.getElementById('fs-video-el');
+  if (v && v.style.display !== 'none' && v.readyState >= 1 && !v.paused) {
+    return v.currentTime * 1000;
+  }
+  return _fsPlaying ? _fsOffset + (performance.now() - _fsWallStart) : _fsOffset;
+}
+
+function _fsInterp(ms) {
+  if (!_fsActions.length) return 0;
+  if (ms <= _fsActions[0].at) return _fsActions[0].pos;
+  const last = _fsActions[_fsActions.length - 1];
+  if (ms >= last.at) return last.pos;
+  // Binary search for surrounding pair
+  let lo = 0, hi = _fsActions.length - 1;
+  while (lo < hi - 1) {
+    const m = (lo + hi) >> 1;
+    if (_fsActions[m].at <= ms) lo = m; else hi = m;
+  }
+  const a = _fsActions[lo], b = _fsActions[hi];
+  const t = (ms - a.at) / (b.at - a.at);
+  return a.pos + t * (b.pos - a.pos);
+}
+
+// ── Load / eject ──────────────────────────────────────────────────────────────
+
+function fsLoadFile(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const actions = (data.actions || []).sort((a, b) => a.at - b.at);
+      if (!actions.length) { alert('Empty funscript — no actions found.'); return; }
+      _fsActions  = actions;
+      _fsDuration = actions[actions.length - 1].at;
+      fsStop();
+      document.getElementById('fs-name').textContent =
+        file.name.replace(/\.[^.]+$/, '');
+      document.getElementById('fs-duration').textContent = _fsFmt(_fsDuration);
+      document.getElementById('fs-seek-input').max = _fsDuration;
+      document.getElementById('fs-time-disp').textContent =
+        '0:00 / ' + _fsFmt(_fsDuration);
+      document.getElementById('fs-drop').style.display   = 'none';
+      document.getElementById('fs-loaded').style.display = 'flex';
+      requestAnimationFrame(fsDrawMini);
+    } catch (_) { alert('Could not parse funscript — check it is valid JSON.'); }
+  };
+  r.readAsText(file);
+}
+
+function fsEject() {
+  fsStop();
+  _fsActions = []; _fsDuration = 0;
+  document.getElementById('fs-drop').style.display   = '';
+  document.getElementById('fs-loaded').style.display = 'none';
+  document.getElementById('fs-file-input').value     = '';
+  const v = document.getElementById('fs-video-el');
+  if (v) { v.pause(); v.removeAttribute('src'); v.style.display = 'none'; }
+  document.getElementById('fs-video-url-input').value = '';
+}
+
+// ── Drag-and-drop ─────────────────────────────────────────────────────────────
+
+function fsDragOver(e) {
+  e.preventDefault();
+  document.getElementById('fs-drop').classList.add('dragover');
+}
+function fsDragLeave() {
+  document.getElementById('fs-drop').classList.remove('dragover');
+}
+function fsDrop(e) {
+  e.preventDefault();
+  document.getElementById('fs-drop').classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) fsLoadFile(f);
+}
+
+// ── Playback ──────────────────────────────────────────────────────────────────
+
+function fsPlay() {
+  if (!_fsActions.length || _fsPlaying) return;
+  _fsPlaying   = true;
+  _fsWallStart = performance.now();
+  // Sync video if loaded
+  const v = document.getElementById('fs-video-el');
+  if (v && v.style.display !== 'none' && v.readyState >= 1) {
+    v.currentTime = _fsOffset / 1000;
+    v.play();
+  }
+  clearInterval(_fsSendTimer);
+  _fsSendTimer = setInterval(_fsTick, 1000 / FS_HZ);
+  document.getElementById('fs-play-btn').disabled  = true;
+  document.getElementById('fs-pause-btn').disabled = false;
+}
+
+function fsPause() {
+  if (!_fsPlaying) return;
+  _fsOffset  = _fsMsNow();
+  _fsPlaying = false;
+  const v = document.getElementById('fs-video-el');
+  if (v) v.pause();
+  clearInterval(_fsSendTimer);
+  document.getElementById('fs-play-btn').disabled  = false;
+  document.getElementById('fs-pause-btn').disabled = true;
+}
+
+function fsStop() {
+  _fsPlaying = false;
+  _fsOffset  = 0;
+  clearInterval(_fsSendTimer);
+  const v = document.getElementById('fs-video-el');
+  if (v) { v.pause(); v.currentTime = 0; }
+  try { sendCmd({ intensity: 0 }); } catch(_) {}
+  const seek = document.getElementById('fs-seek-input');
+  if (seek) seek.value = 0;
+  const fill = document.getElementById('fs-seek-fill');
+  if (fill) fill.style.width = '0%';
+  const time = document.getElementById('fs-time-disp');
+  if (time) time.textContent = '0:00 / ' + _fsFmt(_fsDuration);
+  const pos = document.getElementById('fs-live-pos');
+  if (pos) pos.textContent = '0%';
+  const playBtn  = document.getElementById('fs-play-btn');
+  const pauseBtn = document.getElementById('fs-pause-btn');
+  if (playBtn)  playBtn.disabled  = false;
+  if (pauseBtn) pauseBtn.disabled = true;
+  requestAnimationFrame(fsDrawMini);
+}
+
+function _fsTick() {
+  let ms = _fsMsNow();
+  const loop = document.getElementById('fs-loop-cb')?.checked;
+
+  if (ms >= _fsDuration) {
+    if (loop) {
+      _fsOffset    = 0;
+      _fsWallStart = performance.now();
+      const v = document.getElementById('fs-video-el');
+      if (v && v.style.display !== 'none') { v.currentTime = 0; v.play(); }
+      ms = 0;
+    } else {
+      fsStop();
+      return;
+    }
+  }
+
+  const pct = ms / _fsDuration;
+  const pos = _fsInterp(ms) / 100;   // 0‒1
+
+  sendCmd({ intensity: pos });
+
+  if (!_fsSeekDrag) {
+    const seek = document.getElementById('fs-seek-input');
+    if (seek) seek.value = ms;
+    const fill = document.getElementById('fs-seek-fill');
+    if (fill) fill.style.width = (pct * 100).toFixed(2) + '%';
+    const time = document.getElementById('fs-time-disp');
+    if (time) time.textContent = _fsFmt(ms) + ' / ' + _fsFmt(_fsDuration);
+  }
+  const livePos = document.getElementById('fs-live-pos');
+  if (livePos) livePos.textContent = Math.round(pos * 100) + '%';
+
+  _fsDrawPlayhead(pct);
+}
+
+// ── Seek ──────────────────────────────────────────────────────────────────────
+
+function fsSeekStart() {
+  _fsSeekDrag = true;
+  if (_fsPlaying) _fsOffset = _fsMsNow();
+}
+function fsSeekEnd() { _fsSeekDrag = false; }
+
+function fsSeekInput(v) {
+  const ms  = parseFloat(v);
+  _fsOffset = ms;
+  if (_fsPlaying) _fsWallStart = performance.now();
+  const pct = _fsDuration > 0 ? ms / _fsDuration : 0;
+  const fill = document.getElementById('fs-seek-fill');
+  if (fill) fill.style.width = (pct * 100).toFixed(2) + '%';
+  const time = document.getElementById('fs-time-disp');
+  if (time) time.textContent = _fsFmt(ms) + ' / ' + _fsFmt(_fsDuration);
+  const vid = document.getElementById('fs-video-el');
+  if (vid && vid.style.display !== 'none') vid.currentTime = ms / 1000;
+  _fsDrawPlayhead(pct);
+}
+
+// ── Mini waveform canvas ──────────────────────────────────────────────────────
+
+function fsDrawMini() {
+  const c = document.getElementById('fs-mini-canvas');
+  if (!c) return;
+  const W = c.offsetWidth || c.parentElement?.offsetWidth || 300;
+  const H = 48;
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  if (!_fsActions.length) {
+    ctx.fillStyle = '#0f0f0f';
+    ctx.fillRect(0, 0, W, H);
+    return;
+  }
+
+  // Gradient fill under the curve
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, 'rgba(95,163,255,0.45)');
+  grad.addColorStop(1, 'rgba(95,163,255,0.04)');
+
+  ctx.beginPath();
+  _fsActions.forEach((a, i) => {
+    const x = (a.at / _fsDuration) * W;
+    const y = H - (a.pos / 100) * (H - 4) - 2;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Stroke line
+  ctx.beginPath();
+  _fsActions.forEach((a, i) => {
+    const x = (a.at / _fsDuration) * W;
+    const y = H - (a.pos / 100) * (H - 4) - 2;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#5fa3ff'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  c._lastPct = -1; // invalidate playhead cache
+}
+
+function _fsDrawPlayhead(pct) {
+  const c = document.getElementById('fs-mini-canvas');
+  if (!c || !c.width) return;
+  if (Math.abs((c._lastPct || 0) - pct) < 0.003) return;
+  c._lastPct = pct;
+  fsDrawMini();   // cheap: small canvas, ~300 points typical
+  const ctx = c.getContext('2d');
+  const x = pct * c.width;
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.lineWidth   = 1;
+  ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, c.height); ctx.stroke();
+}
+
+// ── Video helpers ─────────────────────────────────────────────────────────────
+
+function fsLoadVideoUrl() {
+  const url = document.getElementById('fs-video-url-input').value.trim();
+  if (!url) return;
+  const v = document.getElementById('fs-video-el');
+  v.src = url;
+  v.style.display = 'block';
+}
+
+function fsLoadVideoFile(file) {
+  if (!file) return;
+  const v = document.getElementById('fs-video-el');
+  v.src = URL.createObjectURL(file);
+  v.style.display = 'block';
+  document.getElementById('fs-video-url-input').value = '[local] ' + file.name;
+}
+
+// Keep _fsOffset in sync if video is seeked manually
+document.addEventListener('DOMContentLoaded', () => {
+  const v = document.getElementById('fs-video-el');
+  if (!v) return;
+  v.addEventListener('seeked', () => {
+    if (!_fsPlaying) _fsOffset = v.currentTime * 1000;
+  });
+  v.addEventListener('play', () => {
+    if (_fsActions.length && !_fsPlaying) fsPlay();
+  });
+  v.addEventListener('pause', () => {
+    if (_fsPlaying) fsPause();
+  });
+});

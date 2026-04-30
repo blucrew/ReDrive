@@ -77,6 +77,7 @@ const DRIVER_KEY = "";
     <div id="tab-btns">
       <button class="tab-btn active" data-tab="controls" onclick="setTab('controls')">Controls</button>
       <button class="tab-btn" data-tab="touch" onclick="setTab('touch')">Touch</button>
+      <button class="tab-btn" data-tab="script" onclick="setTab('script')">Script</button>
     </div>
 
     <!-- Controls tab -->
@@ -273,6 +274,69 @@ const DRIVER_KEY = "";
         <span id="tc-status" style="color:var(--fg2);font-size:11px;font-family:monospace;flex:1">Tap or drag &middot; Y = position &middot; X = intensity</span>
       </div>
     </div><!-- end #touch-panel -->
+
+    <!-- Script tab -->
+    <div id="script-panel">
+      <!-- Drop zone (shown until a funscript is loaded) -->
+      <div id="fs-drop"
+           ondragover="fsDragOver(event)" ondragleave="fsDragLeave(event)" ondrop="fsDrop(event)"
+           onclick="document.getElementById('fs-file-input').click()">
+        <div style="font-size:26px;margin-bottom:8px">🎵</div>
+        <div style="font-weight:700;color:var(--fg);margin-bottom:4px">Drop a .funscript here</div>
+        <div style="font-size:12px">or tap to browse</div>
+        <input type="file" id="fs-file-input" accept=".funscript,.json" style="display:none"
+               onchange="fsLoadFile(this.files[0])">
+      </div>
+
+      <!-- Loaded state -->
+      <div id="fs-loaded">
+        <!-- Title row -->
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <span id="fs-name" class="section-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+          <span id="fs-duration" style="font-size:11px;color:var(--fg2);flex-shrink:0"></span>
+          <button class="fs-small-btn" onclick="fsEject()" title="Load different file" style="flex-shrink:0">&#8635;</button>
+        </div>
+
+        <!-- Mini waveform -->
+        <canvas id="fs-mini-canvas" height="48"></canvas>
+
+        <!-- Seek bar -->
+        <div id="fs-seek-wrap">
+          <div id="fs-seek-fill"></div>
+          <input type="range" id="fs-seek-input" min="0" max="100" value="0" step="0.1"
+                 oninput="fsSeekInput(this.value)"
+                 onmousedown="fsSeekStart()" onmouseup="fsSeekEnd()"
+                 ontouchstart="fsSeekStart()" ontouchend="fsSeekEnd()">
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span id="fs-time-disp" style="font-size:11px;color:var(--fg2);font-family:monospace">0:00 / 0:00</span>
+          <span style="font-size:11px;color:var(--fg2)">Position: <span id="fs-live-pos" style="color:var(--accent);font-weight:700;font-family:monospace">0%</span></span>
+        </div>
+
+        <!-- Playback controls -->
+        <div id="fs-playback-row">
+          <button id="fs-play-btn"  class="fs-btn fs-play"  onclick="fsPlay()">&#9654; Play</button>
+          <button id="fs-pause-btn" class="fs-btn fs-pause" onclick="fsPause()" disabled>&#9646;&#9646;</button>
+          <button id="fs-stop-btn"  class="fs-btn fs-stop"  onclick="fsStop()">&#9632;</button>
+          <label class="fs-loop-label">
+            <input type="checkbox" id="fs-loop-cb" style="accent-color:var(--accent)"> Loop
+          </label>
+        </div>
+
+        <!-- Video sync (moonshot) -->
+        <div class="section-label" style="margin-top:6px">
+          Video Sync <small style="font-size:9px;text-transform:none;font-weight:400;color:var(--fg2)">optional · drives funscript timing</small>
+        </div>
+        <div id="fs-video-url-row">
+          <input type="text" id="fs-video-url-input" placeholder="Paste a video URL…">
+          <button class="fs-small-btn" onclick="fsLoadVideoUrl()">Load URL</button>
+          <button class="fs-small-btn" onclick="document.getElementById('fs-video-file-input').click()">Local File</button>
+          <input type="file" id="fs-video-file-input" accept="video/*" style="display:none"
+                 onchange="fsLoadVideoFile(this.files[0])">
+        </div>
+        <video id="fs-video-el" controls preload="metadata"></video>
+      </div>
+    </div><!-- end #script-panel -->
 
   </div><!-- end #tab-area -->
 
