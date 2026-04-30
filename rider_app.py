@@ -122,7 +122,7 @@ class RiderApp:
 
         # ── ReStim URL ────────────────────────────────────────────────────────
         self._add_label("ReStim:")
-        self._restim_var = tk.StringVar(value="ws://localhost:12346")
+        self._restim_var = tk.StringVar(value=self._config.get("restim_url", "ws://localhost:12346/tcode"))
         tk.Entry(self.root, textvariable=self._restim_var, **ENTRY_KW).pack(
             fill="x", padx=16, ipady=5, pady=(2, 8))
 
@@ -341,6 +341,8 @@ class RiderApp:
             return
         relay  = self._relay_var.get().strip().rstrip("/")
         restim = self._restim_var.get().strip()
+        self._config["restim_url"] = restim
+        save_config(self._config)
         self._set_status("Connecting...", WARN)
         self.root.after(0, lambda: self._connect_btn.config(
             text="Disconnect", bg=ERR, activebackground="#b71c1c"))
@@ -393,7 +395,7 @@ class RiderApp:
         self._loop.run_until_complete(self._rider_loop(room, relay, restim))
 
     async def _rider_loop(self, room: str, relay: str, restim: str):
-        relay_url       = f"{relay}/ws/rider/{room}"
+        relay_url       = f"{relay}/room/{room}/rider"
         RECONNECT_DELAY = 5.0
 
         # Derive relay_host from the relay URL (strip scheme)

@@ -3,8 +3,12 @@
 
 from PyInstaller.building.api import PYZ, EXE
 from PyInstaller.building.build_main import Analysis
+import os
 
 block_cipher = None
+
+# Icon — place a rider_icon.ico next to this spec to embed it
+icon_path = 'rider_icon.ico' if os.path.exists('rider_icon.ico') else None
 
 a = Analysis(
     ['rider_app.py'],
@@ -17,10 +21,16 @@ a = Analysis(
         'frozenlist',
         'multidict',
         'yarl',
+        'aiohttp.connector',
+        'aiohttp.client',
+        'aiohttp.client_ws',
+        'tkinter',
+        'tkinter.ttk',
+        'tkinter.filedialog',
     ],
     hookspath=[],
     runtime_hooks=[],
-    excludes=['tkinter.test'],
+    excludes=['tkinter.test', 'unittest', 'email', 'xml', 'pydoc'],
     cipher=block_cipher,
 )
 
@@ -36,6 +46,7 @@ exe = EXE(
     debug=False,
     strip=False,
     upx=True,
-    console=False,   # no console window
-    icon=None,
+    console=False,     # no black console window
+    icon=icon_path,
+    version_info=None,
 )
