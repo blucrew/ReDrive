@@ -1,5 +1,5 @@
 {
   "version": "0.1.0",
-  "download_windows": "https://redrive.estimstation.com/download/windows",
-  "download_mac":     "https://redrive.estimstation.com/download/mac"
+  "download_windows": "https://github.com/blucrew/ReDrive/releases/download/v0.1.0/ReDriveRider.exe",
+  "download_mac":     "https://github.com/blucrew/ReDrive/releases/download/v0.1.0/ReDriveRider-mac"
 }

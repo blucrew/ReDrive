@@ -34,19 +34,17 @@ a = Analysis(
     cipher=block_cipher,
 )
 
-pyz = PYZ(a.pure, a.zlib, cipher=block_cipher)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     name='ReDriveRider',
     debug=False,
     strip=False,
     upx=True,
-    console=False,     # no black console window
+    console=False,
     icon=icon_path,
-    version_info=None,
 )
