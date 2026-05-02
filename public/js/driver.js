@@ -1576,6 +1576,15 @@ function fsDrop(e) {
 
 // ── Playback ──────────────────────────────────────────────────────────────────
 
+function _fsSetStatusInd(state) {
+  // state: 'playing' | 'paused' | 'stopped'
+  const el  = document.getElementById('fs-status-ind');
+  const txt = document.getElementById('fs-status-txt');
+  if (!el) return;
+  el.className = state === 'playing' ? 'playing' : state === 'paused' ? 'paused' : '';
+  if (txt) txt.textContent = state === 'playing' ? 'PLAYING' : 'PAUSED';
+}
+
 function fsPlay() {
   if (!_fsHasAny() || _fsPlaying) return;
   _fsPlaying   = true;
@@ -1591,6 +1600,7 @@ function fsPlay() {
   const pa = document.getElementById('fs-pause-btn');
   if (pb) pb.disabled = true;
   if (pa) pa.disabled = false;
+  _fsSetStatusInd('playing');
 }
 
 function fsPause() {
@@ -1604,6 +1614,7 @@ function fsPause() {
   const pa = document.getElementById('fs-pause-btn');
   if (pb) pb.disabled = false;
   if (pa) pa.disabled = true;
+  _fsSetStatusInd('paused');
 }
 
 function fsStop() {
@@ -1630,6 +1641,7 @@ function fsStop() {
   const pa = document.getElementById('fs-pause-btn');
   if (pb) pb.disabled = false;
   if (pa) pa.disabled = true;
+  _fsSetStatusInd('stopped');
 }
 
 function _fsTick() {
@@ -1765,11 +1777,18 @@ function toggleSource(src) {
   if (src === 'script') {
     if (!_srcEnabled.script) {
       clearInterval(_fsSendTimer);
-      sendCmd({ intensity: 0 });
+      _fsSetStatusInd('stopped');
+      // Park only axes that were actually loaded — same logic as fsStop()
+      const stopCmd = {};
+      if (_FS_SLOTS && _FS_SLOTS.intensity.actions.length) stopCmd.intensity = 0;
+      if (_FS_SLOTS && _FS_SLOTS.beta.actions.length)      stopCmd.beta      = 5000;
+      if (_FS_SLOTS && _FS_SLOTS.alpha.actions.length)     stopCmd.alpha_pos = 0.5;
+      if (Object.keys(stopCmd).length) sendCmd(stopCmd);
     } else if (_fsPlaying) {
       // Re-arm the tick
       clearInterval(_fsSendTimer);
       _fsSendTimer = setInterval(_fsTick, 1000 / FS_HZ);
+      _fsSetStatusInd('playing');
     }
   }
 }

@@ -256,12 +256,14 @@
     font-weight:600; cursor:pointer; transition:all .15s;
     background:transparent; border:1px solid transparent; color:var(--fg2);
   }
+  /* ON  = green */
   .src-btn.active {
-    background:rgba(95,163,255,0.15); border-color:var(--accent); color:var(--accent);
+    background:rgba(74,222,128,0.15); border-color:var(--ok); color:var(--ok);
   }
+  /* OFF = red + strikethrough — clearly locked out */
   .src-btn:not(.active) {
-    background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.08);
-    color:rgba(163,163,163,0.45); text-decoration:line-through;
+    background:rgba(244,63,94,0.10); border-color:rgba(244,63,94,0.45);
+    color:rgba(244,63,94,0.75); text-decoration:line-through;
   }
 
   /* ── Script panel ── */
@@ -275,18 +277,34 @@
   #script-panel.dragover { border-color:var(--accent); }
   /* Seek bar */
   #fs-seek-wrap {
-    position:relative; height:6px; border-radius:9999px;
-    background:rgba(255,255,255,0.1); overflow:visible; cursor:pointer;
+    position:relative; height:10px; border-radius:9999px;
+    background:rgba(255,255,255,0.12); overflow:visible; cursor:pointer;
   }
   #fs-seek-fill {
     position:absolute; left:0; top:0; bottom:0; width:0%;
     background:var(--accent); border-radius:9999px; pointer-events:none;
+    box-shadow:0 0 8px var(--accent-glow);
   }
   #fs-seek-input {
     position:absolute; inset:-6px 0; width:100%; height:calc(100% + 12px);
     opacity:0; cursor:pointer; margin:0; padding:0;
     -webkit-appearance:none; appearance:none;
   }
+  /* Playing / paused indicator */
+  @keyframes fs-pulse {
+    0%,100% { opacity:1; }
+    50%      { opacity:0.3; }
+  }
+  #fs-status-ind {
+    font-size:11px; font-weight:700; letter-spacing:.06em;
+    display:none; align-items:center; gap:5px;
+  }
+  #fs-status-ind.playing { display:flex; color:var(--ok); }
+  #fs-status-ind.paused  { display:flex; color:var(--warn); }
+  #fs-status-dot {
+    width:7px; height:7px; border-radius:50%; background:currentColor;
+  }
+  #fs-status-ind.playing #fs-status-dot { animation:fs-pulse 1s ease-in-out infinite; }
   /* Playback buttons */
   #fs-playback-row { display:flex; gap:6px; align-items:center; }
   .fs-btn {
