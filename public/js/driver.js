@@ -1612,7 +1612,12 @@ function fsStop() {
   clearInterval(_fsSendTimer);
   const v = document.getElementById('fs-video-el');
   if (v) { v.pause(); v.currentTime = 0; }
-  sendCmd({ intensity: 0 });
+  // Only zero out axes that were actually driven by the script
+  const stopCmd = {};
+  if (_FS_SLOTS.intensity.actions.length) stopCmd.intensity = 0;
+  if (_FS_SLOTS.beta.actions.length)      stopCmd.beta      = 5000; // park at neutral
+  if (_FS_SLOTS.alpha.actions.length)     stopCmd.alpha_pos = 0.5;
+  if (Object.keys(stopCmd).length) sendCmd(stopCmd);
   const seek = document.getElementById('fs-seek-input');
   if (seek) seek.value = 0;
   const fill = document.getElementById('fs-seek-fill');
