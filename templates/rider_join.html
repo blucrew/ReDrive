@@ -10,18 +10,35 @@
 <h1>ReDrive</h1>
 <p class="sub">Room <strong style="color:var(--accent);letter-spacing:.1em">{{ code }}</strong></p>
 
-<div class="card">
-  <h2>How to connect</h2>
-  <div class="step"><span class="step-n">1</span>
-    <p>Make sure <strong>ReStim</strong> is open on your device with WebSocket enabled.</p></div>
-  <div class="step"><span class="step-n">2</span>
-    <p>Run the rider app or: <code>python rider_client.py {{ code }}</code></p></div>
-  <div class="step"><span class="step-n">3</span>
-    <p>Keep this page open to see live output. Your device's own power limits always apply.</p></div>
+<div class="card" id="bridge-card">
+  <h2>ReStim Bridge</h2>
+  <div class="bridge-row">
+    <span class="b-label">Session</span>
+    <span id="srv-dot" class="bdot"></span>
+    <span id="srv-txt" class="b-status">connecting…</span>
+  </div>
+  <div class="bridge-row">
+    <span class="b-label">ReStim</span>
+    <span id="rs-dot" class="bdot"></span>
+    <span id="rs-txt" class="b-status">connecting…</span>
+  </div>
+  <details class="bridge-adv">
+    <summary>ReStim address</summary>
+    <div style="display:flex;gap:.5rem;margin-top:.5rem">
+      <input id="restim-url-input" value="ws://localhost:12346/tcode"
+             style="flex:1;font-size:.82rem;background:var(--bg3);color:var(--fg);
+                    border:1px solid var(--border);border-radius:4px;padding:.3rem .6rem">
+      <button class="bridge-reconnect-btn" onclick="reconnect()">Apply</button>
+    </div>
+    <p style="font-size:.78rem;color:var(--fg2);margin-top:.4rem">
+      Default: <code>ws://localhost:12346/tcode</code>
+      — make sure ReStim's WebSocket server is enabled.
+    </p>
+  </details>
 </div>
 
 <div class="card">
-  <h2>Live output &nbsp;<span id="status-dot"></span><span id="status-txt">connecting…</span></h2>
+  <h2>Live output &nbsp;<span id="status-dot"></span><span id="status-txt"></span></h2>
   <div class="stat-row">
     <span class="stat-label">Pattern</span>
     <span class="stat-value" id="s-pattern">—</span>
@@ -48,7 +65,9 @@
 </div>
 
 <script>
-const STATE_URL = '{{ prefix }}/state';
+const ROOM_CODE   = '{{ code }}';
+const PREFIX      = '{{ prefix }}';
+const RIDER_WS    = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + PREFIX + '/rider-ws';
 </script>
 <script src="/public/js/rider_join.js"></script>
 <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
