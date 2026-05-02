@@ -1461,6 +1461,7 @@ _FS_SLOTS = {
 let _fsOffset    = 0;   // ms position when paused / before play
 let _fsWallStart = 0;   // performance.now() at last fsPlay()
 let _fsSeekDrag  = false;
+let _fsDelay     = 0;   // ms — signal offset vs video; +ahead, -behind
 
 function _fsDuration() {
   return Math.max(
@@ -1485,9 +1486,16 @@ function _fsFmt(ms) {
 function _fsMsNow() {
   const v = document.getElementById('fs-video-el');
   if (v && v.style.display !== 'none' && v.readyState >= 1 && !v.paused)
-    return v.currentTime * 1000;
+    return Math.max(0, v.currentTime * 1000 + _fsDelay);
   return _fsPlaying ? _fsOffset + (performance.now() - _fsWallStart) : _fsOffset;
 }
+
+function fsAdjDelay(delta) {
+  _fsDelay = Math.max(-5000, Math.min(5000, _fsDelay + delta));
+  const el = document.getElementById('fs-delay-val');
+  if (el) el.textContent = (_fsDelay >= 0 ? '+' : '') + _fsDelay + ' ms';
+}
+function fsResetDelay() { _fsDelay = 0; fsAdjDelay(0); }
 
 function _fsInterp(actions, ms) {
   if (!actions.length) return 0;

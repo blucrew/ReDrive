@@ -361,6 +361,15 @@ const DRIVER_KEY = "";
                onchange="fsLoadVideoFile(this.files[0])">
       </div>
       <video id="fs-video-el" controls preload="metadata"></video>
+      <!-- Signal offset -->
+      <div id="fs-delay-row">
+        <span class="fs-delay-label">Signal offset</span>
+        <button class="fs-adj-btn" onclick="fsAdjDelay(-500)">−500</button>
+        <button class="fs-adj-btn" onclick="fsAdjDelay(-50)">−50</button>
+        <button class="fs-adj-btn fs-adj-reset" onclick="fsResetDelay()" id="fs-delay-val">+0 ms</button>
+        <button class="fs-adj-btn" onclick="fsAdjDelay(+50)">+50</button>
+        <button class="fs-adj-btn" onclick="fsAdjDelay(+500)">+500</button>
+      </div>
 
     </div><!-- end #script-panel -->
 
