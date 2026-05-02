@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReDrive — Driver's Manual</title>
+<style>
+  :root {
+    --bg:      #0e0e10;
+    --bg2:     #16161a;
+    --bg3:     #1e1e24;
+    --border:  #2a2a35;
+    --fg:      #e8e8f0;
+    --fg2:     #888899;
+    --accent:  #5fa3ff;
+    --ok:      #4ade80;
+    --warn:    #fbbf24;
+    --err:     #f87171;
+    --purple:  #a78bfa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.7 system-ui, -apple-system, sans-serif;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 5rem;
+  }
+
+  /* ── Header ── */
+  .manual-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 2rem;
+    margin-bottom: 2.5rem;
+  }
+  .manual-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -.02em;
+    margin-bottom: .3rem;
+  }
+  .manual-header .sub {
+    color: var(--fg2);
+    font-size: .9rem;
+  }
+
+  /* ── TOC ── */
+  nav {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 3rem;
+  }
+  nav h2 {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--fg2);
+    margin-bottom: .8rem;
+  }
+  nav ol {
+    margin: 0; padding: 0 0 0 1.2rem;
+    columns: 2; column-gap: 2rem;
+    font-size: .88rem;
+  }
+  nav li { margin-bottom: .3rem; break-inside: avoid; }
+  nav a { color: var(--accent); text-decoration: none; }
+  nav a:hover { text-decoration: underline; }
+
+  /* ── Sections ── */
+  section {
+    margin-bottom: 3.5rem;
+    scroll-margin-top: 1rem;
+  }
+  section h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--fg);
+    padding-bottom: .6rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+  }
+  section h2 .sec-num {
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(95,163,255,.12);
+    border: 1px solid rgba(95,163,255,.25);
+    border-radius: 5px;
+    padding: .15em .5em;
+    letter-spacing: .05em;
+    flex-shrink: 0;
+  }
+  section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fg);
+    margin: 1.6rem 0 .5rem;
+  }
+  section h3 .tag {
+    display: inline-block;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    padding: .1em .5em;
+    border-radius: 4px;
+    margin-left: .5rem;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+  }
+  .tag-intensity { background: rgba(95,163,255,.15); color: var(--accent); }
+  .tag-beta      { background: rgba(251,191,36,.12); color: var(--warn); }
+  .tag-alpha     { background: rgba(74,222,128,.12); color: var(--ok); }
+  .tag-both      { background: rgba(167,139,250,.12); color: var(--purple); }
+
+  p { color: var(--fg2); margin-bottom: .8rem; }
+  p strong { color: var(--fg); }
+  p em { color: var(--warn); font-style: normal; }
+
+  /* ── Pattern grid ── */
+  .pattern-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin: 1rem 0;
+  }
+  .pattern-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .9rem 1rem;
+  }
+  .pattern-card .p-name {
+    font-size: .85rem;
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: .3rem;
+  }
+  .pattern-card .p-desc {
+    font-size: .8rem;
+    color: var(--fg2);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-radius: 8px;
+    padding: .9rem 1.1rem;
+    margin: 1rem 0;
+    font-size: .875rem;
+    line-height: 1.6;
+  }
+  .callout p { margin: 0; font-size: inherit; }
+  .callout.note   { background: rgba(95,163,255,.08);  border-left: 3px solid var(--accent); }
+  .callout.warn   { background: rgba(251,191,36,.08);  border-left: 3px solid var(--warn); }
+  .callout.tip    { background: rgba(74,222,128,.08);  border-left: 3px solid var(--ok); }
+  .callout.danger { background: rgba(248,113,113,.08); border-left: 3px solid var(--err); }
+  .callout strong { color: var(--fg); }
+
+  /* ── Parameter rows ── */
+  .param-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .87rem;
+    margin: .8rem 0 1.2rem;
+  }
+  .param-table th {
+    text-align: left;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--fg2);
+    padding: .4rem .8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .param-table td {
+    padding: .55rem .8rem;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: top;
+  }
+  .param-table td:first-child {
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
+    width: 130px;
+  }
+  .param-table td:last-child { color: var(--fg2); }
+  .param-table tr:last-child td { border-bottom: none; }
+
+  /* ── Source badges ── */
+  .src-badge {
+    display: inline-block;
+    font-size: .72rem;
+    font-weight: 700;
+    padding: .15em .55em;
+    border-radius: 4px;
+    letter-spacing: .04em;
+  }
+  .src-controls { background: rgba(74,222,128,.15); color: var(--ok);    border: 1px solid rgba(74,222,128,.3); }
+  .src-touch    { background: rgba(251,191,36,.12); color: var(--warn);   border: 1px solid rgba(251,191,36,.3); }
+  .src-script   { background: rgba(95,163,255,.12); color: var(--accent); border: 1px solid rgba(95,163,255,.3); }
+
+  /* ── Inline code ── */
+  code {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: .1em .45em;
+    border-radius: 4px;
+    font-size: .88em;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--accent);
+  }
+
+  /* ── Beta mode cards ── */
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 1rem 0;
+  }
+  .mode-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .9rem 1rem;
+  }
+  .mode-card .m-name {
+    font-size: .85rem;
+    font-weight: 700;
+    color: var(--warn);
+    margin-bottom: .35rem;
+  }
+  .mode-card .m-desc {
+    font-size: .82rem;
+    color: var(--fg2);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+  /* ── Quick ref table ── */
+  .qref {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .84rem;
+  }
+  .qref th {
+    text-align: left;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--fg2);
+    padding: .5rem .8rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .qref td {
+    padding: .6rem .8rem;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: top;
+  }
+  .qref td:first-child { color: var(--fg); font-weight: 500; }
+  .qref td:last-child  { color: var(--fg2); }
+
+  @media (max-width: 560px) {
+    nav ol { columns: 1; }
+    .mode-grid { grid-template-columns: 1fr; }
+    .pattern-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="manual-header">
+  <h1>ReDrive — Driver's Manual</h1>
+  <p class="sub">what the controls actually do, and how the rider feels it</p>
+</header>
+
+<nav>
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#basics">The basics</a></li>
+    <li><a href="#controls">Controls tab</a></li>
+    <li><a href="#beta">Beta — electrode position</a></li>
+    <li><a href="#ramp">Intensity ramp</a></li>
+    <li><a href="#poppers">Poppers</a></li>
+    <li><a href="#touch">Touch tab</a></li>
+    <li><a href="#script">Script tab</a></li>
+    <li><a href="#sources">Sources — input locks</a></li>
+    <li><a href="#presets">Presets</a></li>
+    <li><a href="#quickref">Quick reference</a></li>
+  </ol>
+</nav>
+
+
+<!-- ─────────────────────────────────────────────── 1 -->
+<section id="basics">
+  <h2><span class="sec-num">01</span> The basics</h2>
+
+  <p>you're the driver. the rider opens their browser, lands on the join page, and their ReStim connects automatically. everything you change on your panel hits their device in real time — no lag worth worrying about.</p>
+
+  <h3>The STOP button</h3>
+  <p>big red thing at the top. zeroes intensity immediately, clears any active ramp, stops gesture loops. <strong>the rider still controls their own hardware volume</strong> — ReDrive's stop kills the pattern signal, but if they've got the ReStim dial cranked up they might still feel residual. remind them before you start: their dial is their absolute floor, your controls are relative to it.</p>
+
+  <h3>Room codes &amp; the rider link</h3>
+  <p>the banner shows your room code and a "Rider Link" button. send that link to your rider. they open it, their browser bridges directly to their local ReStim — nothing to install. once they're connected you'll see their count tick up next to the room code.</p>
+
+  <div class="callout note">
+    <p><strong>0 riders</strong> in the banner means nobody is receiving your commands yet. commands still go to the server — they're just queued until someone connects. don't start a ramp before you see a rider show up.</p>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 2 -->
+<section id="controls">
+  <h2><span class="sec-num">02</span> Controls tab</h2>
+
+  <h3>Signal Pattern</h3>
+  <p>the pattern shapes how intensity is delivered over time. all patterns work within whatever intensity level you've set — it's the waveform, not the volume.</p>
+
+  <div class="pattern-grid">
+    <div class="pattern-card">
+      <div class="p-name">Hold</div>
+      <p class="p-desc">flat constant signal. what you set is what they get, no variation. the baseline for everything else.</p>
+    </div>
+    <div class="pattern-card">
+      <div class="p-name">Sine</div>
+      <p class="p-desc">smooth wave. intensity rises and falls rhythmically. the gentlest oscillation — good for sustained sessions or as a base layer.</p>
+    </div>
+    <div class="pattern-card">
+      <div class="p-name">Ramp ↑</div>
+      <p class="p-desc">builds from zero to full intensity over the period, then resets. feels like a tightening squeeze that releases. the Hz controls how fast that cycle repeats.</p>
+    </div>
+    <div class="pattern-card">
+      <div class="p-name">Ramp ↓</div>
+      <p class="p-desc">opposite — starts at full intensity and fades out, then resets. peaks and withdraws. good for that "trailing off" sensation.</p>
+    </div>
+    <div class="pattern-card">
+      <div class="p-name">Pulse</div>
+      <p class="p-desc">sharp on/off rhythm. more percussive than Sine — each hit is distinct. Hz sets how fast the pulses come.</p>
+    </div>
+    <div class="pattern-card">
+      <div class="p-name">Burst</div>
+      <p class="p-desc">clusters of pulses with gaps. groups of sensation separated by quiet moments. feels more complex than Pulse alone.</p>
+    </div>
+    <div class="pattern-card">
+      <div class="p-name">Random</div>
+      <p class="p-desc">unpredictable rhythm. the rider can't settle into anticipating the next hit. good for keeping them on edge — literally.</p>
+    </div>
+    <div class="pattern-card">
+      <div class="p-name">Edge</div>
+      <p class="p-desc">builds to a peak, holds, then drops. the classic edging shape. depth controls how far it drops on the release.</p>
+    </div>
+  </div>
+
+  <h3>Intensity <span class="tag tag-intensity">V0</span></h3>
+  <p>0–100% — the relative output level. <strong>this is relative to the rider's own hardware limit.</strong> if they have their ReStim volume dial set low, your 100% is still within their self-imposed ceiling. they own their absolute max. you own the shape and level within it.</p>
+
+  <div class="callout warn">
+    <p>start low. always. a rider new to your style needs time to calibrate their hardware limit to what you're sending. 20–30% is a reasonable introduction and you can build from there.</p>
+  </div>
+
+  <h3>Speed / Hz <span class="tag tag-intensity">V0</span></h3>
+  <p>how fast the selected pattern cycles. 0.05 Hz is an extremely slow wave — nearly imperceptible drift. 8 Hz is rapid, almost buzzy. for most patterns, 0.5–2 Hz is the sweet spot where the rider can feel each wave individually.</p>
+
+  <h3>Depth</h3>
+  <p>how far the pattern swings between its peak and trough. at 100%, a Sine wave goes from zero to full intensity. at 50%, it only swings from half-intensity to full — still oscillating, but the rider never drops below 50%. at 0%, depth collapses and it behaves like Hold regardless of what pattern you've chosen.</p>
+  <p>depth is the difference between "the signal breathes" and "the signal just varies slightly". keep it high for pronounced waves; pull it down when you want the pattern to be subtle texture on top of a constant base.</p>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 3 -->
+<section id="beta">
+  <h2><span class="sec-num">03</span> Beta — electrode position</h2>
+
+  <p>beta controls which electrodes are active and in what balance. the ReStim uses a triphase setup — three poles: <strong>L+ (left), Neutral (centre), R+ (right)</strong>. beta position moves the focal point across this arc.</p>
+  <p>from the rider's perspective this is the physical location of sensation. sweeping beta is the difference between a fixed point and something that moves across the body. it's a huge part of how varied a session feels.</p>
+
+  <h3>Beta modes</h3>
+  <div class="mode-grid">
+    <div class="mode-card">
+      <div class="m-name">Sweep</div>
+      <p class="m-desc">beta oscillates between two positions automatically at a set Hz. the rider feels the sensation travel back and forth. you control the speed, where it's centred, how wide it swings, and whether it spends more time on one side (skew).</p>
+    </div>
+    <div class="mode-card">
+      <div class="m-name">Hold</div>
+      <p class="m-desc">beta stays wherever you set it with the slider. static position — useful when you want the rider locked in one spot or when you're transitioning between positions manually.</p>
+    </div>
+    <div class="mode-card">
+      <div class="m-name">Spiral</div>
+      <p class="m-desc">beta sweeps while alpha oscillates in a 90° offset — they wind together and tighten toward centre, then auto-reset. creates a converging spiral sensation. let it run and it cycles on its own.</p>
+    </div>
+    <div class="mode-card">
+      <div class="m-name">Touch</div>
+      <p class="m-desc">beta is driven by the touch canvas. wherever your finger is on the Y axis, that's where the electrode is. full manual control via gesture.</p>
+    </div>
+  </div>
+
+  <h3>Sweep parameters</h3>
+  <table class="param-table">
+    <tr>
+      <th>Parameter</th><th>What it does to the rider</th>
+    </tr>
+    <tr>
+      <td>Sweep Hz</td>
+      <td>how fast beta moves across the arc. slow Hz = a lazy drift. fast Hz = rapid oscillation they'll feel as a kind of vibration between points.</td>
+    </tr>
+    <tr>
+      <td>Centre</td>
+      <td>where the sweep is centred. pull it toward L+ or R+ to bias the sensation to one side. Neutral keeps it balanced.</td>
+    </tr>
+    <tr>
+      <td>Width</td>
+      <td>how wide the arc is. 100% swings the full range from L+ to R+. narrow it down to keep sensation tightly focused around the centre point.</td>
+    </tr>
+    <tr>
+      <td>Skew</td>
+      <td>time imbalance. skew toward L+ means the sweep lingers on the left side before swinging right. useful for asymmetric bodies or when you want emphasis on one electrode.</td>
+    </tr>
+  </table>
+
+  <h3>Alpha oscillation <span class="tag tag-alpha">L0</span></h3>
+  <p>a secondary axis (L0) that oscillates independently of beta. when enabled, it adds a layered shimmer or counterpoint to whatever beta is doing — think of it as a secondary sweep running underneath the main sensation. toggle it on/off with the α button. the rider will notice the quality of sensation shift — it goes from a cleaner signal to something more complex and textured.</p>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 4 -->
+<section id="ramp">
+  <h2><span class="sec-num">04</span> Intensity ramp</h2>
+
+  <p>instead of snapping intensity to a new value, a ramp takes it there slowly over a set duration. the rider experiences a smooth, sustained build — or a long controlled descent — rather than a sudden change.</p>
+
+  <table class="param-table">
+    <tr><th>Parameter</th><th>What it does</th></tr>
+    <tr>
+      <td>Target %</td>
+      <td>the intensity level you're ramping toward. doesn't have to be 100% — you can ramp to 40% from 0 if you just want a gentle creep upward.</td>
+    </tr>
+    <tr>
+      <td>Duration</td>
+      <td>how long the ramp takes to complete. short durations feel like a sharp surge; long durations are almost imperceptible moment-to-moment but the rider gradually notices they're somewhere different.</td>
+    </tr>
+    <tr>
+      <td>Start</td>
+      <td>fires the ramp from wherever intensity currently is toward the target. the rider page shows a progress bar so they can see it coming.</td>
+    </tr>
+  </table>
+
+  <p>moving the intensity slider manually during an active ramp cancels the ramp. the stop button also cancels it. once the ramp completes, intensity holds at the target.</p>
+
+  <div class="callout tip">
+    <p>long slow ramps — like 3–5 minutes to 60% — are good for warming up a rider without them consciously registering each step. they just gradually notice they're somewhere much more intense than when they started.</p>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 5 -->
+<section id="poppers">
+  <h2><span class="sec-num">05</span> Poppers</h2>
+
+  <p>the Poppers button sends a full-screen overlay to the rider's browser — a timed cue for them to inhale. the signal keeps running as normal; this is purely a visual direction. you set the mode before hitting the button.</p>
+
+  <table class="param-table">
+    <tr><th>Mode</th><th>Duration</th><th>Intended use</th></tr>
+    <tr>
+      <td>Normal</td>
+      <td>10 seconds</td>
+      <td>standard hit. quick, routine.</td>
+    </tr>
+    <tr>
+      <td>Deep Huff</td>
+      <td>20 seconds</td>
+      <td>longer, more sustained inhale.</td>
+    </tr>
+    <tr>
+      <td>Double Hit</td>
+      <td>35 seconds</td>
+      <td>extended — covers two sequential hits. the rider holds the overlay for longer.</td>
+    </tr>
+  </table>
+
+  <div class="callout danger">
+    <p><strong>the signal doesn't stop automatically during a poppers cue.</strong> if you want the combination of overlay + a peak in signal, you time that manually — fire the poppers and push intensity at the same moment. the overlay counts down on their screen, but their device keeps doing whatever you're telling it to do.</p>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 6 -->
+<section id="touch">
+  <h2><span class="sec-num">06</span> Touch tab</h2>
+
+  <p>the touch panel is a 9:16 canvas with an anatomy overlay. dragging your finger on it sends live beta and intensity simultaneously — both axes from one gesture.</p>
+
+  <table class="param-table">
+    <tr><th>Axis</th><th>What it maps to</th></tr>
+    <tr>
+      <td>Y (vertical)</td>
+      <td>electrode position. top of canvas = L+, centre = Neutral, bottom = R+. drag up and down to sweep between electrodes. the path always passes through Neutral — no jumping straight from one pole to the other.</td>
+    </tr>
+    <tr>
+      <td>X (horizontal)</td>
+      <td>intensity above the base power floor. the further right you drag from centre, the more intensity you're adding on top of whatever the base power slider is set to. left of centre maps back toward the base.</td>
+    </tr>
+  </table>
+
+  <h3>Base Power slider</h3>
+  <p>the intensity floor while using touch. at 0% the rider gets nothing until you drag right. at 50% they're already at half intensity the moment you touch the canvas, and X only adds up to 25% on top. set it to where the session baseline should be before you start drawing.</p>
+
+  <h3>Gesture loop</h3>
+  <p>draw any path on the canvas, then lift your finger. ReDrive records the exact trajectory — position, timing, intensity — and starts looping it automatically. the rider feels your gesture play out on repeat until you change something.</p>
+  <p>switching to a different beta mode (Sweep, Hold, Spiral) pauses the gesture but keeps it in memory. switching back to Touch mode — or hitting Resume — picks it up exactly where it was. good for when you want to hold the loop but briefly layer in a sweep or change modes without losing your recorded gesture.</p>
+
+  <div class="callout tip">
+    <p>complex gestures loop better than simple ones. a straight drag loops in a way that's immediately obvious; a slow curve with pauses creates something that feels less mechanical and more alive.</p>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 7 -->
+<section id="script">
+  <h2><span class="sec-num">07</span> Script tab — funscript player</h2>
+
+  <p>funscripts are pre-scripted timelines of position values, typically made to match a video. ReDrive can play them across three independent axes simultaneously.</p>
+
+  <h3>The three channels</h3>
+
+  <div class="callout note">
+    <p><strong>Intensity <span class="tag tag-intensity">V0</span></strong> — the script drives the electrical output level. 0–100% mapped directly to signal strength. use for scripts that were originally made to drive a toy's motor speed — they translate well to e-stim intensity.</p>
+  </div>
+  <div class="callout note">
+    <p style="margin-bottom:.4rem"><strong>Beta <span class="tag tag-beta">L1</span></strong> — the script drives electrode position. a funscript that goes 0→100→0 will sweep L+ → R+ → L+. ideal for scripts made specifically for triphase setups, or anything labelled "position" or "surge".</p>
+  </div>
+  <div class="callout note">
+    <p><strong>Alpha <span class="tag tag-alpha">L0</span></strong> — drives the secondary oscillation axis. layered on top of whatever beta is doing. scripts labelled "alpha", "twist", or "vibr" auto-route here.</p>
+  </div>
+
+  <p>you don't have to use all three. loading only a Beta script gives you a pure position-scripted session with no intensity automation. the channels that aren't loaded stay wherever Controls or Touch left them.</p>
+
+  <h3>Loading scripts</h3>
+  <p>hit Load on the channel you want and pick a <code>.funscript</code> file, or drag one (or several at once) onto the script panel. ReDrive reads the filename and routes automatically:</p>
+  <table class="param-table">
+    <tr><th>Filename contains</th><th>Routes to</th></tr>
+    <tr><td>beta, position, surge</td><td>Beta channel</td></tr>
+    <tr><td>alpha, twist, vibr</td><td>Alpha channel</td></tr>
+    <tr><td>anything else</td><td>Intensity channel</td></tr>
+  </table>
+
+  <h3>Playback</h3>
+  <p>Play starts all loaded channels from the current seek position. the seek bar shows the combined duration across all loaded scripts. the centre value button between the time display and Loop shows a pulsing <strong>● PLAYING</strong> when active, amber <strong>● PAUSED</strong> when paused.</p>
+  <p>Loop checkbox replays from the beginning when the end is reached. Eject removes a single channel without stopping others — you can swap scripts mid-session.</p>
+
+  <h3>Video sync</h3>
+  <p>paste a URL or load a local video file. once loaded, the video drives the timeline instead of the internal clock — the script position follows <code>video.currentTime</code> exactly, including when you scrub or skip. the signal stays locked to whatever frame the rider is watching.</p>
+
+  <h3>Signal offset</h3>
+  <p>e-stim has latency that video doesn't. the offset row below the video player lets you shift the signal timing:</p>
+  <table class="param-table">
+    <tr><th>Direction</th><th>What it does</th></tr>
+    <tr>
+      <td>positive (+)</td>
+      <td>signal advances — plays ahead of the video. use when the signal feels like it's lagging behind the on-screen action.</td>
+    </tr>
+    <tr>
+      <td>negative (−)</td>
+      <td>signal is delayed — plays behind the video. use when the signal fires before the corresponding visual.</td>
+    </tr>
+  </table>
+  <p>fine steps are ±50 ms. coarse steps are ±500 ms. the centre button shows the current offset and resets to zero when clicked. range is ±5 seconds.</p>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 8 -->
+<section id="sources">
+  <h2><span class="sec-num">08</span> Sources — input locks</h2>
+
+  <p>the Sources row sits just below the tab buttons, always visible. it controls which inputs are active. <strong>green = live, red+strikethrough = locked out.</strong></p>
+
+  <table class="param-table">
+    <tr>
+      <td><span class="src-badge src-controls">Controls</span></td>
+      <td>sliders, pattern buttons, ramp — everything in the Controls tab. lock it out when running a script and you don't want accidental slider movement to interfere.</td>
+    </tr>
+    <tr>
+      <td><span class="src-badge src-touch">Touch</span></td>
+      <td>the touch canvas and gesture loop. locking this stops gesture recording, stops any running gesture loop, and ignores the canvas entirely.</td>
+    </tr>
+    <tr>
+      <td><span class="src-badge src-script">Script</span></td>
+      <td>the funscript player. locking this pauses output from loaded scripts without stopping playback internally — re-enable and it picks back up. useful for temporarily overriding a script with manual control.</td>
+    </tr>
+  </table>
+
+  <h3>Priority when multiple sources are active</h3>
+  <p>when more than one source is running, the priority order is <strong>Script → Controls → Touch</strong>. specifically: if a script has a channel loaded, Controls cannot send to that same axis. Touch takes effect the moment your finger is down — it overrides passively for its axes while active. all of this is automatic; you don't configure it.</p>
+
+  <div class="callout tip">
+    <p>for a clean scripted session: load your funscripts, click <span class="src-badge src-controls">Controls</span> and <span class="src-badge src-touch">Touch</span> to lock them out, then play. the rider gets exactly what the script says, nothing extra.</p>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 9 -->
+<section id="presets">
+  <h2><span class="sec-num">09</span> Presets</h2>
+
+  <p>presets save and restore the full state of the Controls tab — pattern, intensity, Hz, depth, beta mode, sweep parameters, alpha, all of it — with one click.</p>
+  <p>the preset list is fetched from the server. new presets can be added to the <code>PRESETS</code> dict in <code>engine.py</code> — they appear automatically without redeploying. a Milking preset is included out of the box as a starting point for what a full preset looks like.</p>
+
+  <div class="callout note">
+    <p>presets don't affect the Script tab or Sources state. they're purely Controls tab snapshots.</p>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 10 -->
+<section id="quickref">
+  <h2><span class="sec-num">10</span> Quick reference</h2>
+
+  <table class="qref">
+    <tr>
+      <th>You want to…</th>
+      <th>What to do</th>
+    </tr>
+    <tr>
+      <td>stop everything immediately</td>
+      <td>STOP button — zeroes intensity, kills ramp and gestures</td>
+    </tr>
+    <tr>
+      <td>warm a rider up slowly</td>
+      <td>Hold pattern, set a 3–5 min ramp to 40–60%</td>
+    </tr>
+    <tr>
+      <td>keep them guessing</td>
+      <td>Random pattern, Sweep beta, depth at 70–100%</td>
+    </tr>
+    <tr>
+      <td>focus sensation on one spot</td>
+      <td>Hold beta mode, position slider where you want it</td>
+    </tr>
+    <tr>
+      <td>create a traveling sensation</td>
+      <td>Sweep beta at 0.3–0.8 Hz, width at 80–100%</td>
+    </tr>
+    <tr>
+      <td>run a funscript cleanly</td>
+      <td>Script tab → load file → lock Controls &amp; Touch sources → Play</td>
+    </tr>
+    <tr>
+      <td>sync signal to a video</td>
+      <td>Load video in Video Sync section, adjust signal offset if needed</td>
+    </tr>
+    <tr>
+      <td>record and loop a gesture</td>
+      <td>Touch tab → draw path → lift finger → gesture loops automatically</td>
+    </tr>
+    <tr>
+      <td>fire a poppers cue</td>
+      <td>select mode (Normal / Deep Huff / Double Hit) → Poppers button</td>
+    </tr>
+    <tr>
+      <td>give a rider a break mid-script</td>
+      <td>lock the Script source — signal stops, playback timer keeps running</td>
+    </tr>
+    <tr>
+      <td>resume a paused gesture</td>
+      <td>switch to Touch beta mode or hit Resume in the Touch tab</td>
+    </tr>
+    <tr>
+      <td>layer script + manual control</td>
+      <td>leave all sources active — script owns its loaded axes, Controls fills the rest</td>
+    </tr>
+  </table>
+
+  <hr>
+
+  <p style="margin-top:1.5rem; font-size:.85rem;">the rider controls their absolute power limit at their hardware level, always. ReDrive shapes and directs the signal within whatever ceiling they've set. keep that in mind at the start of every session — agree on their limit before you push past 50%.</p>
+  <p style="font-size:.85rem;">unpleasant dreams.</p>
+</section>
+
+</body>
+</html>
