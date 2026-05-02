@@ -4,6 +4,17 @@ let state = { pattern:"Hold", intensity:0, hz:0.5, depth:1.0,
 let spiralTighten = false;
 let _driverWs = null;
 
+// \u2500\u2500 Source isolation \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Each source can be enabled/disabled independently. Priority (high\u2192low):
+//   script > controls > touch
+// Touch with finger actively down always overrides for its axes.
+const _srcEnabled = { controls: true, touch: true, script: true };
+let _touchActive  = false;  // true while pointer is down on touch canvas
+
+// Declared here so sendCmd can reference them before the funscript section.
+// Populated by the funscript engine below.
+let _FS_SLOTS, _fsPlaying = false, _fsSendTimer = null;
+
 // ── Presets ───────────────────────────────────────────────────────────────────
 
 function hzToSlider(hz) {
@@ -304,7 +315,23 @@ function sendBottle() {
   _bottleTimer = setTimeout(() => btn.classList.remove('active'), dur * 1000);
 }
 
-async function sendCmd(cmd) {
+async function sendCmd(cmd, _src = 'controls') {
+  // ── Source enable gate ──────────────────────────────────────────────────────
+  if (!_srcEnabled[_src]) return;
+
+  // ── Priority filtering (Script > Controls > Touch) ──────────────────────────
+  // Controls cannot send axes that Script currently owns.
+  // Touch while finger is down overrides everything (handled by _touchActive
+  // meaning touch events only fire when the finger IS down).
+  if (_src === 'controls' && _fsPlaying && _FS_SLOTS) {
+    const c = { ...cmd };
+    if (_FS_SLOTS.intensity.actions.length) delete c.intensity;
+    if (_FS_SLOTS.beta.actions.length)      delete c.beta;
+    if (_FS_SLOTS.alpha.actions.length)     delete c.alpha_pos;
+    if (!Object.keys(c).length) return;
+    cmd = c;
+  }
+
   if (_driverWs && _driverWs.readyState === WebSocket.OPEN) {
     try {
       _driverWs.send(JSON.stringify({type: "command", data: cmd}));
@@ -972,8 +999,9 @@ function tcOnDown(e) {
   tcLastX=pos.x; tcLastY=pos.y;
   tcTrail=[{x:pos.x,y:pos.y,p:tcIntFromX(pos.x),t:Date.now()}];
   _tcGesturePath.push({t:0, x:pos.x, y:pos.y});
+  _touchActive = true;
   const p0 = tcPositionFromY(pos.y);
-  sendCmd({beta_mode:'hold',beta:p0.beta,alpha_pos:p0.alpha,intensity:tcIntFromX(pos.x)});
+  sendCmd({beta_mode:'hold',beta:p0.beta,alpha_pos:p0.alpha,intensity:tcIntFromX(pos.x)}, 'touch');
   tcDraw();
 }
 function tcOnMove(e) {
@@ -985,12 +1013,13 @@ function tcOnMove(e) {
   if (tcTrail.length>60) tcTrail.shift();
   _tcGesturePath.push({t:performance.now()-_tcGestureStart, x:pos.x, y:pos.y});
   const pm = tcPositionFromY(pos.y);
-  sendCmd({beta:pm.beta,alpha_pos:pm.alpha,intensity:tcIntFromX(pos.x)});
+  sendCmd({beta:pm.beta,alpha_pos:pm.alpha,intensity:tcIntFromX(pos.x)}, 'touch');
   tcDraw();
 }
 function tcOnUp() {
   if (!tcPointerDown) return;
   tcPointerDown=false;
+  _touchActive = false;
   const dur=(performance.now()-_tcGestureStart)/1000;
   if (dur>=0.5 && _tcGesturePath.length>=6) {
     _tcLoopStart=performance.now(); _tcLoopDur=dur*1000;
@@ -1001,8 +1030,8 @@ function tcOnUp() {
       return { t: p.t / 1000, beta: gp.beta, alpha: gp.alpha,
                intensity: tcIntFromX(p.x) };
     });
-    sendCmd({gesture_record: pts});
-    sendCmd({beta_mode: 'touch'});
+    sendCmd({gesture_record: pts}, 'touch');
+    sendCmd({beta_mode: 'touch'}, 'touch');
     // Highlight the touch mode button
     document.querySelectorAll('.mode-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.mode === 'touch'));
@@ -1031,8 +1060,8 @@ function resumeTouchGesture() {
     return { t: p.t / 1000, beta: rp.beta, alpha: rp.alpha,
              intensity: tcIntFromX(p.x) };
   });
-  sendCmd({gesture_record: pts});
-  sendCmd({beta_mode: 'touch'});
+  sendCmd({gesture_record: pts}, 'touch');
+  sendCmd({beta_mode: 'touch'}, 'touch');
   _tcLoopStart = performance.now();
   _tcLoopDur = _tcGesturePath[_tcGesturePath.length - 1].t;
   tcSetLooping(true);
@@ -1414,19 +1443,37 @@ function selectTouchImage(idx) {
   connect();
 })();
 
-// ── Funscript player ─────────────────────────────────────────────────────────
-// Plays a .funscript file and streams the interpolated position value to the
-// engine as intensity at FS_HZ. If a video is loaded, its currentTime drives
-// the timeline instead of performance.now(), keeping stim locked to the video.
+// ── Funscript player — multi-axis ────────────────────────────────────────────
+// Three independent axis slots (Intensity / Beta / Alpha) share one playhead.
+// A video element can drive the timeline instead of the wall clock.
+// Source isolation: the _srcEnabled.script flag gates all output.
 
-const FS_HZ    = 20;          // send rate (Hz)
-let _fsActions   = [];        // [{at:ms, pos:0-100}, …] sorted by at
-let _fsDuration  = 0;         // ms of last action
-let _fsPlaying   = false;
-let _fsOffset    = 0;         // ms position when paused / before play
-let _fsWallStart = 0;         // performance.now() at last fsPlay()
-let _fsSendTimer = null;
+const FS_HZ = 20;
+
+// Axis slots — _FS_SLOTS declared at top of file, initialised here
+_FS_SLOTS = {
+  intensity: { actions: [], duration: 0 },
+  beta:      { actions: [], duration: 0 },
+  alpha:     { actions: [], duration: 0 },
+};
+
+// Shared playback state — _fsPlaying / _fsSendTimer declared at top of file
+let _fsOffset    = 0;   // ms position when paused / before play
+let _fsWallStart = 0;   // performance.now() at last fsPlay()
 let _fsSeekDrag  = false;
+
+function _fsDuration() {
+  return Math.max(
+    _FS_SLOTS.intensity.duration,
+    _FS_SLOTS.beta.duration,
+    _FS_SLOTS.alpha.duration
+  );
+}
+function _fsHasAny() {
+  return _FS_SLOTS.intensity.actions.length ||
+         _FS_SLOTS.beta.actions.length      ||
+         _FS_SLOTS.alpha.actions.length;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1436,33 +1483,37 @@ function _fsFmt(ms) {
 }
 
 function _fsMsNow() {
-  // If a video element is driving timing, use its currentTime
   const v = document.getElementById('fs-video-el');
-  if (v && v.style.display !== 'none' && v.readyState >= 1 && !v.paused) {
+  if (v && v.style.display !== 'none' && v.readyState >= 1 && !v.paused)
     return v.currentTime * 1000;
-  }
   return _fsPlaying ? _fsOffset + (performance.now() - _fsWallStart) : _fsOffset;
 }
 
-function _fsInterp(ms) {
-  if (!_fsActions.length) return 0;
-  if (ms <= _fsActions[0].at) return _fsActions[0].pos;
-  const last = _fsActions[_fsActions.length - 1];
+function _fsInterp(actions, ms) {
+  if (!actions.length) return 0;
+  if (ms <= actions[0].at) return actions[0].pos;
+  const last = actions[actions.length - 1];
   if (ms >= last.at) return last.pos;
-  // Binary search for surrounding pair
-  let lo = 0, hi = _fsActions.length - 1;
+  let lo = 0, hi = actions.length - 1;
   while (lo < hi - 1) {
     const m = (lo + hi) >> 1;
-    if (_fsActions[m].at <= ms) lo = m; else hi = m;
+    if (actions[m].at <= ms) lo = m; else hi = m;
   }
-  const a = _fsActions[lo], b = _fsActions[hi];
-  const t = (ms - a.at) / (b.at - a.at);
-  return a.pos + t * (b.pos - a.pos);
+  const a = actions[lo], b = actions[hi];
+  return a.pos + (ms - a.at) / (b.at - a.at) * (b.pos - a.pos);
 }
 
-// ── Load / eject ──────────────────────────────────────────────────────────────
+// Auto-detect axis from filename (e.g. "scene.beta.funscript" → 'beta')
+function _fsAxisFromName(name) {
+  const n = name.toLowerCase();
+  if (/\bbeta\b|\bposition\b|\bsurge\b/.test(n)) return 'beta';
+  if (/\balpha\b|\btwist\b|\bvibr/.test(n))       return 'alpha';
+  return 'intensity';
+}
 
-function fsLoadFile(file) {
+// ── Slot load / eject ─────────────────────────────────────────────────────────
+
+function fsSlotLoad(axis, file) {
   if (!file) return;
   const r = new FileReader();
   r.onload = e => {
@@ -1470,57 +1521,65 @@ function fsLoadFile(file) {
       const data = JSON.parse(e.target.result);
       const actions = (data.actions || []).sort((a, b) => a.at - b.at);
       if (!actions.length) { alert('Empty funscript — no actions found.'); return; }
-      _fsActions  = actions;
-      _fsDuration = actions[actions.length - 1].at;
-      fsStop();
-      document.getElementById('fs-name').textContent =
-        file.name.replace(/\.[^.]+$/, '');
-      document.getElementById('fs-duration').textContent = _fsFmt(_fsDuration);
-      document.getElementById('fs-seek-input').max = _fsDuration;
-      document.getElementById('fs-time-disp').textContent =
-        '0:00 / ' + _fsFmt(_fsDuration);
-      document.getElementById('fs-drop').style.display   = 'none';
-      document.getElementById('fs-loaded').style.display = 'flex';
-      requestAnimationFrame(fsDrawMini);
+      const slot = _FS_SLOTS[axis];
+      slot.actions  = actions;
+      slot.duration = actions[actions.length - 1].at;
+      // Update UI
+      const nameEl = document.getElementById('fs-slot-name-' + axis);
+      if (nameEl) nameEl.textContent = file.name.replace(/\.[^.]+$/, '');
+      const ejectBtn = document.getElementById('fs-eject-' + axis);
+      if (ejectBtn) ejectBtn.style.display = '';
+      _fsUpdateSeek();
+      requestAnimationFrame(() => fsDrawSlot(axis));
     } catch (_) { alert('Could not parse funscript — check it is valid JSON.'); }
   };
   r.readAsText(file);
 }
 
-function fsEject() {
-  fsStop();
-  _fsActions = []; _fsDuration = 0;
-  document.getElementById('fs-drop').style.display   = '';
-  document.getElementById('fs-loaded').style.display = 'none';
-  document.getElementById('fs-file-input').value     = '';
-  const v = document.getElementById('fs-video-el');
-  if (v) { v.pause(); v.removeAttribute('src'); v.style.display = 'none'; }
-  document.getElementById('fs-video-url-input').value = '';
+function fsSlotEject(axis) {
+  const slot = _FS_SLOTS[axis];
+  slot.actions = []; slot.duration = 0;
+  const nameEl = document.getElementById('fs-slot-name-' + axis);
+  if (nameEl) nameEl.textContent = '—';
+  const ejectBtn = document.getElementById('fs-eject-' + axis);
+  if (ejectBtn) ejectBtn.style.display = 'none';
+  _fsUpdateSeek();
+  requestAnimationFrame(() => fsDrawSlot(axis));
+  if (!_fsHasAny() && _fsPlaying) fsStop();
 }
 
-// ── Drag-and-drop ─────────────────────────────────────────────────────────────
+function _fsUpdateSeek() {
+  const dur = _fsDuration();
+  const seek = document.getElementById('fs-seek-input');
+  if (seek) seek.max = dur || 100;
+  const time = document.getElementById('fs-time-disp');
+  if (time) time.textContent = _fsFmt(_fsOffset) + ' / ' + _fsFmt(dur);
+}
+
+// ── Drag-and-drop (auto-routes to the right axis slot) ───────────────────────
 
 function fsDragOver(e) {
   e.preventDefault();
-  document.getElementById('fs-drop').classList.add('dragover');
+  document.getElementById('script-panel').classList.add('dragover');
 }
-function fsDragLeave() {
-  document.getElementById('fs-drop').classList.remove('dragover');
+function fsDragLeave(e) {
+  if (!document.getElementById('script-panel').contains(e.relatedTarget))
+    document.getElementById('script-panel').classList.remove('dragover');
 }
 function fsDrop(e) {
   e.preventDefault();
-  document.getElementById('fs-drop').classList.remove('dragover');
-  const f = e.dataTransfer.files[0];
-  if (f) fsLoadFile(f);
+  document.getElementById('script-panel').classList.remove('dragover');
+  const files = [...e.dataTransfer.files].filter(f =>
+    /\.(funscript|json)$/i.test(f.name));
+  files.forEach(f => fsSlotLoad(_fsAxisFromName(f.name), f));
 }
 
 // ── Playback ──────────────────────────────────────────────────────────────────
 
 function fsPlay() {
-  if (!_fsActions.length || _fsPlaying) return;
+  if (!_fsHasAny() || _fsPlaying) return;
   _fsPlaying   = true;
   _fsWallStart = performance.now();
-  // Sync video if loaded
   const v = document.getElementById('fs-video-el');
   if (v && v.style.display !== 'none' && v.readyState >= 1) {
     v.currentTime = _fsOffset / 1000;
@@ -1528,8 +1587,10 @@ function fsPlay() {
   }
   clearInterval(_fsSendTimer);
   _fsSendTimer = setInterval(_fsTick, 1000 / FS_HZ);
-  document.getElementById('fs-play-btn').disabled  = true;
-  document.getElementById('fs-pause-btn').disabled = false;
+  const pb = document.getElementById('fs-play-btn');
+  const pa = document.getElementById('fs-pause-btn');
+  if (pb) pb.disabled = true;
+  if (pa) pa.disabled = false;
 }
 
 function fsPause() {
@@ -1539,8 +1600,10 @@ function fsPause() {
   const v = document.getElementById('fs-video-el');
   if (v) v.pause();
   clearInterval(_fsSendTimer);
-  document.getElementById('fs-play-btn').disabled  = false;
-  document.getElementById('fs-pause-btn').disabled = true;
+  const pb = document.getElementById('fs-play-btn');
+  const pa = document.getElementById('fs-pause-btn');
+  if (pb) pb.disabled = false;
+  if (pa) pa.disabled = true;
 }
 
 function fsStop() {
@@ -1549,134 +1612,161 @@ function fsStop() {
   clearInterval(_fsSendTimer);
   const v = document.getElementById('fs-video-el');
   if (v) { v.pause(); v.currentTime = 0; }
-  try { sendCmd({ intensity: 0 }); } catch(_) {}
+  sendCmd({ intensity: 0 });
   const seek = document.getElementById('fs-seek-input');
   if (seek) seek.value = 0;
   const fill = document.getElementById('fs-seek-fill');
   if (fill) fill.style.width = '0%';
-  const time = document.getElementById('fs-time-disp');
-  if (time) time.textContent = '0:00 / ' + _fsFmt(_fsDuration);
-  const pos = document.getElementById('fs-live-pos');
-  if (pos) pos.textContent = '0%';
-  const playBtn  = document.getElementById('fs-play-btn');
-  const pauseBtn = document.getElementById('fs-pause-btn');
-  if (playBtn)  playBtn.disabled  = false;
-  if (pauseBtn) pauseBtn.disabled = true;
-  requestAnimationFrame(fsDrawMini);
+  _fsUpdateSeek();
+  ['intensity','beta','alpha'].forEach(ax => {
+    requestAnimationFrame(() => fsDrawSlot(ax));
+  });
+  const pb = document.getElementById('fs-play-btn');
+  const pa = document.getElementById('fs-pause-btn');
+  if (pb) pb.disabled = false;
+  if (pa) pa.disabled = true;
 }
 
 function _fsTick() {
-  let ms = _fsMsNow();
+  if (!_srcEnabled.script) return;
+  let ms  = _fsMsNow();
+  const dur  = _fsDuration();
   const loop = document.getElementById('fs-loop-cb')?.checked;
 
-  if (ms >= _fsDuration) {
+  if (dur > 0 && ms >= dur) {
     if (loop) {
       _fsOffset    = 0;
       _fsWallStart = performance.now();
       const v = document.getElementById('fs-video-el');
       if (v && v.style.display !== 'none') { v.currentTime = 0; v.play(); }
       ms = 0;
-    } else {
-      fsStop();
-      return;
-    }
+    } else { fsStop(); return; }
   }
 
-  const pct = ms / _fsDuration;
-  const pos = _fsInterp(ms) / 100;   // 0‒1
+  // Build combined command from all loaded slots
+  const cmd = {};
+  if (_FS_SLOTS.intensity.actions.length)
+    cmd.intensity = _fsInterp(_FS_SLOTS.intensity.actions, ms) / 100;
+  if (_FS_SLOTS.beta.actions.length)
+    cmd.beta = Math.round(_fsInterp(_FS_SLOTS.beta.actions, ms) / 100 * 9999);
+  if (_FS_SLOTS.alpha.actions.length)
+    cmd.alpha_pos = _fsInterp(_FS_SLOTS.alpha.actions, ms) / 100;
 
-  sendCmd({ intensity: pos });
+  if (Object.keys(cmd).length) sendCmd(cmd, 'script');
 
-  if (!_fsSeekDrag) {
+  if (!_fsSeekDrag && dur > 0) {
+    const pct = ms / dur;
     const seek = document.getElementById('fs-seek-input');
     if (seek) seek.value = ms;
     const fill = document.getElementById('fs-seek-fill');
     if (fill) fill.style.width = (pct * 100).toFixed(2) + '%';
     const time = document.getElementById('fs-time-disp');
-    if (time) time.textContent = _fsFmt(ms) + ' / ' + _fsFmt(_fsDuration);
+    if (time) time.textContent = _fsFmt(ms) + ' / ' + _fsFmt(dur);
+    ['intensity','beta','alpha'].forEach(ax => _fsDrawPlayhead(ax, pct));
   }
-  const livePos = document.getElementById('fs-live-pos');
-  if (livePos) livePos.textContent = Math.round(pos * 100) + '%';
-
-  _fsDrawPlayhead(pct);
 }
 
 // ── Seek ──────────────────────────────────────────────────────────────────────
 
-function fsSeekStart() {
-  _fsSeekDrag = true;
-  if (_fsPlaying) _fsOffset = _fsMsNow();
-}
-function fsSeekEnd() { _fsSeekDrag = false; }
+function fsSeekStart() { _fsSeekDrag = true; if (_fsPlaying) _fsOffset = _fsMsNow(); }
+function fsSeekEnd()   { _fsSeekDrag = false; }
 
 function fsSeekInput(v) {
   const ms  = parseFloat(v);
   _fsOffset = ms;
   if (_fsPlaying) _fsWallStart = performance.now();
-  const pct = _fsDuration > 0 ? ms / _fsDuration : 0;
+  const dur = _fsDuration();
+  const pct = dur > 0 ? ms / dur : 0;
   const fill = document.getElementById('fs-seek-fill');
   if (fill) fill.style.width = (pct * 100).toFixed(2) + '%';
   const time = document.getElementById('fs-time-disp');
-  if (time) time.textContent = _fsFmt(ms) + ' / ' + _fsFmt(_fsDuration);
+  if (time) time.textContent = _fsFmt(ms) + ' / ' + _fsFmt(dur);
   const vid = document.getElementById('fs-video-el');
   if (vid && vid.style.display !== 'none') vid.currentTime = ms / 1000;
-  _fsDrawPlayhead(pct);
+  ['intensity','beta','alpha'].forEach(ax => _fsDrawPlayhead(ax, pct));
 }
 
-// ── Mini waveform canvas ──────────────────────────────────────────────────────
+// ── Per-slot mini waveform canvas ─────────────────────────────────────────────
 
-function fsDrawMini() {
-  const c = document.getElementById('fs-mini-canvas');
+const _FS_COLORS = {
+  intensity: '#5fa3ff',
+  beta:      '#fbbf24',
+  alpha:     '#4ade80',
+};
+
+function fsDrawSlot(axis) {
+  const c = document.getElementById('fs-canvas-' + axis);
   if (!c) return;
   const W = c.offsetWidth || c.parentElement?.offsetWidth || 300;
-  const H = 48;
+  const H = 32;
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0f0f0f';
+  ctx.fillRect(0, 0, W, H);
 
-  if (!_fsActions.length) {
-    ctx.fillStyle = '#0f0f0f';
-    ctx.fillRect(0, 0, W, H);
-    return;
-  }
+  const actions = _FS_SLOTS[axis]?.actions;
+  const dur     = _FS_SLOTS[axis]?.duration || 1;
+  if (!actions?.length) return;
 
-  // Gradient fill under the curve
+  const col = _FS_COLORS[axis] || '#5fa3ff';
   const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, 'rgba(95,163,255,0.45)');
-  grad.addColorStop(1, 'rgba(95,163,255,0.04)');
-
+  grad.addColorStop(0, col.replace(')', ',0.4)').replace('rgb', 'rgba').replace('#', 'rgba(') + '');
+  // Use hex directly for gradient
   ctx.beginPath();
-  _fsActions.forEach((a, i) => {
-    const x = (a.at / _fsDuration) * W;
-    const y = H - (a.pos / 100) * (H - 4) - 2;
+  actions.forEach((a, i) => {
+    const x = (a.at / dur) * W;
+    const y = H - (a.pos / 100) * (H - 3) - 1;
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
   ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-  ctx.fillStyle = grad; ctx.fill();
+  ctx.fillStyle = col + '33'; ctx.fill();
 
-  // Stroke line
   ctx.beginPath();
-  _fsActions.forEach((a, i) => {
-    const x = (a.at / _fsDuration) * W;
-    const y = H - (a.pos / 100) * (H - 4) - 2;
+  actions.forEach((a, i) => {
+    const x = (a.at / dur) * W;
+    const y = H - (a.pos / 100) * (H - 3) - 1;
     i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = '#5fa3ff'; ctx.lineWidth = 1.5; ctx.stroke();
-
-  c._lastPct = -1; // invalidate playhead cache
+  ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.stroke();
+  c._lastPct = -1;
 }
 
-function _fsDrawPlayhead(pct) {
-  const c = document.getElementById('fs-mini-canvas');
-  if (!c || !c.width) return;
-  if (Math.abs((c._lastPct || 0) - pct) < 0.003) return;
+function _fsDrawPlayhead(axis, pct) {
+  const c = document.getElementById('fs-canvas-' + axis);
+  if (!c || !c.width || !_FS_SLOTS[axis]?.actions.length) return;
+  if (Math.abs((c._lastPct || 0) - pct) < 0.004) return;
   c._lastPct = pct;
-  fsDrawMini();   // cheap: small canvas, ~300 points typical
+  fsDrawSlot(axis);
   const ctx = c.getContext('2d');
   const x = pct * c.width;
-  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
   ctx.lineWidth   = 1;
   ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, c.height); ctx.stroke();
+}
+
+// ── Source toggle ─────────────────────────────────────────────────────────────
+
+function toggleSource(src) {
+  _srcEnabled[src] = !_srcEnabled[src];
+  document.querySelectorAll('.src-btn[data-src="' + src + '"]')
+    .forEach(b => b.classList.toggle('active', _srcEnabled[src]));
+
+  if (src === 'touch' && !_srcEnabled.touch) {
+    _touchActive = false;
+    // Stop server-side gesture loop
+    sendCmd({ stop: true });
+  }
+  if (src === 'script') {
+    if (!_srcEnabled.script) {
+      clearInterval(_fsSendTimer);
+      sendCmd({ intensity: 0 });
+    } else if (_fsPlaying) {
+      // Re-arm the tick
+      clearInterval(_fsSendTimer);
+      _fsSendTimer = setInterval(_fsTick, 1000 / FS_HZ);
+    }
+  }
 }
 
 // ── Video helpers ─────────────────────────────────────────────────────────────
@@ -1685,8 +1775,7 @@ function fsLoadVideoUrl() {
   const url = document.getElementById('fs-video-url-input').value.trim();
   if (!url) return;
   const v = document.getElementById('fs-video-el');
-  v.src = url;
-  v.style.display = 'block';
+  v.src = url; v.style.display = 'block';
 }
 
 function fsLoadVideoFile(file) {
@@ -1697,17 +1786,10 @@ function fsLoadVideoFile(file) {
   document.getElementById('fs-video-url-input').value = '[local] ' + file.name;
 }
 
-// Keep _fsOffset in sync if video is seeked manually
 document.addEventListener('DOMContentLoaded', () => {
   const v = document.getElementById('fs-video-el');
   if (!v) return;
-  v.addEventListener('seeked', () => {
-    if (!_fsPlaying) _fsOffset = v.currentTime * 1000;
-  });
-  v.addEventListener('play', () => {
-    if (_fsActions.length && !_fsPlaying) fsPlay();
-  });
-  v.addEventListener('pause', () => {
-    if (_fsPlaying) fsPause();
-  });
+  v.addEventListener('seeked', () => { if (!_fsPlaying) _fsOffset = v.currentTime * 1000; });
+  v.addEventListener('play',   () => { if (_fsHasAny() && !_fsPlaying) fsPlay(); });
+  v.addEventListener('pause',  () => { if (_fsPlaying) fsPause(); });
 });

@@ -79,6 +79,13 @@ const DRIVER_KEY = "";
       <button class="tab-btn" data-tab="touch" onclick="setTab('touch')">Touch</button>
       <button class="tab-btn" data-tab="script" onclick="setTab('script')">Script</button>
     </div>
+    <!-- Source isolation row -->
+    <div id="src-row">
+      <span class="src-row-label">SOURCES</span>
+      <button class="src-btn active" data-src="controls" onclick="toggleSource('controls')">Controls</button>
+      <button class="src-btn active" data-src="touch"    onclick="toggleSource('touch')">Touch</button>
+      <button class="src-btn active" data-src="script"   onclick="toggleSource('script')">Script</button>
+    </div>
 
     <!-- Controls tab -->
     <div id="controls-panel" style="display:flex">
@@ -276,66 +283,84 @@ const DRIVER_KEY = "";
     </div><!-- end #touch-panel -->
 
     <!-- Script tab -->
-    <div id="script-panel">
-      <!-- Drop zone (shown until a funscript is loaded) -->
-      <div id="fs-drop"
-           ondragover="fsDragOver(event)" ondragleave="fsDragLeave(event)" ondrop="fsDrop(event)"
-           onclick="document.getElementById('fs-file-input').click()">
-        <div style="font-size:26px;margin-bottom:8px">🎵</div>
-        <div style="font-weight:700;color:var(--fg);margin-bottom:4px">Drop a .funscript here</div>
-        <div style="font-size:12px">or tap to browse</div>
-        <input type="file" id="fs-file-input" accept=".funscript,.json" style="display:none"
-               onchange="fsLoadFile(this.files[0])">
+    <div id="script-panel"
+         ondragover="fsDragOver(event)" ondragleave="fsDragLeave(event)" ondrop="fsDrop(event)">
+
+      <!-- Shared playback controls -->
+      <div id="fs-seek-wrap">
+        <div id="fs-seek-fill"></div>
+        <input type="range" id="fs-seek-input" min="0" max="100" value="0" step="0.1"
+               oninput="fsSeekInput(this.value)"
+               onmousedown="fsSeekStart()" onmouseup="fsSeekEnd()"
+               ontouchstart="fsSeekStart()" ontouchend="fsSeekEnd()">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span id="fs-time-disp" style="font-size:11px;color:var(--fg2);font-family:monospace">0:00 / 0:00</span>
+        <label class="fs-loop-label"><input type="checkbox" id="fs-loop-cb" style="accent-color:var(--accent)"> Loop</label>
+      </div>
+      <div id="fs-playback-row">
+        <button id="fs-play-btn"  class="fs-btn fs-play"  onclick="fsPlay()">&#9654; Play</button>
+        <button id="fs-pause-btn" class="fs-btn fs-pause" onclick="fsPause()" disabled>&#9646;&#9646;</button>
+        <button id="fs-stop-btn"  class="fs-btn fs-stop"  onclick="fsStop()">&#9632;</button>
       </div>
 
-      <!-- Loaded state -->
-      <div id="fs-loaded">
-        <!-- Title row -->
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
-          <span id="fs-name" class="section-label" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-          <span id="fs-duration" style="font-size:11px;color:var(--fg2);flex-shrink:0"></span>
-          <button class="fs-small-btn" onclick="fsEject()" title="Load different file" style="flex-shrink:0">&#8635;</button>
-        </div>
-
-        <!-- Mini waveform -->
-        <canvas id="fs-mini-canvas" height="48"></canvas>
-
-        <!-- Seek bar -->
-        <div id="fs-seek-wrap">
-          <div id="fs-seek-fill"></div>
-          <input type="range" id="fs-seek-input" min="0" max="100" value="0" step="0.1"
-                 oninput="fsSeekInput(this.value)"
-                 onmousedown="fsSeekStart()" onmouseup="fsSeekEnd()"
-                 ontouchstart="fsSeekStart()" ontouchend="fsSeekEnd()">
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span id="fs-time-disp" style="font-size:11px;color:var(--fg2);font-family:monospace">0:00 / 0:00</span>
-          <span style="font-size:11px;color:var(--fg2)">Position: <span id="fs-live-pos" style="color:var(--accent);font-weight:700;font-family:monospace">0%</span></span>
-        </div>
-
-        <!-- Playback controls -->
-        <div id="fs-playback-row">
-          <button id="fs-play-btn"  class="fs-btn fs-play"  onclick="fsPlay()">&#9654; Play</button>
-          <button id="fs-pause-btn" class="fs-btn fs-pause" onclick="fsPause()" disabled>&#9646;&#9646;</button>
-          <button id="fs-stop-btn"  class="fs-btn fs-stop"  onclick="fsStop()">&#9632;</button>
-          <label class="fs-loop-label">
-            <input type="checkbox" id="fs-loop-cb" style="accent-color:var(--accent)"> Loop
-          </label>
-        </div>
-
-        <!-- Video sync (moonshot) -->
-        <div class="section-label" style="margin-top:6px">
-          Video Sync <small style="font-size:9px;text-transform:none;font-weight:400;color:var(--fg2)">optional · drives funscript timing</small>
-        </div>
-        <div id="fs-video-url-row">
-          <input type="text" id="fs-video-url-input" placeholder="Paste a video URL…">
-          <button class="fs-small-btn" onclick="fsLoadVideoUrl()">Load URL</button>
-          <button class="fs-small-btn" onclick="document.getElementById('fs-video-file-input').click()">Local File</button>
-          <input type="file" id="fs-video-file-input" accept="video/*" style="display:none"
-                 onchange="fsLoadVideoFile(this.files[0])">
-        </div>
-        <video id="fs-video-el" controls preload="metadata"></video>
+      <!-- Three axis slots -->
+      <div class="section-label" style="margin-top:2px">
+        Channels <small style="font-size:9px;text-transform:none;font-weight:400;color:var(--fg2)">drag &amp; drop .funscripts — auto-routed by filename</small>
       </div>
+
+      <div class="fs-slot" id="fs-slot-intensity">
+        <div class="fs-slot-hdr">
+          <span class="fs-slot-dot" style="background:#5fa3ff"></span>
+          <span class="fs-slot-label">Intensity</span>
+          <span class="fs-slot-name" id="fs-slot-name-intensity">—</span>
+          <button class="fs-small-btn" onclick="document.getElementById('fs-input-intensity').click()">Load</button>
+          <button class="fs-small-btn fs-eject" id="fs-eject-intensity" onclick="fsSlotEject('intensity')" style="display:none">&#215;</button>
+          <input type="file" id="fs-input-intensity" accept=".funscript,.json" style="display:none"
+                 onchange="fsSlotLoad('intensity',this.files[0])">
+        </div>
+        <canvas class="fs-slot-canvas" id="fs-canvas-intensity" height="32"></canvas>
+      </div>
+
+      <div class="fs-slot" id="fs-slot-beta">
+        <div class="fs-slot-hdr">
+          <span class="fs-slot-dot" style="background:#fbbf24"></span>
+          <span class="fs-slot-label">Beta</span>
+          <span class="fs-slot-name" id="fs-slot-name-beta">—</span>
+          <button class="fs-small-btn" onclick="document.getElementById('fs-input-beta').click()">Load</button>
+          <button class="fs-small-btn fs-eject" id="fs-eject-beta" onclick="fsSlotEject('beta')" style="display:none">&#215;</button>
+          <input type="file" id="fs-input-beta" accept=".funscript,.json" style="display:none"
+                 onchange="fsSlotLoad('beta',this.files[0])">
+        </div>
+        <canvas class="fs-slot-canvas" id="fs-canvas-beta" height="32"></canvas>
+      </div>
+
+      <div class="fs-slot" id="fs-slot-alpha">
+        <div class="fs-slot-hdr">
+          <span class="fs-slot-dot" style="background:#4ade80"></span>
+          <span class="fs-slot-label">Alpha</span>
+          <span class="fs-slot-name" id="fs-slot-name-alpha">—</span>
+          <button class="fs-small-btn" onclick="document.getElementById('fs-input-alpha').click()">Load</button>
+          <button class="fs-small-btn fs-eject" id="fs-eject-alpha" onclick="fsSlotEject('alpha')" style="display:none">&#215;</button>
+          <input type="file" id="fs-input-alpha" accept=".funscript,.json" style="display:none"
+                 onchange="fsSlotLoad('alpha',this.files[0])">
+        </div>
+        <canvas class="fs-slot-canvas" id="fs-canvas-alpha" height="32"></canvas>
+      </div>
+
+      <!-- Video sync -->
+      <div class="section-label" style="margin-top:4px">
+        Video Sync <small style="font-size:9px;text-transform:none;font-weight:400;color:var(--fg2)">optional</small>
+      </div>
+      <div id="fs-video-url-row">
+        <input type="text" id="fs-video-url-input" placeholder="Paste a video URL…">
+        <button class="fs-small-btn" onclick="fsLoadVideoUrl()">URL</button>
+        <button class="fs-small-btn" onclick="document.getElementById('fs-video-file-input').click()">File</button>
+        <input type="file" id="fs-video-file-input" accept="video/*" style="display:none"
+               onchange="fsLoadVideoFile(this.files[0])">
+      </div>
+      <video id="fs-video-el" controls preload="metadata"></video>
+
     </div><!-- end #script-panel -->
 
   </div><!-- end #tab-area -->
