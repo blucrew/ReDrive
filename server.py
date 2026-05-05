@@ -948,7 +948,7 @@ async def _cleanup_loop():
             elif now_mono - room.driver_last_seen > _DRIVER_GRACE:
                 _rooms.pop(code).stop()
                 _delete_room_uploads(code)
-                print(f"[room] expired (driver gone 5m)  {code}  (total: {len(_rooms)})")
+                print(f"[room] expired (driver gone {_DRIVER_GRACE//3600}h)  {code}  (total: {len(_rooms)})")
 
 
 # -- App factory

@@ -96,17 +96,16 @@ function handleServerMsg(msg) {
 
 // ── Feel text ───────────────────────────────────────────────────────────────
 // Maps pattern name → [headline, flavour descriptor]
+// Must match PATTERNS list in engine.py: Hold, Sine, Ramp ↑, Ramp ↓, Pulse, Burst, Random, Edge
 const _PATTERN_FEEL = {
-  'Hold':   ['Steady hold',       'constant pressure'],
-  'Wave':   ['Rhythmic waves',    'flowing pulse'],
-  'Ramp':   ['Building up',       'rising intensity'],
-  'Edge':   ['Edging pattern',    'teasing waves'],
-  'Pulse':  ['Sharp pulses',      'quick bursts'],
-  'Random': ['Varied sensation',  'unpredictable rhythm'],
-  'Slow':   ['Deep throb',        'slow and deep'],
-  'Fast':   ['Rapid bursts',      'high frequency'],
-  'Climb':  ['Climbing tension',  'escalating'],
-  'Drop':   ['Fading out',        'descending'],
+  'Hold':    ['Steady hold',       'constant pressure'],
+  'Sine':    ['Rhythmic waves',    'smooth sine pulse'],
+  'Ramp ↑':  ['Building up',       'rising intensity'],
+  'Ramp ↓':  ['Easing down',       'falling intensity'],
+  'Pulse':   ['Sharp pulses',      'quick bursts'],
+  'Burst':   ['Burst pattern',     'repeated surges'],
+  'Random':  ['Varied sensation',  'unpredictable rhythm'],
+  'Edge':    ['Edging pattern',    'teasing waves'],
 };
 
 function buildFeelText(d) {
@@ -207,6 +206,20 @@ function updateStats(d) {
         pct + '% → ' + Math.round((d.ramp_target ?? 0) * 100) + '%';
     } else {
       rampRow.style.display = 'none';
+    }
+  }
+
+  // ── Bottle overlay (driven from rider_state so it works on page load + auto-hides) ──
+  if (d.bottle_active !== undefined) {
+    const overlay = document.getElementById('bottle-overlay');
+    const cd      = document.getElementById('bottle-cd');
+    if (overlay) {
+      if (d.bottle_active) {
+        overlay.style.display = 'flex';
+        if (cd) cd.textContent = Math.ceil(d.bottle_remaining ?? 0) + 's';
+      } else {
+        overlay.style.display = 'none';
+      }
     }
   }
 }
