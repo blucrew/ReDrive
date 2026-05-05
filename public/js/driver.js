@@ -1614,9 +1614,12 @@ function fsDragLeave(e) {
 function fsDrop(e) {
   e.preventDefault();
   document.getElementById('script-panel').classList.remove('dragover');
-  const files = [...e.dataTransfer.files].filter(f =>
-    /\.(funscript|json)$/i.test(f.name));
-  fs4chLoadSet(files);
+  const all     = [...e.dataTransfer.files];
+  const scripts = all.filter(f => /\.(funscript|json)$/i.test(f.name));
+  const video   = all.find(f =>
+    /\.(mp4|mkv|webm|avi|mov|m4v|ogv|ogg|wmv|flv|ts|m2ts)$/i.test(f.name));
+  if (scripts.length) fs4chLoadSet(scripts);
+  if (video) fsLoadVideoFile(video);
 }
 
 // Auto-route a FileList (or array of Files) by filename.
