@@ -184,6 +184,11 @@
     border-radius:10px; color:var(--fg2); font-size:13px; cursor:pointer;
   }
   #alpha-toggle.active { background:rgba(95,163,255,0.18); border-color:var(--accent); color:var(--accent); }
+  #fourphase-toggle { transition:all .15s; }
+  #fourphase-toggle.active {
+    background:rgba(162,155,254,0.18); border-color:#a29bfe; color:#a29bfe;
+    box-shadow:0 0 12px rgba(162,155,254,0.25);
+  }
   /* Viz row */
   #viz-row { display:flex; gap:7px; align-items:flex-start; }
   #waveform { flex:1; height:72px; border-radius:10px; background:#0f0f0f; }

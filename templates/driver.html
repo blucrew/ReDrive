@@ -251,6 +251,10 @@ const DRIVER_KEY = "";
         <button id="alpha-toggle" class="active" onclick="toggleAlpha()">
           &#945;  Alpha oscillation: ON
         </button>
+        <button id="fourphase-toggle" onclick="toggleFourPhase()"
+          style="padding:8px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--fg2);font-size:13px;cursor:pointer">
+          4-Phase: OFF
+        </button>
       </div>
     </div><!-- end #controls-panel -->
 
@@ -347,6 +351,76 @@ const DRIVER_KEY = "";
                  onchange="fsSlotLoad('alpha',this.files[0])">
         </div>
         <canvas class="fs-slot-canvas" id="fs-canvas-alpha" height="32"></canvas>
+      </div>
+
+      <!-- Four-phase electrode slots -->
+      <div class="section-label" style="margin-top:2px">
+        4-Channel <small style="font-size:9px;text-transform:none;font-weight:400;color:var(--fg2)">e1–e4 electrode weights · volume</small>
+      </div>
+
+      <div class="fs-slot" id="fs-slot-e1">
+        <div class="fs-slot-hdr">
+          <span class="fs-slot-dot" style="background:#ff6b6b"></span>
+          <span class="fs-slot-label">E1 (cock)</span>
+          <span class="fs-slot-name" id="fs-slot-name-e1">—</span>
+          <button class="fs-small-btn" onclick="document.getElementById('fs-input-e1').click()">Load</button>
+          <button class="fs-small-btn fs-eject" id="fs-eject-e1" onclick="fsSlotEject('e1')" style="display:none">&#215;</button>
+          <input type="file" id="fs-input-e1" accept=".funscript,.json" style="display:none"
+                 onchange="fsSlotLoad('e1',this.files[0])">
+        </div>
+        <canvas class="fs-slot-canvas" id="fs-canvas-e1" height="32"></canvas>
+      </div>
+
+      <div class="fs-slot" id="fs-slot-e2">
+        <div class="fs-slot-hdr">
+          <span class="fs-slot-dot" style="background:#ff9f43"></span>
+          <span class="fs-slot-label">E2 (balls)</span>
+          <span class="fs-slot-name" id="fs-slot-name-e2">—</span>
+          <button class="fs-small-btn" onclick="document.getElementById('fs-input-e2').click()">Load</button>
+          <button class="fs-small-btn fs-eject" id="fs-eject-e2" onclick="fsSlotEject('e2')" style="display:none">&#215;</button>
+          <input type="file" id="fs-input-e2" accept=".funscript,.json" style="display:none"
+                 onchange="fsSlotLoad('e2',this.files[0])">
+        </div>
+        <canvas class="fs-slot-canvas" id="fs-canvas-e2" height="32"></canvas>
+      </div>
+
+      <div class="fs-slot" id="fs-slot-e3">
+        <div class="fs-slot-hdr">
+          <span class="fs-slot-dot" style="background:#a29bfe"></span>
+          <span class="fs-slot-label">E3 (perineum)</span>
+          <span class="fs-slot-name" id="fs-slot-name-e3">—</span>
+          <button class="fs-small-btn" onclick="document.getElementById('fs-input-e3').click()">Load</button>
+          <button class="fs-small-btn fs-eject" id="fs-eject-e3" onclick="fsSlotEject('e3')" style="display:none">&#215;</button>
+          <input type="file" id="fs-input-e3" accept=".funscript,.json" style="display:none"
+                 onchange="fsSlotLoad('e3',this.files[0])">
+        </div>
+        <canvas class="fs-slot-canvas" id="fs-canvas-e3" height="32"></canvas>
+      </div>
+
+      <div class="fs-slot" id="fs-slot-e4">
+        <div class="fs-slot-hdr">
+          <span class="fs-slot-dot" style="background:#74b9ff"></span>
+          <span class="fs-slot-label">E4 (anal)</span>
+          <span class="fs-slot-name" id="fs-slot-name-e4">—</span>
+          <button class="fs-small-btn" onclick="document.getElementById('fs-input-e4').click()">Load</button>
+          <button class="fs-small-btn fs-eject" id="fs-eject-e4" onclick="fsSlotEject('e4')" style="display:none">&#215;</button>
+          <input type="file" id="fs-input-e4" accept=".funscript,.json" style="display:none"
+                 onchange="fsSlotLoad('e4',this.files[0])">
+        </div>
+        <canvas class="fs-slot-canvas" id="fs-canvas-e4" height="32"></canvas>
+      </div>
+
+      <div class="fs-slot" id="fs-slot-volume">
+        <div class="fs-slot-hdr">
+          <span class="fs-slot-dot" style="background:#fdcb6e"></span>
+          <span class="fs-slot-label">Volume</span>
+          <span class="fs-slot-name" id="fs-slot-name-volume">—</span>
+          <button class="fs-small-btn" onclick="document.getElementById('fs-input-volume').click()">Load</button>
+          <button class="fs-small-btn fs-eject" id="fs-eject-volume" onclick="fsSlotEject('volume')" style="display:none">&#215;</button>
+          <input type="file" id="fs-input-volume" accept=".funscript,.json" style="display:none"
+                 onchange="fsSlotLoad('volume',this.files[0])">
+        </div>
+        <canvas class="fs-slot-canvas" id="fs-canvas-volume" height="32"></canvas>
       </div>
 
       <!-- Video sync -->

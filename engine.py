@@ -259,6 +259,9 @@ class DriveEngine:
         self._alpha_on     = True
         self._beta_override: Optional[int] = None   # None = auto
         self._alpha_override: Optional[float] = None  # None = oscillate normally
+        self._fourphase: bool = False  # four-phase paired electrode mode
+        self._fs_e: dict = {}          # direct e1-e4 from funscript player (passthrough)
+        self._fs_e_t: float = -999.0   # monotonic time of last _fs_e update
         self._stop_ev: Optional[asyncio.Event] = None
         self._loop:    Optional[asyncio.AbstractEventLoop] = None
         self._next_connect_at: float = 0.0          # reconnect cooldown
@@ -505,6 +508,20 @@ class DriveEngine:
                         self._spiral_phase = 0.0
                         self._spiral_amp   = 1.0
                     self._log(f"Beta mode: {mode}")
+            if "four_phase" in cmd:
+                self._fourphase = bool(cmd["four_phase"])
+                if self._fourphase:
+                    self._alpha_override = 0.5  # default to even within-pair split
+                else:
+                    self._alpha_override = None
+                self._log(f"Four-phase mode: {'ON' if self._fourphase else 'OFF'}")
+            # Direct e1-e4 passthrough (four-channel funscript player)
+            if any(k in cmd for k in ('e1', 'e2', 'e3', 'e4')):
+                for ax in ('e1', 'e2', 'e3', 'e4'):
+                    if ax in cmd:
+                        self._fs_e[ax] = max(0.0, min(1.0, float(cmd[ax])))
+                if self._loop:
+                    self._fs_e_t = self._loop.time()
             # alpha_pos after beta_mode so it re-overrides when both present (tcOnDown)
             if "alpha_pos" in cmd:
                 self._alpha_override = float(cmd["alpha_pos"])
@@ -563,6 +580,7 @@ class DriveEngine:
             "gesture_active":  self._gesture_active,
             "gesture_dur":     self._gesture_seq[-1][0] if self._gesture_seq else 0.0,
             "presets":         list(PRESETS.keys()),
+            "four_phase":      self._fourphase,
         }
 
     def _build_rider_state_dict(self):
@@ -638,13 +656,15 @@ class DriveEngine:
             tv    = _tv_floor(intensity, cfg.tcode_floor)
             parts = [f"{cfg.axis_volume}{tv}I{cfg.send_interval_ms}"]
 
-            # L1 beta
+            # L1 beta / four-phase electrodes
             if intensity <= 0.0:
-                # Park at neutral when silent
-                desired = cfg.beta_off
-                if desired != self._current_beta:
-                    parts.append(f"{cfg.axis_beta}{desired:04d}I500")
-                    self._current_beta = desired
+                # Park when silent
+                if not self._fourphase:
+                    desired = cfg.beta_off
+                    if desired != self._current_beta:
+                        parts.append(f"{cfg.axis_beta}{desired:04d}I500")
+                        self._current_beta = desired
+                # In four-phase, V0=0 already silences — no need to update weights
 
             elif self._beta_mode == "sweep":
                 # Sweep Hz envelope: ramp up → hold → ramp down → repeat
@@ -671,8 +691,7 @@ class DriveEngine:
                 self._beta_sweep_phase = (
                     self._beta_sweep_phase + self._beta_sweep_hz * dt) % 1.0
                 # Always send — sweep is always changing
-                parts.append(
-                    f"{cfg.axis_beta}{desired:04d}I{cfg.send_interval_ms}")
+                self._emit_beta(desired, parts, cfg, cfg.send_interval_ms)
                 self._current_beta = desired
 
             elif self._beta_mode == "spiral":
@@ -694,24 +713,23 @@ class DriveEngine:
                         self._spiral_amp   = 1.0
                         self._spiral_phase = 0.0
                         self._log("Spiral reset")
-                parts.append(
-                    f"{cfg.axis_beta}{desired:04d}I{cfg.send_interval_ms}")
+                self._emit_beta(desired, parts, cfg, cfg.send_interval_ms)
                 self._current_beta = desired
 
             elif self._beta_mode == "hold":
                 desired = (self._beta_override
                            if self._beta_override is not None
                            else cfg.beta_active)
-                if desired != self._current_beta:
-                    parts.append(f"{cfg.axis_beta}{desired:04d}I200")
+                if desired != self._current_beta or self._fourphase:
+                    self._emit_beta(desired, parts, cfg, 200)
                     self._current_beta = desired
 
             else:  # auto — intensity-driven 3-position
                 desired = (cfg.beta_active
                            if intensity >= cfg.beta_thresh
                            else cfg.beta_light)
-                if desired != self._current_beta:
-                    parts.append(f"{cfg.axis_beta}{desired:04d}I200")
+                if desired != self._current_beta or self._fourphase:
+                    self._emit_beta(desired, parts, cfg, 200)
                     self._current_beta = desired
 
             self._shared["__live__l1"] = self._current_beta / 9999.0
@@ -720,6 +738,28 @@ class DriveEngine:
                 await self._send(" ".join(parts))
 
             await asyncio.sleep(cfg.send_interval_ms / 1000.0)
+
+    def _emit_beta(self, desired: int, parts: list, cfg, interval: int) -> None:
+        """Append beta T-code parts. In four-phase mode, converts blend+within to e1-e4 weights."""
+        # Funscript driving e1-e4 directly? Use passthrough values if fresh (< 250 ms).
+        if self._loop and self._fs_e and (self._loop.time() - self._fs_e_t) < 0.25:
+            for ax in ('e1', 'e2', 'e3', 'e4'):
+                parts.append(f"{ax}{_tv(self._fs_e.get(ax, 0.0))}I{interval}")
+            return
+        if self._fourphase:
+            blend  = desired / 9999.0
+            within = self._alpha_override if self._alpha_override is not None else 0.5
+            within = max(0.0, min(1.0, within))
+            pA = 1.0 - blend
+            pB = blend
+            e1 = pA * (1.0 - within)
+            e2 = pA * within
+            e3 = pB * (1.0 - within)
+            e4 = pB * within
+            parts += [f"e1{_tv(e1)}I{interval}", f"e2{_tv(e2)}I{interval}",
+                      f"e3{_tv(e3)}I{interval}", f"e4{_tv(e4)}I{interval}"]
+        else:
+            parts.append(f"{cfg.axis_beta}{desired:04d}I{interval}")
 
     def _gesture_advance(self, dt: float) -> tuple[int, float, float]:
         """Advance gesture playback by dt and return interpolated (beta, alpha, intensity)."""
@@ -746,6 +786,11 @@ class DriveEngine:
         while not self._stop_ev.is_set():
             cfg = self._cfg
             dt  = cfg.send_interval_ms / 1000.0
+
+            # Four-phase mode: within-pair handled by _emit_beta, no L0 output
+            if self._fourphase:
+                await asyncio.sleep(dt)
+                continue
 
             # Gesture playback handles alpha directly
             if self._gesture_active:

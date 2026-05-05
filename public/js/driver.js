@@ -86,6 +86,16 @@ function syncUIFromState(d) {
       : d.sweep_skew < 0 ? "A +" + (-d.sweep_skew) + "%"
                           : "B +" + d.sweep_skew + "%";
 
+  // Four-phase mode
+  if (d.four_phase !== undefined) {
+    _fourPhase = d.four_phase;
+    const fpBtn = document.getElementById("fourphase-toggle");
+    if (fpBtn) {
+      fpBtn.classList.toggle("active", _fourPhase);
+      fpBtn.textContent = "4-Phase: " + (_fourPhase ? "ON" : "OFF");
+    }
+  }
+
   // Ramp (pre-fill without starting)
   let rampPct = Math.round(d.ramp_target * 100);
   document.getElementById("ramp-target").value = rampPct;
@@ -280,6 +290,19 @@ function toggleAlpha() {
   sendCmd({ alpha: state.alpha });
 }
 
+// \u2500\u2500 Four-phase mode toggle \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+let _fourPhase = false;
+
+function toggleFourPhase() {
+  _fourPhase = !_fourPhase;
+  const btn = document.getElementById("fourphase-toggle");
+  if (btn) {
+    btn.classList.toggle("active", _fourPhase);
+    btn.textContent = "4-Phase: " + (_fourPhase ? "ON" : "OFF");
+  }
+  sendCmd({ four_phase: _fourPhase });
+}
+
 function sendStop() {
   state.intensity = 0;
   document.getElementById("intensity-slider").value = 0;
@@ -328,6 +351,11 @@ async function sendCmd(cmd, _src = 'controls') {
     if (_FS_SLOTS.intensity.actions.length) delete c.intensity;
     if (_FS_SLOTS.beta.actions.length)      delete c.beta;
     if (_FS_SLOTS.alpha.actions.length)     delete c.alpha_pos;
+    if (_FS_SLOTS.e1.actions.length)        delete c.e1;
+    if (_FS_SLOTS.e2.actions.length)        delete c.e2;
+    if (_FS_SLOTS.e3.actions.length)        delete c.e3;
+    if (_FS_SLOTS.e4.actions.length)        delete c.e4;
+    if (_FS_SLOTS.volume.actions.length)    delete c.volume;
     if (!Object.keys(c).length) return;
     cmd = c;
   }
@@ -1455,6 +1483,12 @@ _FS_SLOTS = {
   intensity: { actions: [], duration: 0 },
   beta:      { actions: [], duration: 0 },
   alpha:     { actions: [], duration: 0 },
+  // Four-phase electrode slots
+  e1:        { actions: [], duration: 0 },
+  e2:        { actions: [], duration: 0 },
+  e3:        { actions: [], duration: 0 },
+  e4:        { actions: [], duration: 0 },
+  volume:    { actions: [], duration: 0 },
 };
 
 // Shared playback state — _fsPlaying / _fsSendTimer declared at top of file
@@ -1463,17 +1497,13 @@ let _fsWallStart = 0;   // performance.now() at last fsPlay()
 let _fsSeekDrag  = false;
 let _fsDelay     = 0;   // ms — signal offset vs video; +ahead, -behind
 
+const _FS_ALL_AXES = ['intensity','beta','alpha','e1','e2','e3','e4','volume'];
+
 function _fsDuration() {
-  return Math.max(
-    _FS_SLOTS.intensity.duration,
-    _FS_SLOTS.beta.duration,
-    _FS_SLOTS.alpha.duration
-  );
+  return Math.max(..._FS_ALL_AXES.map(a => _FS_SLOTS[a].duration));
 }
 function _fsHasAny() {
-  return _FS_SLOTS.intensity.actions.length ||
-         _FS_SLOTS.beta.actions.length      ||
-         _FS_SLOTS.alpha.actions.length;
+  return _FS_ALL_AXES.some(a => _FS_SLOTS[a].actions.length > 0);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1514,8 +1544,15 @@ function _fsInterp(actions, ms) {
 // Auto-detect axis from filename (e.g. "scene.beta.funscript" → 'beta')
 function _fsAxisFromName(name) {
   const n = name.toLowerCase();
-  if (/\bbeta\b|\bposition\b|\bsurge\b/.test(n)) return 'beta';
-  if (/\balpha\b|\btwist\b|\bvibr/.test(n))       return 'alpha';
+  // Four-phase electrode slots — match .e1. / .e2. / .e3. / .e4. / .volume.
+  if (/[._\-]e1[._\-]|[._\-]e1$/.test(n))         return 'e1';
+  if (/[._\-]e2[._\-]|[._\-]e2$/.test(n))         return 'e2';
+  if (/[._\-]e3[._\-]|[._\-]e3$/.test(n))         return 'e3';
+  if (/[._\-]e4[._\-]|[._\-]e4$/.test(n))         return 'e4';
+  if (/[._\-]volume[._\-]|[._\-]volume$/.test(n)) return 'volume';
+  // Three-phase slots
+  if (/\bbeta\b|\bposition\b|\bsurge\b/.test(n))  return 'beta';
+  if (/\balpha\b|\btwist\b|\bvibr/.test(n))        return 'alpha';
   return 'intensity';
 }
 
@@ -1636,13 +1673,17 @@ function fsStop() {
   if (_FS_SLOTS.intensity.actions.length) stopCmd.intensity = 0;
   if (_FS_SLOTS.beta.actions.length)      stopCmd.beta      = 5000; // park at neutral
   if (_FS_SLOTS.alpha.actions.length)     stopCmd.alpha_pos = 0.5;
+  // Four-phase: zero electrodes so engine's _fs_e goes stale cleanly
+  const hasE = _FS_SLOTS.e1.actions.length || _FS_SLOTS.e2.actions.length ||
+               _FS_SLOTS.e3.actions.length || _FS_SLOTS.e4.actions.length;
+  if (hasE) { stopCmd.e1 = 0; stopCmd.e2 = 0; stopCmd.e3 = 0; stopCmd.e4 = 0; }
   if (Object.keys(stopCmd).length) sendCmd(stopCmd);
   const seek = document.getElementById('fs-seek-input');
   if (seek) seek.value = 0;
   const fill = document.getElementById('fs-seek-fill');
   if (fill) fill.style.width = '0%';
   _fsUpdateSeek();
-  ['intensity','beta','alpha'].forEach(ax => {
+  _FS_ALL_AXES.forEach(ax => {
     requestAnimationFrame(() => fsDrawSlot(ax));
   });
   const pb = document.getElementById('fs-play-btn');
@@ -1676,6 +1717,13 @@ function _fsTick() {
     cmd.beta = Math.round(_fsInterp(_FS_SLOTS.beta.actions, ms) / 100 * 9999);
   if (_FS_SLOTS.alpha.actions.length)
     cmd.alpha_pos = _fsInterp(_FS_SLOTS.alpha.actions, ms) / 100;
+  // Four-phase electrode slots — direct passthrough to engine
+  if (_FS_SLOTS.e1.actions.length)     cmd.e1     = _fsInterp(_FS_SLOTS.e1.actions,     ms) / 100;
+  if (_FS_SLOTS.e2.actions.length)     cmd.e2     = _fsInterp(_FS_SLOTS.e2.actions,     ms) / 100;
+  if (_FS_SLOTS.e3.actions.length)     cmd.e3     = _fsInterp(_FS_SLOTS.e3.actions,     ms) / 100;
+  if (_FS_SLOTS.e4.actions.length)     cmd.e4     = _fsInterp(_FS_SLOTS.e4.actions,     ms) / 100;
+  // Volume funscript — drives V0 directly (as 0-1 intensity override)
+  if (_FS_SLOTS.volume.actions.length) cmd.intensity = _fsInterp(_FS_SLOTS.volume.actions, ms) / 100;
 
   if (Object.keys(cmd).length) sendCmd(cmd, 'script');
 
@@ -1687,7 +1735,7 @@ function _fsTick() {
     if (fill) fill.style.width = (pct * 100).toFixed(2) + '%';
     const time = document.getElementById('fs-time-disp');
     if (time) time.textContent = _fsFmt(ms) + ' / ' + _fsFmt(dur);
-    ['intensity','beta','alpha'].forEach(ax => _fsDrawPlayhead(ax, pct));
+    _FS_ALL_AXES.forEach(ax => _fsDrawPlayhead(ax, pct));
   }
 }
 
@@ -1708,7 +1756,7 @@ function fsSeekInput(v) {
   if (time) time.textContent = _fsFmt(ms) + ' / ' + _fsFmt(dur);
   const vid = document.getElementById('fs-video-el');
   if (vid && vid.style.display !== 'none') vid.currentTime = ms / 1000;
-  ['intensity','beta','alpha'].forEach(ax => _fsDrawPlayhead(ax, pct));
+  _FS_ALL_AXES.forEach(ax => _fsDrawPlayhead(ax, pct));
 }
 
 // ── Per-slot mini waveform canvas ─────────────────────────────────────────────
@@ -1717,6 +1765,11 @@ const _FS_COLORS = {
   intensity: '#5fa3ff',
   beta:      '#fbbf24',
   alpha:     '#4ade80',
+  e1:        '#ff6b6b',
+  e2:        '#ff9f43',
+  e3:        '#a29bfe',
+  e4:        '#74b9ff',
+  volume:    '#fdcb6e',
 };
 
 function fsDrawSlot(axis) {
@@ -1757,6 +1810,11 @@ function fsDrawSlot(axis) {
   c._lastPct = -1;
 }
 
+// Redraw all slot waveforms (called when script tab becomes visible)
+function fsDrawMini() {
+  _FS_ALL_AXES.forEach(ax => fsDrawSlot(ax));
+}
+
 function _fsDrawPlayhead(axis, pct) {
   const c = document.getElementById('fs-canvas-' + axis);
   if (!c || !c.width || !_FS_SLOTS[axis]?.actions.length) return;
@@ -1791,6 +1849,10 @@ function toggleSource(src) {
       if (_FS_SLOTS && _FS_SLOTS.intensity.actions.length) stopCmd.intensity = 0;
       if (_FS_SLOTS && _FS_SLOTS.beta.actions.length)      stopCmd.beta      = 5000;
       if (_FS_SLOTS && _FS_SLOTS.alpha.actions.length)     stopCmd.alpha_pos = 0.5;
+      const _hasE = _FS_SLOTS && (
+        _FS_SLOTS.e1.actions.length || _FS_SLOTS.e2.actions.length ||
+        _FS_SLOTS.e3.actions.length || _FS_SLOTS.e4.actions.length);
+      if (_hasE) { stopCmd.e1 = 0; stopCmd.e2 = 0; stopCmd.e3 = 0; stopCmd.e4 = 0; }
       if (Object.keys(stopCmd).length) sendCmd(stopCmd);
     } else if (_fsPlaying) {
       // Re-arm the tick
