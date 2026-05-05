@@ -7,9 +7,46 @@
 <link rel="stylesheet" href="/public/css/rider_join.css">
 </head>
 <body>
-<h1>ReDrive</h1>
-<p class="sub">Room <strong style="color:var(--accent);letter-spacing:.1em">{{ code }}</strong></p>
 
+<div id="page-top">
+  <span id="room-label">ROOM <strong>{{ code }}</strong></span>
+  <span id="driver-name-disp"></span>
+</div>
+
+<!-- ── Feel card ─────────────────────────────────────────────────── -->
+<div class="card" id="feel-card">
+
+  <div id="orb-wrap">
+    <div id="feel-orb"></div>
+  </div>
+
+  <div id="feel-text">Waiting for driver…</div>
+  <div id="feel-sub"></div>
+
+  <!-- Electrode position bar -->
+  <div id="beta-wrap">
+    <span class="be-lbl">&#9668; A</span>
+    <div id="beta-track"><div id="beta-dot"></div></div>
+    <span class="be-lbl">B &#9658;</span>
+  </div>
+
+  <!-- Live output bar -->
+  <div class="feel-bar-row">
+    <span class="feel-bar-label">Output</span>
+    <div class="feel-bar-wrap"><div id="vol-bar"></div></div>
+    <span id="vol-pct" class="feel-bar-val">—</span>
+  </div>
+
+  <!-- Ramp row (visible only when ramping) -->
+  <div class="feel-bar-row" id="ramp-row">
+    <span class="feel-bar-label">Ramp</span>
+    <div class="feel-bar-wrap"><div id="ramp-bar"></div></div>
+    <span id="s-ramp" class="feel-bar-val">—</span>
+  </div>
+
+</div><!-- end feel-card -->
+
+<!-- ── Bridge / connection card ──────────────────────────────────── -->
 <div class="card" id="bridge-card">
   <h2>ReStim Bridge</h2>
   <div class="bridge-row">
@@ -32,42 +69,21 @@
     </div>
     <p style="font-size:.78rem;color:var(--fg2);margin-top:.4rem">
       Default: <code>ws://localhost:12346/tcode</code>
-      — make sure ReStim's WebSocket server is enabled.
+      &mdash; make sure ReStim&rsquo;s WebSocket server is enabled.
     </p>
   </details>
 </div>
 
-<div class="card">
-  <h2>Live output &nbsp;<span id="status-dot"></span><span id="status-txt"></span></h2>
-  <div class="stat-row">
-    <span class="stat-label">Pattern</span>
-    <span class="stat-value" id="s-pattern">—</span>
-  </div>
-  <div class="stat-row">
-    <span class="stat-label">Intensity</span>
-    <span class="stat-value" id="s-intensity">—</span>
-  </div>
-  <div class="stat-row">
-    <span class="stat-label">Output</span>
-    <div id="vol-bar-wrap"><div id="vol-bar"></div></div>
-    <span class="stat-value" id="s-vol">—</span>
-  </div>
-  <div class="stat-row" id="ramp-row">
-    <span class="stat-label">Ramp</span>
-    <div id="ramp-bar-wrap"><div id="ramp-bar"></div></div>
-    <span class="stat-value" id="s-ramp">—</span>
-  </div>
-</div>
-
-<div id="bottle-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:1rem">
+<!-- ── Poppers overlay ────────────────────────────────────────────── -->
+<div id="bottle-overlay">
   <img src="/bottle.png" style="max-width:80vmin;max-height:72vmin;object-fit:contain;border-radius:8px">
-  <div id="bottle-cd" style="color:#fff;font-size:1.1rem;font-family:monospace;opacity:0.7"></div>
+  <div id="bottle-cd"></div>
 </div>
 
 <script>
-const ROOM_CODE   = '{{ code }}';
-const PREFIX      = '{{ prefix }}';
-const RIDER_WS    = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + PREFIX + '/rider-ws';
+const ROOM_CODE = '{{ code }}';
+const PREFIX    = '{{ prefix }}';
+const RIDER_WS  = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + PREFIX + '/rider-ws';
 </script>
 <script src="/public/js/rider_join.js"></script>
 <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>

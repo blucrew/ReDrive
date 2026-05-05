@@ -1,12 +1,13 @@
 // ── State ──────────────────────────────────────────────────────────────────────
-let _serverWs   = null;
-let _restimWs   = null;
-let _srvRetry   = 1000;   // ms, exponential backoff
-let _rsRetry    = 2000;
-let _srvTimer   = null;
-let _rsTimer    = null;
-let _bridgeOn   = true;
-let _restimUrl  = 'ws://localhost:12346/tcode';
+let _serverWs        = null;
+let _restimWs        = null;
+let _srvRetry        = 1000;   // ms, exponential backoff
+let _rsRetry         = 2000;
+let _srvTimer        = null;
+let _rsTimer         = null;
+let _bridgeOn        = true;
+let _restimUrl       = 'ws://localhost:12346/tcode';
+let _driverConnected = false;
 
 // ── Server WebSocket ────────────────────────────────────────────────────────
 function connectServer() {
@@ -79,9 +80,12 @@ function handleServerMsg(msg) {
       break;
     case 'driver_joined':
       setSrvStatus('ok', 'driver connected');
+      _driverConnected = true;
       break;
     case 'driver_left':
       setSrvStatus('ok', 'waiting for driver…');
+      _driverConnected = false;
+      updateStats({ driver_connected: false });
       break;
     case 'ping':
       if (_serverWs && _serverWs.readyState === WebSocket.OPEN)
@@ -90,26 +94,112 @@ function handleServerMsg(msg) {
   }
 }
 
+// ── Feel text ───────────────────────────────────────────────────────────────
+// Maps pattern name → [headline, flavour descriptor]
+const _PATTERN_FEEL = {
+  'Hold':   ['Steady hold',       'constant pressure'],
+  'Wave':   ['Rhythmic waves',    'flowing pulse'],
+  'Ramp':   ['Building up',       'rising intensity'],
+  'Edge':   ['Edging pattern',    'teasing waves'],
+  'Pulse':  ['Sharp pulses',      'quick bursts'],
+  'Random': ['Varied sensation',  'unpredictable rhythm'],
+  'Slow':   ['Deep throb',        'slow and deep'],
+  'Fast':   ['Rapid bursts',      'high frequency'],
+  'Climb':  ['Climbing tension',  'escalating'],
+  'Drop':   ['Fading out',        'descending'],
+};
+
+function buildFeelText(d) {
+  const pat   = d.pattern || 'Hold';
+  const vol   = d.vol     ?? 0;
+  const hz    = Math.max(0.05, d.hz   ?? 0.5);
+  const depth = d.depth   ?? 1.0;
+
+  if (!d.driver_connected) {
+    return { main: 'Waiting for driver…', sub: '' };
+  }
+  if (vol < 0.005) {
+    return { main: 'Idle', sub: 'signal paused' };
+  }
+
+  const known = _PATTERN_FEEL[pat];
+  const main  = known ? known[0] : pat;
+  const desc  = known ? known[1] : 'active';
+  const hzStr = hz.toFixed(1) + ' Hz';
+  const sub   = `${hzStr}  ·  ${desc}  ·  ${Math.round(depth * 100)}% depth`;
+
+  return { main, sub };
+}
+
 // ── Stats display ───────────────────────────────────────────────────────────
 function updateStats(d) {
-  const pat  = document.getElementById('s-pattern');
-  const intn = document.getElementById('s-intensity');
-  const vol  = document.getElementById('s-vol');
-  const vbar = document.getElementById('vol-bar');
+  _driverConnected = !!d.driver_connected;
 
-  if (pat)  pat.textContent  = d.pattern   ?? '—';
-  if (intn) intn.textContent = d.intensity != null
-    ? Math.round(d.intensity * 100) + '%' : '—';
+  const vol       = d.vol       ?? 0;
+  const hz        = Math.max(0.05, d.hz ?? 0.5);
+  const beta      = d.beta      ?? 5000;
+  const intensity = d.intensity ?? 0;
 
-  const volPct = d.vol != null ? Math.round(d.vol * 100) : 0;
-  if (vbar) vbar.style.width = volPct + '%';
-  if (vol)  vol.textContent  = volPct + '%';
+  // ── Driver name ──────────────────────────────────────────────────────────
+  const nameEl = document.getElementById('driver-name-disp');
+  if (nameEl && d.driver_name) nameEl.textContent = d.driver_name;
 
+  // ── Orb ──────────────────────────────────────────────────────────────────
+  const orb = document.getElementById('feel-orb');
+  if (orb) {
+    const quiet = !_driverConnected || intensity < 0.01;
+    orb.classList.toggle('quiet', quiet);
+
+    if (!quiet) {
+      // Breathing speed tracks stimulation frequency
+      const period = (1 / hz).toFixed(2);
+      orb.style.animationDuration = period + 's';
+
+      // Glow and size scale with output volume
+      const sz   = Math.round(90 + vol * 36);          // 90 → 126 px
+      const g1   = Math.round(18 + vol * 56);          // inner glow radius
+      const g2   = Math.round(50 + vol * 80);          // outer glow radius
+      const a1   = (0.12 + vol * 0.45).toFixed(2);
+      const a2   = (0.03 + vol * 0.12).toFixed(2);
+      orb.style.width     = sz + 'px';
+      orb.style.height    = sz + 'px';
+      orb.style.boxShadow =
+        `0 0 ${g1}px rgba(95,163,255,${a1}), 0 0 ${g2}px rgba(95,163,255,${a2})`;
+    } else {
+      orb.style.animationDuration = '';
+      orb.style.width     = '';
+      orb.style.height    = '';
+      orb.style.boxShadow = '';
+    }
+  }
+
+  // ── Feel text ─────────────────────────────────────────────────────────────
+  const ft       = buildFeelText(d);
+  const feelText = document.getElementById('feel-text');
+  const feelSub  = document.getElementById('feel-sub');
+  if (feelText) feelText.textContent = ft.main;
+  if (feelSub)  feelSub.textContent  = ft.sub;
+
+  // ── Beta position dot ─────────────────────────────────────────────────────
+  // beta 0 = fully A-side (left), beta 9999 = fully B-side (right)
+  const betaDot = document.getElementById('beta-dot');
+  if (betaDot) {
+    betaDot.style.left = ((beta / 9999) * 100).toFixed(1) + '%';
+  }
+
+  // ── Output bar ────────────────────────────────────────────────────────────
+  const volBar    = document.getElementById('vol-bar');
+  const volPctEl  = document.getElementById('vol-pct');
+  const volPctVal = Math.round(vol * 100);
+  if (volBar)   volBar.style.width   = volPctVal + '%';
+  if (volPctEl) volPctEl.textContent = _driverConnected ? (volPctVal + '%') : '—';
+
+  // ── Ramp row ──────────────────────────────────────────────────────────────
   const rampRow = document.getElementById('ramp-row');
   if (rampRow) {
     if (d.ramp_active) {
       rampRow.style.display = 'flex';
-      const pct = Math.round((d.ramp_progress ?? 0) * 100);
+      const pct  = Math.round((d.ramp_progress ?? 0) * 100);
       const rbar = document.getElementById('ramp-bar');
       const rval = document.getElementById('s-ramp');
       if (rbar) rbar.style.width = pct + '%';
@@ -119,14 +209,9 @@ function updateStats(d) {
       rampRow.style.display = 'none';
     }
   }
-
-  // Keep legacy status dot happy
-  const dot = document.getElementById('status-dot');
-  const txt = document.getElementById('status-txt');
-  if (dot) dot.style.background = 'var(--ok)';
-  if (txt) txt.textContent = '';
 }
 
+// ── Bottle overlay ──────────────────────────────────────────────────────────
 function handleBottle(msg) {
   const overlay = document.getElementById('bottle-overlay');
   const cd      = document.getElementById('bottle-cd');
@@ -164,6 +249,16 @@ function reconnect() {
   connectServer();
   connectRestim();
 }
+
+// ── Tab visibility keepalive ─────────────────────────────────────────────────
+// When a backgrounded tab comes back to the foreground, immediately ping so
+// the server knows we're alive (prevents the room from being culled).
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (_serverWs && _serverWs.readyState === WebSocket.OPEN) {
+    try { _serverWs.send(JSON.stringify({ type: 'ping' })); } catch(_) {}
+  }
+});
 
 // ── Init ────────────────────────────────────────────────────────────────────
 reconnect();

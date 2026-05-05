@@ -161,16 +161,44 @@ class Room:
         return d
 
     def _build_rider_state(self) -> dict:
-        """Build the rider state dict."""
+        """Build the rider state dict — everything a rider needs to understand the signal."""
         now = time.monotonic()
-        intensity = 0.0
-        if self.engine:
-            intensity = self.engine._shared.get("__live__l0", self.engine._pattern.intensity)
+        e   = self.engine
+        # Defaults (no engine yet)
+        vol = intensity = 0.0
+        pattern   = "Hold"
+        hz        = 0.5
+        depth     = 1.0
+        beta      = 5000
+        beta_mode = "sweep"
+        ramp_active   = False
+        ramp_progress = 0.0
+        ramp_target   = 0.0
+        if e:
+            vol           = round(e._shared.get("__live__l0", 0.0), 4)
+            intensity     = round(e._pattern.intensity, 4)
+            pattern       = e._pattern.pattern
+            hz            = round(e._pattern.hz, 3)
+            depth         = round(e._pattern.depth, 3)
+            beta          = int(e._shared.get("__live__l1", 0.5) * 9999)
+            beta_mode     = e._beta_mode
+            ramp_active   = e._ramp_active
+            ramp_progress = round(e._shared.get("__ramp_progress__", 0.0), 4)
+            ramp_target   = round(e._ramp_target, 4)
         bottle_active = now < self.bottle_until
         return {
-            "intensity":        round(intensity, 4),
+            "intensity":        intensity,
+            "vol":              vol,
+            "pattern":          pattern,
+            "hz":               hz,
+            "depth":            depth,
+            "beta":             beta,
+            "beta_mode":        beta_mode,
+            "ramp_active":      ramp_active,
+            "ramp_progress":    ramp_progress,
+            "ramp_target":      ramp_target,
             "bottle_active":    bottle_active,
-            "bottle_remaining": max(0.0, round(self.bottle_until - now, 1)),
+            "bottle_remaining": max(0.0, round(self.bottle_until - now, 1)) if bottle_active else 0,
             "bottle_mode":      self.bottle_mode,
             "driver_name":      self.driver_name,
             "driver_connected": len(self.driver_wss) > 0,
