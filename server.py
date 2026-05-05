@@ -32,7 +32,7 @@ from aiohttp import web
 _ROOM_CHARS   = "BCDFGHJKMNPQRSTVWXYZ23456789"
 _CODE_LEN     = 10
 _ROOM_EXPIRY        = 86_400   # 24 h in seconds
-_DRIVER_GRACE       = 300      # 5 min grace after driver goes quiet
+_DRIVER_GRACE       = 3_600    # 1 h grace after driver goes quiet (tab freeze, sleep, etc.)
 _CLEANUP_INTERVAL   = 30       # sweep every 30 s
 
 # -- Global room registry
@@ -179,10 +179,14 @@ class Room:
     async def _state_push_loop(self):
         """Push state to connected WebSockets at regular intervals."""
         tick = 0
-        try:
-            while True:
+        while True:
+            try:
                 await asyncio.sleep(0.2)  # 5 Hz
                 tick += 1
+
+                # Cap pending_likes so it can't grow unboundedly
+                if len(self.pending_likes) > 100:
+                    self.pending_likes = self.pending_likes[-100:]
 
                 # Push to driver WS connections every tick (5 Hz)
                 if self.driver_wss and self.engine is not None:
@@ -213,14 +217,16 @@ class Room:
                         self.rider_wss -= dead
                     except Exception:
                         pass
-        except asyncio.CancelledError:
-            pass
+
+            except asyncio.CancelledError:
+                return   # task cancelled cleanly — exit
+            except Exception:
+                pass     # swallow any other transient error and keep looping
 
     def _start_push_loop(self):
         """Start the state push loop as an asyncio task."""
-        self._push_task = asyncio.ensure_future(
-            self._state_push_loop(), loop=self._main_loop
-        )
+        # ensure_future(loop=) was removed in Python 3.10 — schedule on the main loop directly
+        self._push_task = self._main_loop.create_task(self._state_push_loop())
 
     async def _broadcast_driver_status(self, connected: bool):
         """Broadcast driver_status to all rider WS connections."""
@@ -450,6 +456,12 @@ async def handle_driver_ws(req):
                     except Exception:
                         ok = False
                     await ws.send_str(json.dumps({"type": "command_ack", "ok": ok}))
+
+            elif msg.type == aiohttp.WSMsgType.PONG:
+                # Server heartbeat (heartbeat=30) → browser pongs automatically.
+                # Count each pong as driver activity so tab sleep/freeze doesn't
+                # expire the room.
+                room.touch_driver()
 
             elif msg.type in (aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSE):
                 break

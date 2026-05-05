@@ -1901,3 +1901,15 @@ document.addEventListener('DOMContentLoaded', () => {
   v.addEventListener('play',   () => { if (_fsHasAny() && !_fsPlaying) fsPlay(); });
   v.addEventListener('pause',  () => { if (_fsPlaying) fsPause(); });
 });
+
+// ── Session keepalive ─────────────────────────────────────────────────────────
+// When the browser tab comes back from hidden/frozen state, immediately send a
+// ping over the WS so the server's driver_last_seen resets.  Without this,
+// Chrome's tab throttling can let the 5-min grace timer expire mid-session.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  // Tab became visible — re-arm heartbeat immediately
+  if (_driverWs && _driverWs.readyState === WebSocket.OPEN) {
+    try { _driverWs.send(JSON.stringify({type: 'ping'})); } catch(_) {}
+  }
+});
