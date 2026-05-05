@@ -184,7 +184,11 @@
     border-radius:10px; color:var(--fg2); font-size:13px; cursor:pointer;
   }
   #alpha-toggle.active { background:rgba(95,163,255,0.18); border-color:var(--accent); color:var(--accent); }
-  #fourphase-toggle { transition:all .15s; }
+  #fourphase-toggle {
+    padding:8px 14px; background:var(--bg3); border:1px solid var(--border);
+    border-radius:10px; color:var(--fg2); font-size:13px; cursor:pointer;
+    transition:all .15s;
+  }
   #fourphase-toggle.active {
     background:rgba(162,155,254,0.18); border-color:#a29bfe; color:#a29bfe;
     box-shadow:0 0 12px rgba(162,155,254,0.25);
