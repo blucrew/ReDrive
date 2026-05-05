@@ -1616,7 +1616,18 @@ function fsDrop(e) {
   document.getElementById('script-panel').classList.remove('dragover');
   const files = [...e.dataTransfer.files].filter(f =>
     /\.(funscript|json)$/i.test(f.name));
-  files.forEach(f => fsSlotLoad(_fsAxisFromName(f.name), f));
+  fs4chLoadSet(files);
+}
+
+// Auto-route a FileList (or array of Files) by filename.
+// Used by the "Load Set" button, individual 4-ch slot Load buttons,
+// and drag-and-drop.  A single .e1.funscript file routes to E1;
+// selecting all five at once fills all slots in one go.
+function fs4chLoadSet(files) {
+  [...files].forEach(f => {
+    if (!/\.(funscript|json)$/i.test(f.name)) return;
+    fsSlotLoad(_fsAxisFromName(f.name), f);
+  });
 }
 
 // ── Playback ──────────────────────────────────────────────────────────────────

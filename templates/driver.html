@@ -354,8 +354,17 @@ const DRIVER_KEY = "";
       </div>
 
       <!-- Four-phase electrode slots -->
-      <div class="section-label" style="margin-top:2px">
-        4-Channel <small style="font-size:9px;text-transform:none;font-weight:400;color:var(--fg2)">e1–e4 electrode weights · volume</small>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <span class="section-label" style="margin:0;flex:1">
+          4-Channel <small style="font-size:9px;text-transform:none;font-weight:400;color:var(--fg2)">e1–e4 electrode weights · volume</small>
+        </span>
+        <button class="fs-small-btn" style="white-space:nowrap"
+                onclick="document.getElementById('fs-input-4ch-set').click()"
+                title="Select any or all of the .e1/.e2/.e3/.e4/.volume.funscript files — they auto-route by name">
+          &#8679; Load Set
+        </button>
+        <input type="file" id="fs-input-4ch-set" accept=".funscript,.json" multiple style="display:none"
+               onchange="fs4chLoadSet(this.files); this.value=''">
       </div>
 
       <div class="fs-slot" id="fs-slot-e1">
@@ -365,8 +374,8 @@ const DRIVER_KEY = "";
           <span class="fs-slot-name" id="fs-slot-name-e1">—</span>
           <button class="fs-small-btn" onclick="document.getElementById('fs-input-e1').click()">Load</button>
           <button class="fs-small-btn fs-eject" id="fs-eject-e1" onclick="fsSlotEject('e1')" style="display:none">&#215;</button>
-          <input type="file" id="fs-input-e1" accept=".funscript,.json" style="display:none"
-                 onchange="fsSlotLoad('e1',this.files[0])">
+          <input type="file" id="fs-input-e1" accept=".funscript,.json" multiple style="display:none"
+                 onchange="fs4chLoadSet(this.files); this.value=''">
         </div>
         <canvas class="fs-slot-canvas" id="fs-canvas-e1" height="32"></canvas>
       </div>
@@ -378,8 +387,8 @@ const DRIVER_KEY = "";
           <span class="fs-slot-name" id="fs-slot-name-e2">—</span>
           <button class="fs-small-btn" onclick="document.getElementById('fs-input-e2').click()">Load</button>
           <button class="fs-small-btn fs-eject" id="fs-eject-e2" onclick="fsSlotEject('e2')" style="display:none">&#215;</button>
-          <input type="file" id="fs-input-e2" accept=".funscript,.json" style="display:none"
-                 onchange="fsSlotLoad('e2',this.files[0])">
+          <input type="file" id="fs-input-e2" accept=".funscript,.json" multiple style="display:none"
+                 onchange="fs4chLoadSet(this.files); this.value=''">
         </div>
         <canvas class="fs-slot-canvas" id="fs-canvas-e2" height="32"></canvas>
       </div>
@@ -391,8 +400,8 @@ const DRIVER_KEY = "";
           <span class="fs-slot-name" id="fs-slot-name-e3">—</span>
           <button class="fs-small-btn" onclick="document.getElementById('fs-input-e3').click()">Load</button>
           <button class="fs-small-btn fs-eject" id="fs-eject-e3" onclick="fsSlotEject('e3')" style="display:none">&#215;</button>
-          <input type="file" id="fs-input-e3" accept=".funscript,.json" style="display:none"
-                 onchange="fsSlotLoad('e3',this.files[0])">
+          <input type="file" id="fs-input-e3" accept=".funscript,.json" multiple style="display:none"
+                 onchange="fs4chLoadSet(this.files); this.value=''">
         </div>
         <canvas class="fs-slot-canvas" id="fs-canvas-e3" height="32"></canvas>
       </div>
@@ -404,8 +413,8 @@ const DRIVER_KEY = "";
           <span class="fs-slot-name" id="fs-slot-name-e4">—</span>
           <button class="fs-small-btn" onclick="document.getElementById('fs-input-e4').click()">Load</button>
           <button class="fs-small-btn fs-eject" id="fs-eject-e4" onclick="fsSlotEject('e4')" style="display:none">&#215;</button>
-          <input type="file" id="fs-input-e4" accept=".funscript,.json" style="display:none"
-                 onchange="fsSlotLoad('e4',this.files[0])">
+          <input type="file" id="fs-input-e4" accept=".funscript,.json" multiple style="display:none"
+                 onchange="fs4chLoadSet(this.files); this.value=''">
         </div>
         <canvas class="fs-slot-canvas" id="fs-canvas-e4" height="32"></canvas>
       </div>
@@ -417,8 +426,8 @@ const DRIVER_KEY = "";
           <span class="fs-slot-name" id="fs-slot-name-volume">—</span>
           <button class="fs-small-btn" onclick="document.getElementById('fs-input-volume').click()">Load</button>
           <button class="fs-small-btn fs-eject" id="fs-eject-volume" onclick="fsSlotEject('volume')" style="display:none">&#215;</button>
-          <input type="file" id="fs-input-volume" accept=".funscript,.json" style="display:none"
-                 onchange="fsSlotLoad('volume',this.files[0])">
+          <input type="file" id="fs-input-volume" accept=".funscript,.json" multiple style="display:none"
+                 onchange="fs4chLoadSet(this.files); this.value=''">
         </div>
         <canvas class="fs-slot-canvas" id="fs-canvas-volume" height="32"></canvas>
       </div>
