@@ -578,7 +578,7 @@ class DriveEngine:
             "spiral_amp":      self._spiral_amp,
             "spiral_tighten":  self._spiral_tighten,
             "gesture_active":  self._gesture_active,
-            "gesture_dur":     self._gesture_seq[-1][0] if self._gesture_seq else 0.0,
+            "gesture_dur":     (lambda s: s[-1][0] if s else 0.0)(self._gesture_seq),
             "presets":         list(PRESETS.keys()),
             "four_phase":      self._fourphase,
         }

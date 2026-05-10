@@ -150,8 +150,7 @@ class Room:
         """Build the full driver state dict."""
         if self.engine is None:
             return {}
-        resp = await self.engine._handle_state(None)
-        d = json.loads(resp.text)
+        d = self.engine._build_state_dict()   # direct dict — no JSON round-trip
         d["rider_count"]      = self.rider_count
         d["bottle_active"]    = time.monotonic() < self.bottle_until
         d["bottle_remaining"] = max(0.0, round(self.bottle_until - time.monotonic(), 1))
@@ -313,6 +312,8 @@ def _check_driver_key(req, room) -> bool:
 
 
 async def handle_create(req):
+    if len(_rooms) >= 500:
+        raise web.HTTPTooManyRequests(text="Server at capacity — try again later")
     code = _new_code()
     loop = asyncio.get_event_loop()
     room = Room(code, loop)
@@ -614,22 +615,14 @@ async def handle_assets_file(req):
     type_ = req.match_info["type"]
     name  = req.match_info.get("name", "")
     subdir = req.match_info.get("subdir", "")
-    if "/" in type_ or ".." in type_ or ".." in name or ".." in subdir:
+    base_dir = (Path(__file__).parent / "touch_assets").resolve()
+    raw = (base_dir / type_ / subdir / name) if subdir else (base_dir / type_ / name)
+    path = raw.resolve()
+    if not path.is_relative_to(base_dir):
         raise web.HTTPForbidden()
-    if subdir:
-        if "/" in subdir:
-            raise web.HTTPForbidden()
-        path = Path(__file__).parent / "touch_assets" / type_ / subdir / name
-    else:
-        if "/" in name:
-            raise web.HTTPForbidden()
-        path = Path(__file__).parent / "touch_assets" / type_ / name
     if not path.is_file():
         raise web.HTTPNotFound()
-    ct = {".png": "image/png", ".jpg": "image/jpeg",
-          ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(
-              path.suffix.lower(), "application/octet-stream")
-    return web.Response(body=path.read_bytes(), content_type=ct)
+    return web.FileResponse(path)
 
 
 async def handle_version(_req):
@@ -638,8 +631,7 @@ async def handle_version(_req):
         path = Path(__file__).parent / "version.json"
     if not path.is_file():
         return web.Response(text='{"version":"0.1.0"}', content_type="application/json")
-    return web.Response(body=path.read_bytes(), content_type="application/json",
-                        headers={"Access-Control-Allow-Origin": "*"})
+    return web.FileResponse(path, headers={"Access-Control-Allow-Origin": "*"})
 
 
 async def handle_rider_download(req):
@@ -671,13 +663,15 @@ async def handle_bottle_png(_req):
     path = Path(__file__).parent / "bottle.png"
     if not path.is_file():
         raise web.HTTPNotFound(text="bottle.png not found")
-    return web.Response(body=path.read_bytes(), content_type="image/png")
+    return web.FileResponse(path)
 
 
 # -- Waiting room handlers
 
 async def handle_create_waiting(req):
     """Rider creates a waiting room -- no driver key yet."""
+    if len(_rooms) >= 500:
+        raise web.HTTPTooManyRequests(text="Server at capacity — try again later")
     code = _new_code()
     loop = asyncio.get_event_loop()
     room = Room(code, loop, waiting=True)
@@ -855,12 +849,17 @@ async def handle_anatomy_upload(req):
     if suffix not in _ALLOWED_ANATOMY_SUFFIXES:
         raise web.HTTPUnsupportedMediaType(text="File must be PNG, JPG, or WEBP")
 
+    if len(room.custom_anatomies) >= 10:
+        raise web.HTTPBadRequest(text="Maximum 10 custom anatomies per room")
+
     uploads_dir = (Path(__file__).parent
                    / "touch_assets" / "anatomy" / "_uploads")
     uploads_dir.mkdir(parents=True, exist_ok=True)
     short_id = uuid.uuid4().hex[:8]
     filename = f"{code}_{short_id}{suffix}"
-    (uploads_dir / filename).write_bytes(data)
+    dest = uploads_dir / filename
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, dest.write_bytes, data)
 
     rel_name = f"_uploads/{filename}"
     room.custom_anatomies.append(rel_name)
