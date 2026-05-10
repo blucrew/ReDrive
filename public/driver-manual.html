@@ -297,7 +297,7 @@
     <li><a href="#ramp">Intensity ramp</a></li>
     <li><a href="#poppers">Poppers</a></li>
     <li><a href="#touch">Touch tab</a></li>
-    <li><a href="#script">Script tab</a></li>
+    <li><a href="#script">Script tab &amp; 4-channel</a></li>
     <li><a href="#sources">Sources — input locks</a></li>
     <li><a href="#presets">Presets</a></li>
     <li><a href="#quickref">Quick reference</a></li>
@@ -532,9 +532,9 @@
 <section id="script">
   <h2><span class="sec-num">07</span> Script tab — funscript player</h2>
 
-  <p>funscripts are pre-scripted timelines of position values, typically made to match a video. ReDrive can play them across three independent axes simultaneously.</p>
+  <p>funscripts are pre-scripted timelines of position values, typically made to match a video. ReDrive can play them across multiple independent axes simultaneously — three standard channels plus four direct electrode channels for 4-phase setups.</p>
 
-  <h3>The three channels</h3>
+  <h3>Standard channels</h3>
 
   <div class="callout note">
     <p><strong>Intensity <span class="tag tag-intensity">V0</span></strong> — the script drives the electrical output level. 0–100% mapped directly to signal strength. use for scripts that were originally made to drive a toy's motor speed — they translate well to e-stim intensity.</p>
@@ -548,10 +548,22 @@
 
   <p>you don't have to use all three. loading only a Beta script gives you a pure position-scripted session with no intensity automation. the channels that aren't loaded stay wherever Controls or Touch left them.</p>
 
+  <h3>4-Channel mode (E1–E4) <span class="tag tag-both">4-Phase</span></h3>
+  <p>enable the <strong>4-Phase toggle</strong> in the Controls tab to unlock four direct electrode weight channels. instead of the engine computing electrode balance from beta position, the scripts drive each electrode's output directly — 0–100% per channel.</p>
+  <div class="callout note">
+    <p><strong>E1</strong> (cock) &middot; <strong>E2</strong> (balls) &middot; <strong>E3</strong> (perineum) &middot; <strong>E4</strong> (anal) — each maps to one electrode pair in a 4-channel setup. a <strong>Volume</strong> channel scales the overall output level.</p>
+  </div>
+  <p>use <strong>Load Set</strong> (or drop all four files at once onto the panel) to auto-route a matched set. ReDrive reads the filename and routes by suffix: <code>.e1.funscript</code> → E1, <code>.e2.funscript</code> → E2, and so on. the engine bypasses its normal blend math and sends your script values directly for as long as fresh data is arriving.</p>
+
   <h3>Loading scripts</h3>
   <p>hit Load on the channel you want and pick a <code>.funscript</code> file, or drag one (or several at once) onto the script panel. ReDrive reads the filename and routes automatically:</p>
   <table class="param-table">
-    <tr><th>Filename contains</th><th>Routes to</th></tr>
+    <tr><th>Filename contains / ends with</th><th>Routes to</th></tr>
+    <tr><td>.e1. &nbsp;/&nbsp; _e1 &nbsp;/&nbsp; -e1</td><td>E1 electrode</td></tr>
+    <tr><td>.e2. &nbsp;/&nbsp; _e2 &nbsp;/&nbsp; -e2</td><td>E2 electrode</td></tr>
+    <tr><td>.e3. &nbsp;/&nbsp; _e3 &nbsp;/&nbsp; -e3</td><td>E3 electrode</td></tr>
+    <tr><td>.e4. &nbsp;/&nbsp; _e4 &nbsp;/&nbsp; -e4</td><td>E4 electrode</td></tr>
+    <tr><td>volume, vol</td><td>Volume channel</td></tr>
     <tr><td>beta, position, surge</td><td>Beta channel</td></tr>
     <tr><td>alpha, twist, vibr</td><td>Alpha channel</td></tr>
     <tr><td>anything else</td><td>Intensity channel</td></tr>
@@ -680,6 +692,10 @@
     <tr>
       <td>layer script + manual control</td>
       <td>leave all sources active — script owns its loaded axes, Controls fills the rest</td>
+    </tr>
+    <tr>
+      <td>run a 4-channel funscript set</td>
+      <td>enable 4-Phase toggle → Script tab → Load Set (or drop all files) → Play</td>
     </tr>
   </table>
 

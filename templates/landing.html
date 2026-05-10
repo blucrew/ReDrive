@@ -79,19 +79,19 @@
 
     <details>
       <summary>What do I need as a rider?</summary>
-      <p>A PC running ReStim with its WebSocket server enabled (default port 12346). Download the ReDrive Rider bridge app &mdash; it connects to the relay server and forwards T-code to your local ReStim. No browser needed on the rider&rsquo;s side.</p>
+      <p>A PC running ReStim with its WebSocket server enabled (default port 12346), and any modern browser. That&rsquo;s it &mdash; no app to download. Your driver sends you a join link; open it in your browser and it bridges automatically to your local ReStim.</p>
     </details>
 
     <details>
       <summary>How do I set up ReStim?</summary>
-      <p>In ReStim, enable the WebSocket server &mdash; it defaults to port 12346. ReDrive connects to <code>ws://localhost:12346</code>. See the
+      <p>In ReStim, enable the WebSocket server &mdash; it defaults to port 12346. The ReDrive bridge page connects to <code>ws://localhost:12346/tcode</code> automatically. See the
       <a href="https://github.com/diglet48/restim" target="_blank" rel="noopener">ReStim GitHub</a>
       for setup help.</p>
     </details>
 
     <details>
       <summary>My driver sent me a room code &mdash; what do I do?</summary>
-      <p>Download the ReDrive Rider app, enter the room code and click Connect. Or run <code>python rider_client.py ROOMCODE</code> directly if you prefer the command line.</p>
+      <p>Open the join link your driver shared (or go to this page and enter the room code). Your browser connects to the session and bridges directly to your local ReStim &mdash; nothing to install.</p>
     </details>
 
     <div class="faq-section-label">For Drivers</div>
@@ -103,7 +103,7 @@
 
     <details>
       <summary>What can I actually control?</summary>
-      <p>Pattern type (Hold, Sine, Ramp, Pulse, Burst, Random, Edge), intensity, speed, depth, beta sweep (which electrodes are active and how they cycle), alpha oscillation, and ramp (gradual intensity build). Presets let you save and recall full configurations instantly. There&rsquo;s also an optional touch canvas with anatomy overlays for a more hands-on control style.</p>
+      <p>Pattern type (Hold, Sine, Ramp &uarr;, Ramp &darr;, Pulse, Burst, Random, Edge), intensity, speed, depth, beta sweep (which electrodes are active and how they cycle), alpha oscillation, intensity ramp, and 4-channel funscript mode for direct electrode control. Presets let you save and recall full configurations instantly. There&rsquo;s also an optional touch canvas with anatomy overlays for a more hands-on control style.</p>
     </details>
 
     <details>
