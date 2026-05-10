@@ -52,6 +52,43 @@
     border-radius:var(--radius); padding:10px; flex-shrink:0;
   }
   #driven-by strong { color:var(--accent); }
+  /* Feel card */
+  #feel-card {
+    background:var(--glass); border:1px solid var(--border);
+    border-radius:var(--radius); padding:18px 20px;
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+    flex-shrink:0;
+  }
+  #orb-wrap { display:flex; align-items:center; justify-content:center; width:100%; padding:.3rem 0; }
+  @keyframes orb-breathe {
+    0%,100% { transform:scale(1);     filter:blur(0px); }
+    50%      { transform:scale(1.18); filter:blur(1px); }
+  }
+  #feel-orb {
+    width:90px; height:90px; border-radius:50%;
+    background:radial-gradient(circle at 38% 35%, #90c4ff, #1a3a6e);
+    box-shadow:0 0 28px rgba(95,163,255,0.25), 0 0 72px rgba(95,163,255,0.08);
+    animation:orb-breathe 2s ease-in-out infinite;
+    transition:width .6s ease, height .6s ease, box-shadow .5s ease;
+  }
+  #feel-orb.quiet {
+    background:radial-gradient(circle at 38% 35%, #333, #111);
+    box-shadow:none; animation:none;
+  }
+  #feel-text { font-size:1rem; font-weight:600; color:var(--text); text-align:center; }
+  #feel-sub  { font-size:.78rem; color:var(--text2); text-align:center; letter-spacing:.03em; min-height:1.1em; }
+  #beta-wrap { display:flex; align-items:center; gap:.6rem; width:100%; }
+  .be-lbl    { font-size:.7rem; color:var(--text2); white-space:nowrap; flex-shrink:0; }
+  #beta-track {
+    flex:1; height:6px; background:rgba(255,255,255,0.08);
+    border-radius:9999px; position:relative; overflow:visible;
+  }
+  #beta-dot {
+    width:14px; height:14px; border-radius:50%;
+    background:var(--warn); box-shadow:0 0 10px var(--warn);
+    position:absolute; top:-4px; left:50%; transform:translateX(-50%);
+    transition:left .4s cubic-bezier(.23,1,.32,1);
+  }
   /* Riders panel */
   #riders-panel { display:none; gap:12px; justify-content:center; flex-wrap:wrap; padding:4px 0; flex-shrink:0; }
   .rider-card { display:flex; flex-direction:column; align-items:center; gap:6px; }

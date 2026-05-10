@@ -64,6 +64,86 @@ function setConn(ok) {
 }
 
 // ── Power bar ────────────────────────────────────────────────────────────────
+// ── Feel card ────────────────────────────────────────────────────────────────
+const _PATTERN_FEEL = {
+  'Hold':    ['Steady hold',      'constant pressure'],
+  'Sine':    ['Rhythmic waves',   'smooth sine pulse'],
+  'Ramp ↑':  ['Building up',      'rising intensity'],
+  'Ramp ↓':  ['Easing down',      'falling intensity'],
+  'Pulse':   ['Sharp pulses',     'quick bursts'],
+  'Burst':   ['Burst pattern',    'repeated surges'],
+  'Random':  ['Varied sensation', 'unpredictable rhythm'],
+  'Edge':    ['Edging pattern',   'teasing waves'],
+};
+let _feelDriverConnected = false;
+
+function buildFeelText(d) {
+  const pat   = d.pattern || 'Hold';
+  const vol   = d.vol     ?? 0;
+  const hz    = Math.max(0.05, d.hz   ?? 0.5);
+  const depth = d.depth   ?? 1.0;
+  if (!_feelDriverConnected)  return { main: 'Waiting for driver…', sub: '' };
+  if (vol < 0.005)            return { main: 'Idle', sub: 'signal paused' };
+  const known = _PATTERN_FEEL[pat];
+  const main  = known ? known[0] : pat;
+  const desc  = known ? known[1] : 'active';
+  return { main, sub: hz.toFixed(1) + ' Hz  ·  ' + desc + '  ·  ' + Math.round(depth * 100) + '% depth' };
+}
+
+function updateFeelCard(d) {
+  if (d.driver_connected !== undefined) _feelDriverConnected = !!d.driver_connected;
+  const vol       = d.vol       ?? 0;
+  const hz        = Math.max(0.05, d.hz ?? 0.5);
+  const beta      = d.beta      ?? 5000;
+  const intensity = d.intensity ?? 0;
+
+  // Orb
+  const orb = document.getElementById('feel-orb');
+  if (orb) {
+    const quiet = !_feelDriverConnected || intensity < 0.01;
+    orb.classList.toggle('quiet', quiet);
+    if (!quiet) {
+      orb.style.animationDuration = (1 / hz).toFixed(2) + 's';
+      const sz = Math.round(80 + vol * 32);
+      const g1 = Math.round(18 + vol * 52);
+      const g2 = Math.round(44 + vol * 72);
+      const a1 = (0.12 + vol * 0.45).toFixed(2);
+      const a2 = (0.03 + vol * 0.12).toFixed(2);
+      orb.style.width     = sz + 'px';
+      orb.style.height    = sz + 'px';
+      orb.style.boxShadow = '0 0 ' + g1 + 'px rgba(95,163,255,' + a1 + '), 0 0 ' + g2 + 'px rgba(95,163,255,' + a2 + ')';
+    } else {
+      orb.style.animationDuration = orb.style.width = orb.style.height = orb.style.boxShadow = '';
+    }
+  }
+
+  // Feel text
+  const ft = buildFeelText(d);
+  const feelText = document.getElementById('feel-text');
+  const feelSub  = document.getElementById('feel-sub');
+  if (feelText) feelText.textContent = ft.main;
+  if (feelSub)  feelSub.textContent  = ft.sub;
+
+  // Beta dot
+  const betaDot = document.getElementById('beta-dot');
+  if (betaDot) betaDot.style.left = ((beta / 9999) * 100).toFixed(1) + '%';
+
+  // Ramp row
+  const rampRow = document.getElementById('ramp-row');
+  if (rampRow) {
+    if (d.ramp_active) {
+      rampRow.style.display = 'block';
+      const pct  = Math.round((d.ramp_progress ?? 0) * 100);
+      const rbar = document.getElementById('ramp-bar');
+      const rpct = document.getElementById('ramp-pct');
+      if (rbar) rbar.style.width = pct + '%';
+      if (rpct) rpct.textContent = pct + '% → ' + Math.round((d.ramp_target ?? 0) * 100) + '%';
+    } else {
+      rampRow.style.display = 'none';
+    }
+  }
+}
+
 function updatePower(v) {
   v = Math.max(0, Math.min(1, v || 0));
   const bar = document.getElementById('power-bar');
@@ -304,6 +384,7 @@ function updateDriverStatus(connected, name) {
             case 'rider_state':
               setConn(true);
               updatePower(msg.intensity ?? 0);
+              updateFeelCard(msg);
               // Update bottle countdown from periodic rider_state push
               if (msg.bottle_active) showBottleOverlay(msg.bottle_mode || 'normal', msg.bottle_remaining || 0);
               else if (_bottleOverlayActive) hideBottleOverlay();
@@ -313,6 +394,8 @@ function updateDriverStatus(connected, name) {
               else if (_bottleOverlayActive) hideBottleOverlay();
               break;
             case 'driver_status':
+              _feelDriverConnected = !!msg.connected;
+              updateFeelCard({});   // refresh orb/text immediately on driver connect/disconnect
               updateDriverStatus(msg.connected, msg.name);
               break;
             case 'participants_update': {

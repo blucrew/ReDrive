@@ -41,13 +41,31 @@ const API_PREFIX = "{{ api_prefix }}";
   </div>
 </div>
 
+<div id="feel-card">
+  <div id="orb-wrap"><div id="feel-orb"></div></div>
+  <div id="feel-text">Waiting for driver&hellip;</div>
+  <div id="feel-sub"></div>
+  <div id="beta-wrap">
+    <span class="be-lbl">&#9668; A</span>
+    <div id="beta-track"><div id="beta-dot"></div></div>
+    <span class="be-lbl">B &#9658;</span>
+  </div>
+</div>
+
 <div id="riders-panel"></div>
 
 <div id="power-section">
-  <div id="power-label">POWER</div>
+  <div id="power-label">OUTPUT</div>
   <div id="power-bar-wrap">
     <div id="power-bar"></div>
     <div id="power-pct">&#8212;</div>
+  </div>
+  <div id="ramp-row" style="display:none;margin-top:10px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.7px;color:var(--warn);text-transform:uppercase;margin-bottom:6px">Ramp</div>
+    <div style="position:relative;height:30px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);overflow:hidden">
+      <div id="ramp-bar" style="position:absolute;inset:0;width:0%;background:var(--warn);transition:width .6s linear"></div>
+      <div id="ramp-pct" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;text-shadow:0 2px 8px rgba(0,0,0,0.8)">&#8212;</div>
+    </div>
   </div>
 </div>
 
