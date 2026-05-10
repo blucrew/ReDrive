@@ -292,6 +292,7 @@
   <h2>Contents</h2>
   <ol>
     <li><a href="#basics">The basics</a></li>
+    <li><a href="#room">Room &amp; privacy</a></li>
     <li><a href="#controls">Controls tab</a></li>
     <li><a href="#beta">Beta — electrode position</a></li>
     <li><a href="#ramp">Intensity ramp</a></li>
@@ -324,8 +325,30 @@
 
 
 <!-- ─────────────────────────────────────────────── 2 -->
+<section id="room">
+  <h2><span class="sec-num">02</span> Room &amp; privacy</h2>
+
+  <h3>Sharing your room</h3>
+  <p>the banner at the top of the driver page has everything you need. <strong>Code only</strong> copies just the room code — useful if you're telling someone verbally. <strong>Rider link</strong> copies the full join URL — paste it anywhere to invite someone. either way, the rider opens the link in their browser and the session starts automatically.</p>
+
+  <h3>Public vs. Private</h3>
+  <p>rooms start as <strong>Public</strong> — they appear in the live sessions list on the ReDrive home page. click the <strong>Public</strong> button in the banner to toggle it to <strong>Private</strong>. private rooms are hidden from the list but still work normally — anyone with the room code or rider link can still join. toggle it as many times as you like during a session.</p>
+
+  <h3>Waiting rooms — when the rider sets up first</h3>
+  <p>the normal flow is driver creates a room, then shares the code. but riders can also initiate: they hit <em>Open Waiting Room</em> on the home page, which gives them a driver invite link to send you. you open that link in your browser and the session is created and connected on your behalf — the rider's page moves straight into the live session without them having to do anything else. waiting rooms expire after 30 minutes if no driver claims them.</p>
+
+  <h3>Room lifetime</h3>
+  <p>rooms last up to 24 hours. if your browser tab goes to sleep or you lose the network, the server holds the room open for 1 hour before treating the driver as gone. riders can stay connected during this window and will reconnect automatically when you come back. once the grace period expires the room closes and riders are disconnected.</p>
+
+  <div class="callout note">
+    <p>your driver key is part of the room URL (the <code>?key=…</code> part). the room code alone gives rider-level access only — sharing the room code with a rider doesn't give them driver controls.</p>
+  </div>
+</section>
+
+
+<!-- ─────────────────────────────────────────────── 3 -->
 <section id="controls">
-  <h2><span class="sec-num">02</span> Controls tab</h2>
+  <h2><span class="sec-num">03</span> Controls tab</h2>
 
   <h3>Signal Pattern</h3>
   <p>the pattern shapes how intensity is delivered over time. all patterns work within whatever intensity level you've set — it's the waveform, not the volume.</p>
@@ -381,9 +404,9 @@
 </section>
 
 
-<!-- ─────────────────────────────────────────────── 3 -->
+<!-- ─────────────────────────────────────────────── 4 -->
 <section id="beta">
-  <h2><span class="sec-num">03</span> Beta — electrode position</h2>
+  <h2><span class="sec-num">04</span> Beta — electrode position</h2>
 
   <p>beta controls which electrodes are active and in what balance. the ReStim uses a triphase setup — three poles: <strong>L+ (left), Neutral (centre), R+ (right)</strong>. beta position moves the focal point across this arc.</p>
   <p>from the rider's perspective this is the physical location of sensation. sweeping beta is the difference between a fixed point and something that moves across the body. it's a huge part of how varied a session feels.</p>
@@ -436,9 +459,9 @@
 </section>
 
 
-<!-- ─────────────────────────────────────────────── 4 -->
+<!-- ─────────────────────────────────────────────── 5 -->
 <section id="ramp">
-  <h2><span class="sec-num">04</span> Intensity ramp</h2>
+  <h2><span class="sec-num">05</span> Intensity ramp</h2>
 
   <p>instead of snapping intensity to a new value, a ramp takes it there slowly over a set duration. the rider experiences a smooth, sustained build — or a long controlled descent — rather than a sudden change.</p>
 
@@ -466,9 +489,9 @@
 </section>
 
 
-<!-- ─────────────────────────────────────────────── 5 -->
+<!-- ─────────────────────────────────────────────── 6 -->
 <section id="poppers">
-  <h2><span class="sec-num">05</span> Poppers</h2>
+  <h2><span class="sec-num">06</span> Poppers</h2>
 
   <p>the Poppers button sends a full-screen overlay to the rider's browser — a timed cue for them to inhale. the signal keeps running as normal; this is purely a visual direction. you set the mode before hitting the button.</p>
 
@@ -497,9 +520,9 @@
 </section>
 
 
-<!-- ─────────────────────────────────────────────── 6 -->
+<!-- ─────────────────────────────────────────────── 7 -->
 <section id="touch">
-  <h2><span class="sec-num">06</span> Touch tab</h2>
+  <h2><span class="sec-num">07</span> Touch tab</h2>
 
   <p>the touch panel is a 9:16 canvas with an anatomy overlay. dragging your finger on it sends live beta and intensity simultaneously — both axes from one gesture.</p>
 
@@ -525,12 +548,23 @@
   <div class="callout tip">
     <p>complex gestures loop better than simple ones. a straight drag loops in a way that's immediately obvious; a slow curve with pauses creates something that feels less mechanical and more alive.</p>
   </div>
+
+  <h3>Anatomy picker</h3>
+  <p>below the canvas is a row of thumbnail images — the anatomy picker. clicking one changes what's shown behind the touch canvas. thumbnails labelled with a <strong>★</strong> badge are custom images (rider avatars or images you've uploaded). thumbnails labelled with a <strong>👤</strong> badge are from a connected rider who set their own photo.</p>
+  <p>the last two items are always the built-in canvas drawings (Default and Simple) — outlines drawn directly, no image needed. these are always available even if no images are uploaded.</p>
+
+  <h3>Uploading a custom anatomy image</h3>
+  <p>click the <strong>＋</strong> button at the right end of the picker row. pick any PNG, JPG, or WEBP image. it uploads immediately and appears in the picker with a ★ badge. custom images are stored per-room — they persist for the room's lifetime and are visible to you only (riders can't see what you're using as your overlay). a room can hold up to 10 custom images.</p>
+  <p>to make a properly proportioned overlay (9:16, 400×1000 px) from a photo, use the <a href="/anatomy-maker">Anatomy Overlay Maker tool</a> — it lets you align and crop a photo to the right dimensions before you upload it here.</p>
+
+  <h3>Rider avatars in the picker</h3>
+  <p>when a rider sets a photo from their join page, it's sent to the server and immediately appears in your anatomy picker with a ★ and 👤 badge. clicking it loads their photo as the canvas overlay — useful for a more personalised sense of who you're working with. if a rider is the only one with an avatar, it's auto-selected when they connect.</p>
 </section>
 
 
-<!-- ─────────────────────────────────────────────── 7 -->
+<!-- ─────────────────────────────────────────────── 8 -->
 <section id="script">
-  <h2><span class="sec-num">07</span> Script tab — funscript player</h2>
+  <h2><span class="sec-num">08</span> Script tab — funscript player</h2>
 
   <p>funscripts are pre-scripted timelines of position values, typically made to match a video. ReDrive can play them across multiple independent axes simultaneously — three standard channels plus four direct electrode channels for 4-phase setups.</p>
 
@@ -593,9 +627,9 @@
 </section>
 
 
-<!-- ─────────────────────────────────────────────── 8 -->
+<!-- ─────────────────────────────────────────────── 9 -->
 <section id="sources">
-  <h2><span class="sec-num">08</span> Sources — input locks</h2>
+  <h2><span class="sec-num">09</span> Sources — input locks</h2>
 
   <p>the Sources row sits just below the tab buttons, always visible. it controls which inputs are active. <strong>green = live, red+strikethrough = locked out.</strong></p>
 
@@ -623,9 +657,9 @@
 </section>
 
 
-<!-- ─────────────────────────────────────────────── 9 -->
+<!-- ─────────────────────────────────────────────── 10 -->
 <section id="presets">
-  <h2><span class="sec-num">09</span> Presets</h2>
+  <h2><span class="sec-num">10</span> Presets</h2>
 
   <p>presets save and restore the full state of the Controls tab — pattern, intensity, Hz, depth, beta mode, sweep parameters, alpha, all of it — with one click.</p>
   <p>the preset list is fetched from the server. new presets can be added to the <code>PRESETS</code> dict in <code>engine.py</code> — they appear automatically without redeploying. a Milking preset is included out of the box as a starting point for what a full preset looks like.</p>
@@ -636,9 +670,9 @@
 </section>
 
 
-<!-- ─────────────────────────────────────────────── 10 -->
+<!-- ─────────────────────────────────────────────── 11 -->
 <section id="quickref">
-  <h2><span class="sec-num">10</span> Quick reference</h2>
+  <h2><span class="sec-num">11</span> Quick reference</h2>
 
   <table class="qref">
     <tr>
@@ -696,6 +730,18 @@
     <tr>
       <td>run a 4-channel funscript set</td>
       <td>enable 4-Phase toggle → Script tab → Load Set (or drop all files) → Play</td>
+    </tr>
+    <tr>
+      <td>hide your session from the home page</td>
+      <td>click the <strong>Public</strong> button in the room banner → toggles to Private</td>
+    </tr>
+    <tr>
+      <td>use a rider's photo as the touch overlay</td>
+      <td>Touch tab → anatomy picker → click their ★ thumbnail</td>
+    </tr>
+    <tr>
+      <td>upload a custom anatomy image</td>
+      <td>Touch tab → anatomy picker → click the ＋ button → pick image file</td>
     </tr>
   </table>
 

@@ -29,6 +29,15 @@ body {
 }
 #page-top strong { color:var(--accent); letter-spacing:.12em; }
 #driver-name-disp { font-style:italic; }
+#help-link {
+  width:20px; height:20px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--bg3); border:1px solid var(--border);
+  color:var(--fg2); font-size:.75rem; text-decoration:none;
+  flex-shrink:0; transition:border-color .15s, color .15s;
+  font-style:normal; line-height:1;
+}
+#help-link:hover { border-color:var(--accent); color:var(--accent); }
 
 /* ── Cards ── */
 .card {
@@ -171,6 +180,43 @@ body {
   text-align:right;
 }
 #ramp-row { display:none; }
+
+/* ── Avatar card ── */
+#avatar-card { padding:.9rem 1.2rem; }
+#avatar-row {
+  display:flex;
+  align-items:center;
+  gap:.8rem;
+}
+#avatar-thumb {
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  background:var(--bg3);
+  border:2px solid var(--border);
+  flex-shrink:0;
+  background-size:cover;
+  background-position:center top;
+  transition:border-color .2s;
+}
+#avatar-thumb.has-avatar { border-color:var(--accent); }
+#avatar-info { flex:1; min-width:0; }
+#avatar-title { font-size:.82rem; font-weight:600; color:var(--fg); }
+#avatar-sub   { font-size:.73rem; color:var(--fg2); margin-top:.15rem; }
+#avatar-btn {
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--fg2);
+  font-size:.8rem;
+  padding:.4rem .8rem;
+  cursor:pointer;
+  white-space:nowrap;
+  flex-shrink:0;
+  transition:border-color .15s, color .15s;
+  user-select:none;
+}
+#avatar-btn:hover { border-color:var(--accent); color:var(--accent); }
 
 /* ── Bridge card ── */
 #bridge-card { padding:1rem 1.2rem; }

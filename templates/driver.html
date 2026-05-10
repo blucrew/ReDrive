@@ -36,6 +36,8 @@ const DRIVER_KEY = "";
       style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#128279; Room</button>
     <button onclick="copyRiderLink(this)"
       style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#9654; Rider Link</button>
+    <a href="/public/driver-manual.html" target="_blank"
+      style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none">&#63; Manual</a>
   </div>
   <div id="hdr-row3">
     <!-- Poppers mode radios above the Poppers button -->
@@ -265,6 +267,17 @@ const DRIVER_KEY = "";
         </div>
         <div id="cat-panel"></div>
       </div>
+      <!-- Anatomy picker -->
+      <div id="tc-picker-row">
+        <div id="tc-picker"></div>
+        <label class="tc-upload-label" title="Upload anatomy image">
+          &#43;
+          <input type="file" id="tc-anat-upload"
+                 accept="image/png,image/jpeg,image/webp" style="display:none"
+                 onchange="tcDriverUploadAnatomy(this.files[0])">
+        </label>
+      </div>
+
       <!-- Base Power gradient slider -->
       <div style="flex-shrink:0;padding:2px 0 0">
         <div style="font-size:10px;color:var(--fg2);margin-bottom:4px;text-align:center;letter-spacing:.05em">BASE POWER</div>

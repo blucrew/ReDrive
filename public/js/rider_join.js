@@ -1,3 +1,71 @@
+// ── Avatar ─────────────────────────────────────────────────────────────────────
+const _AVATAR_MAX_BYTES = 400 * 1024;   // 400 KB hard cap
+const _AVATAR_MAX_DIM   = 512;          // longest side in pixels
+let _avatarDataUrl = localStorage.getItem('reDriveRiderAvatarB64') || null;
+
+function pickAvatar() {
+  document.getElementById('avatar-input')?.click();
+}
+
+function _onAvatarFileSelected(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => _avatarProcessImage(e.target.result);
+  reader.readAsDataURL(file);
+}
+
+function _avatarProcessImage(srcDataUrl) {
+  const img = new Image();
+  img.onload = () => {
+    // Scale down so the longest side ≤ _AVATAR_MAX_DIM; never upscale
+    let w = img.width, h = img.height;
+    const scale = Math.min(_AVATAR_MAX_DIM / Math.max(w, h), 1);
+    w = Math.round(w * scale);
+    h = Math.round(h * scale);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+    // JPEG compress down until under byte budget
+    let quality = 0.85;
+    let dataUrl;
+    do {
+      dataUrl = canvas.toDataURL('image/jpeg', quality);
+      quality = Math.max(quality - 0.1, 0.1);
+    } while (dataUrl.length * 0.75 > _AVATAR_MAX_BYTES && quality > 0.1);
+
+    _setAvatar(dataUrl);
+  };
+  img.src = srcDataUrl;
+}
+
+function _setAvatar(dataUrl) {
+  _avatarDataUrl = dataUrl;
+  localStorage.setItem('reDriveRiderAvatarB64', dataUrl);
+  _refreshAvatarThumb();
+  const sub = document.getElementById('avatar-sub');
+  if (sub) sub.textContent = 'Sent to driver ✓';
+  _sendAvatar(dataUrl);
+}
+
+function _refreshAvatarThumb() {
+  const thumb = document.getElementById('avatar-thumb');
+  if (!thumb) return;
+  if (_avatarDataUrl) {
+    thumb.style.backgroundImage = 'url(' + _avatarDataUrl + ')';
+    thumb.classList.add('has-avatar');
+  } else {
+    thumb.style.backgroundImage = '';
+    thumb.classList.remove('has-avatar');
+  }
+}
+
+function _sendAvatar(dataUrl) {
+  if (!_serverWs || _serverWs.readyState !== WebSocket.OPEN) return;
+  try { _serverWs.send(JSON.stringify({ type: 'set_avatar', data: dataUrl })); } catch(_) {}
+}
+
 // ── State ──────────────────────────────────────────────────────────────────────
 let _serverWs        = null;
 let _restimWs        = null;
@@ -18,6 +86,8 @@ function connectServer() {
   _serverWs.onopen = () => {
     _srvRetry = 1000;
     setSrvStatus('ok', 'connected');
+    // Re-send saved avatar so driver sees it after any reconnect
+    if (_avatarDataUrl) _sendAvatar(_avatarDataUrl);
   };
 
   _serverWs.onmessage = (e) => {
@@ -274,4 +344,5 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ── Init ────────────────────────────────────────────────────────────────────
+_refreshAvatarThumb();   // restore saved avatar thumbnail on page load
 reconnect();

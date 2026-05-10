@@ -11,6 +11,7 @@
 <div id="page-top">
   <span id="room-label">ROOM <strong>{{ code }}</strong></span>
   <span id="driver-name-disp"></span>
+  <a href="/public/rider-guide.html" target="_blank" id="help-link" title="Rider guide">&#63;</a>
 </div>
 
 <!-- ── Feel card ─────────────────────────────────────────────────── -->
@@ -45,6 +46,20 @@
   </div>
 
 </div><!-- end feel-card -->
+
+<!-- ── Avatar card ────────────────────────────────────────────── -->
+<div class="card" id="avatar-card">
+  <div id="avatar-row">
+    <div id="avatar-thumb" title="Your photo shown to the driver"></div>
+    <div id="avatar-info">
+      <div id="avatar-title">Your photo</div>
+      <div id="avatar-sub">Shown to your driver</div>
+    </div>
+    <label id="avatar-btn" for="avatar-input">&#128247; Set Pic</label>
+    <input type="file" id="avatar-input" accept="image/*" style="display:none"
+           onchange="_onAvatarFileSelected(this.files[0])">
+  </div>
+</div>
 
 <!-- ── Bridge / connection card ──────────────────────────────────── -->
 <div class="card" id="bridge-card">

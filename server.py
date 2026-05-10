@@ -815,6 +815,8 @@ async def handle_anatomy_upload(req):
     room = _rooms.get(code)
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
+    if not _check_driver_key(req, room):
+        raise web.HTTPForbidden(text="Driver key required")
 
     try:
         reader = await req.multipart()

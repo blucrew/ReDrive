@@ -1254,6 +1254,32 @@ function _tcRefreshPickerNames() {
   });
 }
 
+async function tcDriverUploadAnatomy(file) {
+  if (!file) return;
+  const m = window.location.pathname.match(/\/room\/([^/]+)/);
+  if (!m) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    // window.fetch is overridden in driver.html to attach X-Driver-Key automatically
+    const r = await fetch('/room/' + m[1] + '/upload_anatomy', {
+      method: 'POST',
+      body: formData,
+    });
+    if (r.ok) {
+      tcBuildPicker();   // refresh picker to show the new image
+    } else {
+      const t = await r.text();
+      alert('Upload failed: ' + t);
+    }
+  } catch(e) {
+    alert('Upload error: ' + e.message);
+  }
+  // Reset so the same file can be selected again
+  const inp = document.getElementById('tc-anat-upload');
+  if (inp) inp.value = '';
+}
+
 function initTouchPanel() {
   if (tcPanelInited) { return; }
   tcPanelInited = true;

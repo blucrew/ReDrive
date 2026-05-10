@@ -8,16 +8,20 @@ The **driver** opens a browser on any device and controls patterns, intensity, e
 
 ## Features
 
-- **Pattern engine** - Hold, Sine, Ramp, Pulse, Burst, Random, Edge
-- **Beta sweep** - smooth oscillation between electrodes with configurable skew
+- **Pattern engine** - Hold, Sine, Ramp ↑, Ramp ↓, Pulse, Burst, Random, Edge
+- **Beta sweep** - smooth oscillation between electrodes with configurable skew, centre, and dwell skew
 - **Spiral mode** - quadrature beta/alpha sweep that tightens toward centre and auto-resets
 - **Intensity ramp** - smooth ramp to target over configurable duration
 - **Touch interface** - draw patterns on an anatomy overlay; Y = electrode position, X = intensity
 - **Gesture looping** - draw a gesture, release, and it loops indefinitely with a dedicated Touch beta mode
-- **Presets** - one-click full state recall (Milking preset included)
-- **Poppers overlay** - full-screen rider notification with countdown (Normal, Deep Huff, Double Hit modes)
-- **Rider avatars** - riders upload a photo that persists across sessions (stored in browser, no server storage)
-- **ReStim Bridge** - rider's browser connects directly to local ReStim via WebSocket
+- **Anatomy picker** - driver selects anatomy thumbnail; uploads custom images per-room; rider avatars appear automatically
+- **4-channel funscript** - direct per-electrode scripting (E1–E4 + Volume) bypassing the blend engine
+- **Presets** - one-click full Controls tab recall (Milking preset included)
+- **Poppers overlay** - full-screen rider cue with countdown (Normal, Deep Huff, Double Hit modes)
+- **Waiting rooms** - rider opens a waiting room and shares a driver invite link; driver claims and session starts automatically
+- **Room privacy** - driver toggles Public/Private; private rooms are hidden from the live sessions list
+- **Rider avatars** - riders set a photo on the join page; driver sees it in participant cards and anatomy picker
+- **ReStim Bridge** - rider's browser bridges directly to their local ReStim via WebSocket; no install needed
 
 ---
 
@@ -54,7 +58,7 @@ The rider controls their own maximum power via ReStim's master volume slider. Re
 python server.py --port 8765
 ```
 
-Starts the relay server for VPS deployment. Drivers create rooms; riders join via room codes. Each rider's browser connects to their own local ReStim using the built-in ReStim Bridge (gear icon on the rider page).
+Starts the relay server for VPS deployment. Drivers create rooms; riders join via room codes. Each rider's browser connects to their own local ReStim using the built-in ReStim Bridge (expandable address section at the bottom of the rider page).
 
 ### Quick deploy (Ubuntu 22.04)
 
@@ -67,8 +71,10 @@ Installs nginx, certbot, Python venv, and systemd service. Obtains a TLS certifi
 ### Room codes
 
 - 10 characters from an unambiguous alphabet (no 0/O/1/I/L)
-- Each room expires after 24 hours of inactivity
-- Driver copies the code via the banner at the top of the driver page
+- Rooms expire after 24 hours; driver has a 1-hour grace window after disconnecting (tab sleep, network drop, etc.)
+- Driver copies the code or rider link via the banner at the top of the driver page
+- Toggle Public/Private from the same banner; private rooms are hidden from the live session list on the home page
+- **Waiting rooms** — rider creates a room first (`Open Waiting Room` on the home page), shares the driver invite link; driver claims it and the session connects automatically. Waiting rooms expire after 30 minutes if unclaimed.
 
 ---
 

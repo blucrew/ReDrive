@@ -249,6 +249,24 @@
   }
   .cat-btn.active { background:rgba(95,163,255,0.18); border-color:var(--accent); color:var(--accent); }
 
+  /* ── Anatomy picker ── */
+  #tc-picker-row {
+    display:flex; align-items:center; gap:6px; flex-shrink:0; overflow:hidden;
+  }
+  #tc-picker {
+    display:flex; gap:6px; flex:1;
+    overflow-x:auto; padding:2px 0 4px;
+    scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+  }
+  .tc-upload-label {
+    width:40px; height:54px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg3); border:1px dashed var(--border); border-radius:6px;
+    color:var(--fg2); font-size:20px; cursor:pointer;
+    transition:border-color .15s, color .15s; user-select:none;
+  }
+  .tc-upload-label:hover { border-color:var(--accent); color:var(--accent); }
+
   /* ── Source isolation row ── */
   #src-row {
     display:flex; gap:5px; align-items:center; flex-shrink:0;
