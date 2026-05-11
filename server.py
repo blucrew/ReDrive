@@ -77,6 +77,8 @@ class Room:
         # Driver WebSocket connections
         self.driver_wss: set[web.WebSocketResponse] = set()
         self._push_task = None
+        # Back-pressure tracking for the 20 Hz T-code relay hook
+        self._broadcast_pending = None
         if not waiting:
             if local_restim:
                 cfg = DriveConfig.load()
@@ -92,7 +94,21 @@ class Room:
             self.engine  = None
 
     def _hook(self, cmd: str):
-        asyncio.run_coroutine_threadsafe(self._broadcast(cmd), self._main_loop)
+        # Back-pressure: if the previous broadcast coroutine hasn't finished yet,
+        # drop this T-code packet.  At 20 Hz a single dropped frame is imperceptible;
+        # without this check the main event loop can slowly fall behind and starve.
+        if self._broadcast_pending is not None:
+            try:
+                if not self._broadcast_pending.done():
+                    return
+            except Exception:
+                pass
+        try:
+            self._broadcast_pending = asyncio.run_coroutine_threadsafe(
+                self._broadcast(cmd), self._main_loop
+            )
+        except Exception:
+            pass  # loop closed during shutdown — ignore
 
     async def _broadcast(self, cmd: str):
         dead = set()
@@ -247,8 +263,9 @@ class Room:
 
             except asyncio.CancelledError:
                 return   # task cancelled cleanly — exit
-            except Exception:
-                pass     # swallow any other transient error and keep looping
+            except Exception as _push_err:
+                import sys
+                print(f"[push] unexpected error: {_push_err}", file=sys.stderr, flush=True)
 
     def _start_push_loop(self):
         """Start the state push loop as an asyncio task."""
@@ -566,6 +583,8 @@ async def handle_rider_ws(req):
                             if ws_id in room.participants:
                                 room.participants[ws_id]["avatar"] = avatar_data
                             await room._broadcast_participants()
+                    elif data.get("type") == "ping":
+                        await ws.send_str(json.dumps({"type": "pong"}))
                     elif data.get("type") == "like":
                         emoji = str(data.get("emoji", ""))[:4]
                         rider_info = room.participants.get(ws_id, {})
@@ -930,26 +949,32 @@ def _delete_room_uploads(code: str):
 
 
 async def _cleanup_loop():
+    import sys
     while True:
-        await asyncio.sleep(_CLEANUP_INTERVAL)
-        now_mono = time.monotonic()
-        now_wall = time.time()
-        for code, room in list(_rooms.items()):
-            if room.waiting and now_wall > room.waiting_expires:
-                _rooms.pop(code)
-                _delete_room_uploads(code)
-                print(f"[room] waiting expired  {code}  (total: {len(_rooms)})")
-                continue
-            if room.waiting:
-                continue
-            if now_mono - room.created_at > _ROOM_EXPIRY:
-                _rooms.pop(code).stop()
-                _delete_room_uploads(code)
-                print(f"[room] expired (24h)  {code}  (total: {len(_rooms)})")
-            elif now_mono - room.driver_last_seen > _DRIVER_GRACE:
-                _rooms.pop(code).stop()
-                _delete_room_uploads(code)
-                print(f"[room] expired (driver gone {_DRIVER_GRACE//3600}h)  {code}  (total: {len(_rooms)})")
+        try:
+            await asyncio.sleep(_CLEANUP_INTERVAL)
+            now_mono = time.monotonic()
+            now_wall = time.time()
+            for code, room in list(_rooms.items()):
+                if room.waiting and now_wall > room.waiting_expires:
+                    _rooms.pop(code)
+                    _delete_room_uploads(code)
+                    print(f"[room] waiting expired  {code}  (total: {len(_rooms)})")
+                    continue
+                if room.waiting:
+                    continue
+                if now_mono - room.created_at > _ROOM_EXPIRY:
+                    _rooms.pop(code).stop()
+                    _delete_room_uploads(code)
+                    print(f"[room] expired (24h)  {code}  (total: {len(_rooms)})")
+                elif now_mono - room.driver_last_seen > _DRIVER_GRACE:
+                    _rooms.pop(code).stop()
+                    _delete_room_uploads(code)
+                    print(f"[room] expired (driver gone {_DRIVER_GRACE//3600}h)  {code}  (total: {len(_rooms)})")
+        except asyncio.CancelledError:
+            return
+        except Exception as e:
+            print(f"[cleanup] error: {e}", file=sys.stderr, flush=True)
 
 
 # -- App factory

@@ -327,7 +327,10 @@ class DriveEngine:
 
     async def _send(self, cmd: str):
         if self._send_hook is not None:
-            self._send_hook(cmd)
+            try:
+                self._send_hook(cmd)
+            except Exception as e:
+                self._log(f"[warn] send hook error: {e}")
             return
         if self._ws is None or self._ws.closed:
             now = self._loop.time()
@@ -612,132 +615,142 @@ class DriveEngine:
         """Drives L0 volume and L1 beta from the pattern engine."""
         last = self._loop.time()
         while not self._stop_ev.is_set():
-            cfg = self._cfg
-            now = self._loop.time()
-            dt  = now - last
-            last = now
+            try:
+                cfg = self._cfg
+                now = self._loop.time()
+                dt  = now - last
+                last = now
 
-            # ── Gesture loop (takes over entire output when active) ────────────
-            if self._gesture_active and self._gesture_seq:
-                g_beta, g_alpha, g_int = self._gesture_advance(dt)
-                g_int = max(0.0, min(1.0, g_int))
-                g_alpha = max(0.0, min(1.0, g_alpha))
-                self._pattern.intensity = g_int
-                self._shared["__live__l0"] = g_int
-                self._shared["__live__l1"] = g_beta / 9999.0
-                self._shared["__live__l2"] = g_int  # alpha active during gesture
-                tv = _tv_floor(g_int, cfg.tcode_floor)
-                await self._send(
-                    f"{cfg.axis_volume}{tv}I{cfg.send_interval_ms} "
-                    f"{cfg.axis_beta}{g_beta:04d}I{cfg.send_interval_ms} "
-                    f"{cfg.axis_alpha}{_tv(g_alpha)}I{cfg.send_interval_ms}"
-                )
-                self._current_beta = g_beta
-                await asyncio.sleep(cfg.send_interval_ms / 1000.0)
-                continue
+                # ── Gesture loop (takes over entire output when active) ────────────
+                if self._gesture_active and self._gesture_seq:
+                    g_beta, g_alpha, g_int = self._gesture_advance(dt)
+                    g_int = max(0.0, min(1.0, g_int))
+                    g_alpha = max(0.0, min(1.0, g_alpha))
+                    self._pattern.intensity = g_int
+                    self._shared["__live__l0"] = g_int
+                    self._shared["__live__l1"] = g_beta / 9999.0
+                    self._shared["__live__l2"] = g_int  # alpha active during gesture
+                    tv = _tv_floor(g_int, cfg.tcode_floor)
+                    await self._send(
+                        f"{cfg.axis_volume}{tv}I{cfg.send_interval_ms} "
+                        f"{cfg.axis_beta}{g_beta:04d}I{cfg.send_interval_ms} "
+                        f"{cfg.axis_alpha}{_tv(g_alpha)}I{cfg.send_interval_ms}"
+                    )
+                    self._current_beta = g_beta
+                    await asyncio.sleep(cfg.send_interval_ms / 1000.0)
+                    continue
 
-            # Apply ramp — updates pattern intensity before tick
-            if self._ramp_active:
-                self._ramp_elapsed += dt
-                progress = min(1.0, self._ramp_elapsed / max(0.01, self._ramp_duration))
-                self._pattern.intensity = (
-                    self._ramp_start
-                    + (self._ramp_target - self._ramp_start) * progress
-                )
-                self._shared["__ramp_progress__"] = progress
-                if progress >= 1.0:
-                    self._ramp_active = False
-                    self._log(f"Ramp complete → {int(self._ramp_target * 100)}%")
+                # Apply ramp — updates pattern intensity before tick
+                if self._ramp_active:
+                    self._ramp_elapsed += dt
+                    progress = min(1.0, self._ramp_elapsed / max(0.01, self._ramp_duration))
+                    self._pattern.intensity = (
+                        self._ramp_start
+                        + (self._ramp_target - self._ramp_start) * progress
+                    )
+                    self._shared["__ramp_progress__"] = progress
+                    if progress >= 1.0:
+                        self._ramp_active = False
+                        self._log(f"Ramp complete → {int(self._ramp_target * 100)}%")
 
-            intensity = self._pattern.tick(dt)
-            self._shared["__live__l0"] = intensity
+                intensity = self._pattern.tick(dt)
+                self._shared["__live__l0"] = intensity
 
-            # L0 volume
-            tv    = _tv_floor(intensity, cfg.tcode_floor)
-            parts = [f"{cfg.axis_volume}{tv}I{cfg.send_interval_ms}"]
+                # L0 volume
+                tv    = _tv_floor(intensity, cfg.tcode_floor)
+                parts = [f"{cfg.axis_volume}{tv}I{cfg.send_interval_ms}"]
 
-            # L1 beta / four-phase electrodes
-            if intensity <= 0.0:
-                # Park when silent
-                if not self._fourphase:
-                    desired = cfg.beta_off
-                    if desired != self._current_beta:
-                        parts.append(f"{cfg.axis_beta}{desired:04d}I500")
+                # L1 beta / four-phase electrodes
+                if intensity <= 0.0:
+                    # Park when silent
+                    if not self._fourphase:
+                        desired = cfg.beta_off
+                        if desired != self._current_beta:
+                            parts.append(f"{cfg.axis_beta}{desired:04d}I500")
+                            self._current_beta = desired
+                    # In four-phase, V0=0 already silences — no need to update weights
+
+                elif self._beta_mode == "sweep":
+                    # Sweep Hz envelope: ramp up → hold → ramp down → repeat
+                    if self._sweep_hz_env is not None:
+                        e = self._sweep_hz_env
+                        e['t'] = (e['t'] + dt) % e['total']
+                        t = e['t']
+                        if t < e['up']:
+                            self._beta_sweep_hz = e['base'] + (e['peak'] - e['base']) * (t / e['up'])
+                        elif t < e['up'] + e['hold']:
+                            self._beta_sweep_hz = e['peak']
+                        else:
+                            td = t - e['up'] - e['hold']
+                            self._beta_sweep_hz = e['peak'] - (e['peak'] - e['base']) * (td / e['down'])
+                    # Continuous sweep between centre ± width
+                    # Skew > 0 → spends more time near B end; skew < 0 → near A end
+                    # Uses adjusted-sine: sin(θ + k·sin(θ)) which biases dwell time asymmetrically
+                    theta = 2.0 * math.pi * self._beta_sweep_phase
+                    sin_t = math.sin(theta)
+                    raw_wave = (math.sin(theta + self._beta_sweep_skew * sin_t)
+                                if abs(self._beta_sweep_skew) > 0.001 else sin_t)
+                    raw = self._beta_sweep_centre + self._beta_sweep_width * raw_wave
+                    desired = max(0, min(9999, int(raw)))
+                    self._beta_sweep_phase = (
+                        self._beta_sweep_phase + self._beta_sweep_hz * dt) % 1.0
+                    # Always send — sweep is always changing
+                    self._emit_beta(desired, parts, cfg, cfg.send_interval_ms)
+                    self._current_beta = desired
+
+                elif self._beta_mode == "spiral":
+                    # Beta sweeps as sine; alpha loop reads same phase as cosine (quadrature)
+                    # Tighten mode gradually reduces amplitude → reset → repeat
+                    effective_hz = self._spiral_hz * (
+                        1.0 + (1.0 - self._spiral_amp) * 2.0)
+                    theta   = 2.0 * math.pi * self._spiral_phase
+                    raw     = (self._beta_sweep_centre
+                               + self._beta_sweep_width
+                               * self._spiral_amp * math.sin(theta))
+                    desired = max(0, min(9999, int(raw)))
+                    self._spiral_phase = (
+                        self._spiral_phase + effective_hz * dt) % 1.0
+                    if self._spiral_tighten:
+                        self._spiral_amp = max(
+                            0.15, self._spiral_amp - self._spiral_tighten_rate * dt)
+                        if self._spiral_amp <= 0.15:
+                            self._spiral_amp   = 1.0
+                            self._spiral_phase = 0.0
+                            self._log("Spiral reset")
+                    self._emit_beta(desired, parts, cfg, cfg.send_interval_ms)
+                    self._current_beta = desired
+
+                elif self._beta_mode == "hold":
+                    desired = (self._beta_override
+                               if self._beta_override is not None
+                               else cfg.beta_active)
+                    if desired != self._current_beta or self._fourphase:
+                        self._emit_beta(desired, parts, cfg, 200)
                         self._current_beta = desired
-                # In four-phase, V0=0 already silences — no need to update weights
 
-            elif self._beta_mode == "sweep":
-                # Sweep Hz envelope: ramp up → hold → ramp down → repeat
-                if self._sweep_hz_env is not None:
-                    e = self._sweep_hz_env
-                    e['t'] = (e['t'] + dt) % e['total']
-                    t = e['t']
-                    if t < e['up']:
-                        self._beta_sweep_hz = e['base'] + (e['peak'] - e['base']) * (t / e['up'])
-                    elif t < e['up'] + e['hold']:
-                        self._beta_sweep_hz = e['peak']
-                    else:
-                        td = t - e['up'] - e['hold']
-                        self._beta_sweep_hz = e['peak'] - (e['peak'] - e['base']) * (td / e['down'])
-                # Continuous sweep between centre ± width
-                # Skew > 0 → spends more time near B end; skew < 0 → near A end
-                # Uses adjusted-sine: sin(θ + k·sin(θ)) which biases dwell time asymmetrically
-                theta = 2.0 * math.pi * self._beta_sweep_phase
-                sin_t = math.sin(theta)
-                raw_wave = (math.sin(theta + self._beta_sweep_skew * sin_t)
-                            if abs(self._beta_sweep_skew) > 0.001 else sin_t)
-                raw = self._beta_sweep_centre + self._beta_sweep_width * raw_wave
-                desired = max(0, min(9999, int(raw)))
-                self._beta_sweep_phase = (
-                    self._beta_sweep_phase + self._beta_sweep_hz * dt) % 1.0
-                # Always send — sweep is always changing
-                self._emit_beta(desired, parts, cfg, cfg.send_interval_ms)
-                self._current_beta = desired
+                else:  # auto — intensity-driven 3-position
+                    desired = (cfg.beta_active
+                               if intensity >= cfg.beta_thresh
+                               else cfg.beta_light)
+                    if desired != self._current_beta or self._fourphase:
+                        self._emit_beta(desired, parts, cfg, 200)
+                        self._current_beta = desired
 
-            elif self._beta_mode == "spiral":
-                # Beta sweeps as sine; alpha loop reads same phase as cosine (quadrature)
-                # Tighten mode gradually reduces amplitude → reset → repeat
-                effective_hz = self._spiral_hz * (
-                    1.0 + (1.0 - self._spiral_amp) * 2.0)
-                theta   = 2.0 * math.pi * self._spiral_phase
-                raw     = (self._beta_sweep_centre
-                           + self._beta_sweep_width
-                           * self._spiral_amp * math.sin(theta))
-                desired = max(0, min(9999, int(raw)))
-                self._spiral_phase = (
-                    self._spiral_phase + effective_hz * dt) % 1.0
-                if self._spiral_tighten:
-                    self._spiral_amp = max(
-                        0.15, self._spiral_amp - self._spiral_tighten_rate * dt)
-                    if self._spiral_amp <= 0.15:
-                        self._spiral_amp   = 1.0
-                        self._spiral_phase = 0.0
-                        self._log("Spiral reset")
-                self._emit_beta(desired, parts, cfg, cfg.send_interval_ms)
-                self._current_beta = desired
+                self._shared["__live__l1"] = self._current_beta / 9999.0
 
-            elif self._beta_mode == "hold":
-                desired = (self._beta_override
-                           if self._beta_override is not None
-                           else cfg.beta_active)
-                if desired != self._current_beta or self._fourphase:
-                    self._emit_beta(desired, parts, cfg, 200)
-                    self._current_beta = desired
+                if parts:
+                    await self._send(" ".join(parts))
 
-            else:  # auto — intensity-driven 3-position
-                desired = (cfg.beta_active
-                           if intensity >= cfg.beta_thresh
-                           else cfg.beta_light)
-                if desired != self._current_beta or self._fourphase:
-                    self._emit_beta(desired, parts, cfg, 200)
-                    self._current_beta = desired
+                await asyncio.sleep(cfg.send_interval_ms / 1000.0)
 
-            self._shared["__live__l1"] = self._current_beta / 9999.0
-
-            if parts:
-                await self._send(" ".join(parts))
-
-            await asyncio.sleep(cfg.send_interval_ms / 1000.0)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                self._log(f"[warn] pattern loop error (will retry): {e}")
+                try:
+                    await asyncio.sleep(self._cfg.send_interval_ms / 1000.0)
+                except asyncio.CancelledError:
+                    raise
 
     def _emit_beta(self, desired: int, parts: list, cfg, interval: int) -> None:
         """Append beta T-code parts. In four-phase mode, converts blend+within to e1-e4 weights."""
@@ -784,51 +797,61 @@ class DriveEngine:
     async def _alpha_loop(self):
         """Drives L2 alpha oscillation."""
         while not self._stop_ev.is_set():
-            cfg = self._cfg
-            dt  = cfg.send_interval_ms / 1000.0
+            try:
+                cfg = self._cfg
+                dt  = cfg.send_interval_ms / 1000.0
 
-            # Four-phase mode: within-pair handled by _emit_beta, no L0 output
-            if self._fourphase:
-                await asyncio.sleep(dt)
-                continue
+                # Four-phase mode: within-pair handled by _emit_beta, no L0 output
+                if self._fourphase:
+                    await asyncio.sleep(dt)
+                    continue
 
-            # Gesture playback handles alpha directly
-            if self._gesture_active:
-                await asyncio.sleep(dt)
-                continue
+                # Gesture playback handles alpha directly
+                if self._gesture_active:
+                    await asyncio.sleep(dt)
+                    continue
 
-            # Touch arc override: driver sends explicit alpha position
-            if self._alpha_override is not None:
-                pos = max(0.0, min(1.0, self._alpha_override))
-                await self._send(f"{cfg.axis_alpha}{_tv(pos)}I{int(dt * 1000)}")
-                self._alpha_parked = False
-                self._shared["__live__l2"] = self._pattern.intensity
-                await asyncio.sleep(dt)
-                continue
+                # Touch arc override: driver sends explicit alpha position
+                if self._alpha_override is not None:
+                    pos = max(0.0, min(1.0, self._alpha_override))
+                    await self._send(f"{cfg.axis_alpha}{_tv(pos)}I{int(dt * 1000)}")
+                    self._alpha_parked = False
+                    self._shared["__live__l2"] = self._pattern.intensity
+                    await asyncio.sleep(dt)
+                    continue
 
-            eff = self._pattern.intensity if self._alpha_on else 0.0
+                eff = self._pattern.intensity if self._alpha_on else 0.0
 
-            if eff < 0.01:
-                if not self._alpha_parked:
-                    await self._send(f"{cfg.axis_alpha}{_tv(0.5)}I500")
-                    self._alpha_parked = True
-                self._alpha_phase = 0.0
-                self._shared["__live__l2"] = 0.0
-            else:
-                self._alpha_parked = False
-                amp = cfg.alpha_min_amp + (cfg.alpha_max_amp - cfg.alpha_min_amp) * eff
-                if self._beta_mode == "spiral":
-                    # Quadrature: cosine of shared spiral_phase → 90° offset from beta sine
-                    theta = 2.0 * math.pi * self._spiral_phase
-                    pos   = 0.5 + amp * self._spiral_amp * math.cos(theta)
+                if eff < 0.01:
+                    if not self._alpha_parked:
+                        await self._send(f"{cfg.axis_alpha}{_tv(0.5)}I500")
+                        self._alpha_parked = True
+                    self._alpha_phase = 0.0
+                    self._shared["__live__l2"] = 0.0
                 else:
-                    hz  = cfg.alpha_min_hz + (cfg.alpha_max_hz - cfg.alpha_min_hz) * eff
-                    pos = 0.5 + amp * math.sin(2 * math.pi * self._alpha_phase)
-                    self._alpha_phase = (self._alpha_phase + hz * dt) % 1.0
-                await self._send(f"{cfg.axis_alpha}{_tv(pos)}I{int(dt * 1000)}")
-                self._shared["__live__l2"] = eff
+                    self._alpha_parked = False
+                    amp = cfg.alpha_min_amp + (cfg.alpha_max_amp - cfg.alpha_min_amp) * eff
+                    if self._beta_mode == "spiral":
+                        # Quadrature: cosine of shared spiral_phase → 90° offset from beta sine
+                        theta = 2.0 * math.pi * self._spiral_phase
+                        pos   = 0.5 + amp * self._spiral_amp * math.cos(theta)
+                    else:
+                        hz  = cfg.alpha_min_hz + (cfg.alpha_max_hz - cfg.alpha_min_hz) * eff
+                        pos = 0.5 + amp * math.sin(2 * math.pi * self._alpha_phase)
+                        self._alpha_phase = (self._alpha_phase + hz * dt) % 1.0
+                    await self._send(f"{cfg.axis_alpha}{_tv(pos)}I{int(dt * 1000)}")
+                    self._shared["__live__l2"] = eff
 
-            await asyncio.sleep(dt)
+                await asyncio.sleep(dt)
+
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                self._log(f"[warn] alpha loop error (will retry): {e}")
+                try:
+                    await asyncio.sleep(self._cfg.send_interval_ms / 1000.0)
+                except asyncio.CancelledError:
+                    raise
 
     # ── HTTP handler wrappers (used in LAN mode tests) ─────────────────────
 
