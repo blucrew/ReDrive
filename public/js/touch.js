@@ -411,6 +411,10 @@ function updateDriverStatus(connected, name) {
             case 'pong':
               setConn(true);
               break;
+            case 'your_slot':
+              // Remember our anatomy so the crop modal can show an alignment guide
+              _myAnatomy = msg.anatomy || null;
+              break;
           }
         } catch(_) {}
       };
@@ -436,6 +440,8 @@ let _cropOff = { x:0, y:0 };
 let _cropDrag = null;     // {startX, startY, origX, origY} during drag
 let _cropScale = 1;
 let _cropW = 0, _cropH = 0; // scaled image dimensions
+// Anatomy assigned to this rider by the server (for the crop modal guide)
+let _myAnatomy = null;
 
 function onAnatFileSelected(input) {
   if (!input.files || !input.files[0]) return;
@@ -447,6 +453,18 @@ function _showCropModal(file) {
   const modal = document.getElementById('crop-modal');
   const imgEl = document.getElementById('crop-img');
   const vp = document.getElementById('crop-viewport');
+  // Show anatomy alignment guide if we know our slot
+  const overlay = document.getElementById('crop-anat-overlay');
+  if (overlay) {
+    if (_myAnatomy) {
+      const anatUrl = '/touch_assets/anatomy/' + _myAnatomy.split('/').map(encodeURIComponent).join('/');
+      overlay.src = anatUrl;
+      overlay.style.display = 'block';
+    } else {
+      overlay.src = '';
+      overlay.style.display = 'none';
+    }
+  }
   const img = new Image();
   _cropObjUrl = URL.createObjectURL(file);
   img.onload = () => {

@@ -565,6 +565,15 @@ async def handle_rider_ws(req):
     }
     print(f"[rider] connected to {code}  (riders: {room.rider_count})")
     await room._broadcast_participants()
+    # Tell this rider their own slot so they can show the anatomy guide in the crop modal
+    try:
+        await ws.send_str(json.dumps({
+            "type": "your_slot",
+            "idx": idx,
+            "anatomy": anatomy,
+        }))
+    except Exception:
+        pass
 
     try:
         async for msg in ws:
