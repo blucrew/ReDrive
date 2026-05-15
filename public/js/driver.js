@@ -89,11 +89,7 @@ function syncUIFromState(d) {
   // Four-phase mode
   if (d.four_phase !== undefined) {
     _fourPhase = d.four_phase;
-    const fpBtn = document.getElementById("fourphase-toggle");
-    if (fpBtn) {
-      fpBtn.classList.toggle("active", _fourPhase);
-      fpBtn.textContent = "4-Phase: " + (_fourPhase ? "ON" : "OFF");
-    }
+    _applyFourPhaseUI(_fourPhase);
   }
 
   // Ramp (pre-fill without starting)
@@ -293,13 +289,22 @@ function toggleAlpha() {
 // \u2500\u2500 Four-phase mode toggle \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 let _fourPhase = false;
 
-function toggleFourPhase() {
-  _fourPhase = !_fourPhase;
+function _applyFourPhaseUI(on) {
   const btn = document.getElementById("fourphase-toggle");
   if (btn) {
-    btn.classList.toggle("active", _fourPhase);
-    btn.textContent = "4-Phase: " + (_fourPhase ? "ON" : "OFF");
+    btn.classList.toggle("active", on);
+    btn.textContent = "4-Phase: " + (on ? "ON" : "OFF");
   }
+  const lbl2p = document.getElementById("beta-labels");
+  const lbl4p = document.getElementById("beta-labels-4p");
+  if (lbl2p) lbl2p.style.display = on ? "none" : "";
+  if (lbl4p) lbl4p.style.display = on ? "flex" : "none";
+  document.querySelectorAll(".beta-tick").forEach(t => t.style.display = on ? "block" : "none");
+}
+
+function toggleFourPhase() {
+  _fourPhase = !_fourPhase;
+  _applyFourPhaseUI(_fourPhase);
   sendCmd({ four_phase: _fourPhase });
 }
 

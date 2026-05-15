@@ -206,6 +206,24 @@
     transition:left .4s cubic-bezier(0.23,1,0.32,1);
   }
   #beta-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--fg2); }
+  /* 4-phase electrode label strip */
+  .beta-tick {
+    position:absolute; top:-3px; bottom:-3px; width:2px;
+    background:rgba(255,255,255,0.12); border-radius:1px;
+    transform:translateX(-50%); pointer-events:none; display:none;
+  }
+  #beta-labels-4p {
+    display:none; flex-direction:row; justify-content:space-between; margin-top:6px;
+  }
+  .fp-lbl {
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .fp-name {
+    font-size:10px; font-weight:700; color:#a29bfe;
+    background:rgba(162,155,254,0.12); border:1px solid rgba(162,155,254,0.25);
+    border-radius:4px; padding:1px 6px;
+  }
+  .fp-hint { font-size:9px; color:var(--fg2); }
   /* Ramp */
   #ramp-btn-row { display:flex; gap:6px; }
   #ramp-go {

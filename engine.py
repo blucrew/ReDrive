@@ -760,17 +760,17 @@ class DriveEngine:
                 parts.append(f"{ax}{_tv(self._fs_e.get(ax, 0.0))}I{interval}")
             return
         if self._fourphase:
-            blend  = desired / 9999.0
-            within = self._alpha_override if self._alpha_override is not None else 0.5
-            within = max(0.0, min(1.0, within))
-            pA = 1.0 - blend
-            pB = blend
-            e1 = pA * (1.0 - within)
-            e2 = pA * within
-            e3 = pB * (1.0 - within)
-            e4 = pB * within
-            parts += [f"e1{_tv(e1)}I{interval}", f"e2{_tv(e2)}I{interval}",
-                      f"e3{_tv(e3)}I{interval}", f"e4{_tv(e4)}I{interval}"]
+            # Sequential sweep: beta position moves sensation along e1→e2→e3→e4.
+            # Display axis is inverted (L+ = high beta = e1, R+ = low beta = e4),
+            # so we invert here to keep L+=e1 natural.
+            t   = (1.0 - desired / 9999.0) * 3.0   # 0..3 across four electrodes
+            seg = min(int(t), 2)                     # which pair segment (0,1,2)
+            frac = t - seg
+            e = [0.0, 0.0, 0.0, 0.0]
+            e[seg]     = 1.0 - frac
+            e[seg + 1] = frac
+            parts += [f"e1{_tv(e[0])}I{interval}", f"e2{_tv(e[1])}I{interval}",
+                      f"e3{_tv(e[2])}I{interval}", f"e4{_tv(e[3])}I{interval}"]
         else:
             parts.append(f"{cfg.axis_beta}{desired:04d}I{interval}")
 
