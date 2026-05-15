@@ -224,6 +224,19 @@
     border-radius:4px; padding:1px 6px;
   }
   .fp-hint { font-size:9px; color:var(--fg2); }
+  /* 4-phase: disabled Spiral button */
+  .mode-btn.fp-disabled { opacity:0.3; cursor:not-allowed; }
+  /* 4-phase: e1-e4 hold quick-jump buttons */
+  .fp-e-btn { font-size:11px; font-weight:700; color:#a29bfe !important;
+    border-color:rgba(162,155,254,0.3) !important; }
+  .fp-e-btn.active { background:rgba(162,155,254,0.18) !important; border-color:#a29bfe !important; }
+  /* Touch canvas 4-phase zone labels */
+  #tc-4p-zones { position:absolute; inset:0; pointer-events:none; z-index:2; }
+  .tc-zone-lbl {
+    position:absolute; right:8px; font-size:10px; font-weight:600;
+    color:rgba(162,155,254,0.8); background:rgba(10,10,20,0.6);
+    border-radius:4px; padding:2px 6px; pointer-events:none;
+  }
   /* Ramp */
   #ramp-btn-row { display:flex; gap:6px; }
   #ramp-go {

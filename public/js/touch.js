@@ -76,6 +76,18 @@ const _PATTERN_FEEL = {
   'Edge':    ['Edging pattern',   'teasing waves'],
 };
 let _feelDriverConnected = false;
+let _isFourPhase = false;
+
+function updateElectrodeBar(e) {
+  for (let i = 0; i < 4; i++) {
+    const pip = document.getElementById('fp-el-' + (i + 1));
+    if (!pip) continue;
+    const w = e[i] || 0;
+    pip.style.opacity = 0.15 + w * 0.85;
+    pip.style.background = w > 0.05 ? '#a29bfe' : 'var(--bg3)';
+    pip.style.boxShadow = w > 0.08 ? '0 0 ' + Math.round(w * 18) + 'px rgba(162,155,254,0.5)' : 'none';
+  }
+}
 
 function buildFeelText(d) {
   const pat   = d.pattern || 'Hold';
@@ -385,6 +397,13 @@ function updateDriverStatus(connected, name) {
               setConn(true);
               updatePower(msg.intensity ?? 0);
               updateFeelCard(msg);
+              // 4-phase electrode indicator
+              if (msg.four_phase !== undefined && msg.four_phase !== _isFourPhase) {
+                _isFourPhase = msg.four_phase;
+                const row = document.getElementById('fp-el-row');
+                if (row) row.style.display = _isFourPhase ? 'block' : 'none';
+              }
+              if (_isFourPhase && msg.fp_electrodes) updateElectrodeBar(msg.fp_electrodes);
               // Update bottle countdown from periodic rider_state push
               if (msg.bottle_active) showBottleOverlay(msg.bottle_mode || 'normal', msg.bottle_remaining || 0);
               else if (_bottleOverlayActive) hideBottleOverlay();

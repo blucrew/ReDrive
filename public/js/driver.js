@@ -91,6 +91,14 @@ function syncUIFromState(d) {
     _fourPhase = d.four_phase;
     _applyFourPhaseUI(_fourPhase);
   }
+  if (d.fp_spread !== undefined) {
+    const v = Math.round(d.fp_spread * 100);
+    const slider = document.getElementById("fp-spread");
+    if (slider) slider.value = v;
+    const lbl = v === 0 ? "Focused" : v === 100 ? "Diffuse" : v + "%";
+    const el = document.getElementById("fp-spread-val");
+    if (el) el.textContent = lbl;
+  }
 
   // Ramp (pre-fill without starting)
   let rampPct = Math.round(d.ramp_target * 100);
@@ -186,6 +194,7 @@ function stopRamp() {
 
 // ── Beta sweep controls ───────────────────────────────────────────────────────
 function setBetaMode(btn) {
+  if (btn.classList.contains("fp-disabled")) return;
   document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   const mode = btn.dataset.mode;
@@ -290,22 +299,46 @@ function toggleAlpha() {
 let _fourPhase = false;
 
 function _applyFourPhaseUI(on) {
+  // Toggle button
   const btn = document.getElementById("fourphase-toggle");
   if (btn) {
     btn.classList.toggle("active", on);
     btn.textContent = "4-Phase: " + (on ? "ON" : "OFF");
   }
+  // Beta bar labels + ticks
   const lbl2p = document.getElementById("beta-labels");
   const lbl4p = document.getElementById("beta-labels-4p");
   if (lbl2p) lbl2p.style.display = on ? "none" : "";
   if (lbl4p) lbl4p.style.display = on ? "flex" : "none";
   document.querySelectorAll(".beta-tick").forEach(t => t.style.display = on ? "block" : "none");
+  // Hold quick-jump rows
+  const holdRow2p = document.getElementById("hold-beta-row");
+  const holdRow4p = document.getElementById("hold-beta-row-4p");
+  if (holdRow2p) holdRow2p.style.display = on ? "none" : "";
+  if (holdRow4p) holdRow4p.style.display = on ? "flex" : "none";
+  // Spread slider
+  const spreadRow = document.getElementById("fp-spread-row");
+  if (spreadRow) spreadRow.style.display = on ? "" : "none";
+  // Spiral button — disabled in 4-phase (alpha is off, spiral degrades to plain sweep)
+  const spiralBtn = document.querySelector(".mode-btn[data-mode='spiral']");
+  if (spiralBtn) spiralBtn.classList.toggle("fp-disabled", on);
+  // Touch canvas zone overlay
+  const zones = document.getElementById("tc-4p-zones");
+  if (zones) zones.style.display = on ? "block" : "none";
 }
 
 function toggleFourPhase() {
   _fourPhase = !_fourPhase;
   _applyFourPhaseUI(_fourPhase);
   sendCmd({ four_phase: _fourPhase });
+}
+
+function onFpSpread(v) {
+  v = parseInt(v);
+  const lbl = v === 0 ? "Focused" : v === 100 ? "Diffuse" : v + "%";
+  const el = document.getElementById("fp-spread-val");
+  if (el) el.textContent = lbl;
+  sendCmd({ fp_spread: v / 100 });
 }
 
 function sendStop() {

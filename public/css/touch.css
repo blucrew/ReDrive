@@ -190,3 +190,12 @@
     gap:18px; padding:20px; text-align:center;
   }
   #bottle-overlay img { max-width:65vmin; max-height:38vmin; object-fit:contain; border-radius:16px; }
+  /* 4-phase electrode indicator */
+  .fp-el-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .fp-el-pip {
+    width:100%; height:36px; border-radius:8px;
+    background:var(--bg3); border:1px solid var(--border);
+    transition:background .35s ease, box-shadow .35s ease, opacity .35s ease;
+    opacity:0.2;
+  }
+  .fp-el-name { font-size:10px; color:var(--text2); font-weight:600; }

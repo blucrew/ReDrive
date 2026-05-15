@@ -259,8 +259,10 @@ class DriveEngine:
         self._alpha_on     = True
         self._beta_override: Optional[int] = None   # None = auto
         self._alpha_override: Optional[float] = None  # None = oscillate normally
-        self._fourphase: bool = False  # four-phase paired electrode mode
-        self._fs_e: dict = {}          # direct e1-e4 from funscript player (passthrough)
+        self._fourphase: bool = False      # four-phase paired electrode mode
+        self._fp_spread: float = 0.0       # electrode spread (0=focused, 1=diffuse)
+        self._fp_electrodes: list = [0.0, 0.0, 0.0, 0.0]  # last computed e1-e4 weights
+        self._fs_e: dict = {}              # direct e1-e4 from funscript player (passthrough)
         self._fs_e_t: float = -999.0   # monotonic time of last _fs_e update
         self._stop_ev: Optional[asyncio.Event] = None
         self._loop:    Optional[asyncio.AbstractEventLoop] = None
@@ -511,6 +513,8 @@ class DriveEngine:
                         self._spiral_phase = 0.0
                         self._spiral_amp   = 1.0
                     self._log(f"Beta mode: {mode}")
+            if "fp_spread" in cmd:
+                self._fp_spread = max(0.0, min(1.0, float(cmd["fp_spread"])))
             if "four_phase" in cmd:
                 self._fourphase = bool(cmd["four_phase"])
                 if self._fourphase:
@@ -584,6 +588,8 @@ class DriveEngine:
             "gesture_dur":     (lambda s: s[-1][0] if s else 0.0)(self._gesture_seq),
             "presets":         list(PRESETS.keys()),
             "four_phase":      self._fourphase,
+            "fp_spread":       self._fp_spread,
+            "fp_electrodes":   [round(x, 3) for x in self._fp_electrodes],
         }
 
     def _build_rider_state_dict(self):
@@ -592,11 +598,13 @@ class DriveEngine:
         active = now < self._bottle_until
         remaining = max(0, self._bottle_until - now) if active else 0
         return {
-            "intensity": self._pattern.intensity,
+            "intensity":     self._pattern.intensity,
             "bottle_active": active,
             "bottle_remaining": round(remaining, 1),
-            "bottle_mode": self._bottle_mode,
-            "driver_name": self._driver_name,
+            "bottle_mode":   self._bottle_mode,
+            "driver_name":   self._driver_name,
+            "four_phase":    self._fourphase,
+            "fp_electrodes": [round(x, 3) for x in self._fp_electrodes],
         }
 
     async def _broadcast_to_riders(self, msg_str: str):
@@ -760,15 +768,25 @@ class DriveEngine:
                 parts.append(f"{ax}{_tv(self._fs_e.get(ax, 0.0))}I{interval}")
             return
         if self._fourphase:
-            # Sequential sweep: beta position moves sensation along e1→e2→e3→e4.
-            # Display axis is inverted (L+ = high beta = e1, R+ = low beta = e4),
-            # so we invert here to keep L+=e1 natural.
-            t   = (1.0 - desired / 9999.0) * 3.0   # 0..3 across four electrodes
-            seg = min(int(t), 2)                     # which pair segment (0,1,2)
-            frac = t - seg
-            e = [0.0, 0.0, 0.0, 0.0]
-            e[seg]     = 1.0 - frac
-            e[seg + 1] = frac
+            # Sequential sweep: beta moves sensation along e1→e2→e3→e4.
+            # Axis is inverted in display (L+ = high beta = e1, R+ = low beta = e4).
+            t = (1.0 - desired / 9999.0) * 3.0   # 0..3 across four electrodes
+            spread = self._fp_spread
+            if spread <= 0.0:
+                # Focused: clean two-electrode blend
+                seg  = min(int(t), 2)
+                frac = t - seg
+                e = [0.0, 0.0, 0.0, 0.0]
+                e[seg]     = 1.0 - frac
+                e[seg + 1] = frac
+            else:
+                # Diffuse: triangular window widens as spread increases
+                width = 1.0 + spread * 2.0
+                e = [max(0.0, 1.0 - abs(t - i) / width) for i in range(4)]
+                total = sum(e)
+                if total > 1.0:
+                    e = [x / total for x in e]
+            self._fp_electrodes = e
             parts += [f"e1{_tv(e[0])}I{interval}", f"e2{_tv(e[1])}I{interval}",
                       f"e3{_tv(e[2])}I{interval}", f"e4{_tv(e[3])}I{interval}"]
         else:

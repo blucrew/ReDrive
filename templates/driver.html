@@ -221,6 +221,12 @@ const DRIVER_KEY = "";
           <button class="hold-btn" data-beta="5000" onclick="setHoldBeta(this)">Centre</button>
           <button class="hold-btn" data-beta="1900" onclick="setHoldBeta(this)">B &#9658;</button>
         </div>
+        <div id="hold-beta-row-4p" style="display:none">
+          <button class="hold-btn fp-e-btn" data-beta="9999" onclick="setHoldBeta(this)">e1</button>
+          <button class="hold-btn fp-e-btn" data-beta="6666" onclick="setHoldBeta(this)">e2</button>
+          <button class="hold-btn fp-e-btn" data-beta="3333" onclick="setHoldBeta(this)">e3</button>
+          <button class="hold-btn fp-e-btn" data-beta="0"    onclick="setHoldBeta(this)">e4</button>
+        </div>
         <div class="slider-row">
           <div class="slider-header">
             <span class="slider-label">Fine position</span>
@@ -259,6 +265,17 @@ const DRIVER_KEY = "";
         </div>
       </div>
 
+      <div id="fp-spread-row" style="display:none">
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Spread  <small style="color:var(--fg2)">focused &#8594; diffuse across electrodes</small></span>
+            <span class="slider-val" id="fp-spread-val">Focused</span>
+          </div>
+          <input type="range" id="fp-spread" min="0" max="100" value="0"
+                 oninput="onFpSpread(this.value)">
+        </div>
+      </div>
+
       <div id="alpha-row">
         <button id="alpha-toggle" class="active" onclick="toggleAlpha()">
           &#945;  Alpha oscillation: ON
@@ -274,6 +291,12 @@ const DRIVER_KEY = "";
       <div id="tc-body">
         <div id="tc-main">
           <canvas id="touch-canvas"></canvas>
+          <div id="tc-4p-zones" style="display:none">
+            <div class="tc-zone-lbl" style="top:3%">e1 &middot; cock</div>
+            <div class="tc-zone-lbl" style="top:36%">e2 &middot; balls</div>
+            <div class="tc-zone-lbl" style="top:69%">e3 &middot; perineum</div>
+            <div class="tc-zone-lbl" style="bottom:3%">e4 &middot; anal</div>
+          </div>
         </div>
         <div id="cat-panel"></div>
       </div>
