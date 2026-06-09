@@ -739,12 +739,26 @@ async def handle_waiting_status(req):
         return web.Response(text=json.dumps({"claimed": False, "touch_url": None}),
                             content_type="application/json")
     return web.Response(
-        text=json.dumps({"claimed": True, "touch_url": f"/room/{code}/rider"}),
+        text=json.dumps({"claimed": True, "touch_url": f"/room/{code}/rider",
+                         "driver_name": room.driver_name}),
         content_type="application/json")
 
 
 async def handle_waiting_claim(req):
-    """Driver visits this URL to claim a waiting room."""
+    """Driver visits claim URL — show name prompt form."""
+    code = req.match_info["code"]
+    room = _rooms.get(code)
+    if room is None:
+        raise web.HTTPNotFound(text="Waiting room not found or already claimed")
+    if not room.waiting:
+        raise web.HTTPNotFound(text="Waiting room already claimed")
+    if time.time() > room.waiting_expires:
+        raise web.HTTPNotFound(text="Waiting room has expired")
+    return aiohttp_jinja2.render_template("claim.html", req, {"code": code})
+
+
+async def handle_waiting_claim_post(req):
+    """Driver submits name form — claim the waiting room."""
     code = req.match_info["code"]
     room = _rooms.get(code)
     if room is None:
@@ -754,11 +768,15 @@ async def handle_waiting_claim(req):
     if time.time() > room.waiting_expires:
         raise web.HTTPNotFound(text="Waiting room has expired")
 
+    data = await req.post()
+    driver_name = str(data.get("name", "")).strip()[:30]
+
     # Promote waiting room to a real room
     room.driver_key = secrets.token_urlsafe(20)
     room.waiting = False
     room.waiting_expires = 0.0
     room.driver_last_seen = time.monotonic()
+    room.driver_name = driver_name
     cfg = DriveConfig()
     room._log_q = queue.Queue()
     room.engine = DriveEngine(cfg, {}, room._log_q, send_hook=room._hook)
@@ -766,7 +784,7 @@ async def handle_waiting_claim(req):
     room._start_push_loop()
 
     # Broadcast to any connected WebSocket riders
-    msg = json.dumps({"type": "driver_joined"})
+    msg = json.dumps({"type": "driver_joined", "driver_name": driver_name})
     dead = set()
     for ws in list(room.rider_wss):
         try:
@@ -775,7 +793,7 @@ async def handle_waiting_claim(req):
             dead.add(ws)
     room.rider_wss -= dead
 
-    print(f"[room] waiting claimed {code}  (total: {len(_rooms)})")
+    print(f"[room] waiting claimed {code} by '{driver_name}'  (total: {len(_rooms)})")
     raise web.HTTPFound(f"/room/{code}?key={room.driver_key}")
 
 
@@ -1017,6 +1035,7 @@ def build_app(local_room: Optional["Room"] = None) -> web.Application:
     app.router.add_get("/waiting/{code}",                      handle_waiting_page)
     app.router.add_get("/waiting/{code}/status",               handle_waiting_status)
     app.router.add_get("/waiting/{code}/claim",                handle_waiting_claim)
+    app.router.add_post("/waiting/{code}/claim",               handle_waiting_claim_post)
     # Public session list
     app.router.add_get("/api/rooms",                           handle_api_rooms)
     app.router.add_get("/api/waiting",                         handle_api_waiting)

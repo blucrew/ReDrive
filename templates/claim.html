@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ReDrive &middot; Claim Room</title>
+<link rel="stylesheet" href="/public/css/waiting.css">
+<style>
+  .name-form { margin-top:1.5rem; display:flex; flex-direction:column; gap:.75rem; }
+  .name-input {
+    width:100%; padding:.75rem 1rem; background:var(--bg3);
+    border:1px solid var(--border); border-radius:6px;
+    color:var(--fg); font-size:1rem; text-align:center;
+    outline:none; transition:border-color .15s;
+  }
+  .name-input:focus { border-color:var(--accent); }
+  .name-input::placeholder { color:var(--fg2); }
+  .claim-note { font-size:.8rem; color:var(--fg2); margin-top:-.25rem; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>ReDrive</h1>
+  <p class="sub">You&rsquo;ve been invited to drive room</p>
+  <div class="code-display">{{ code }}</div>
+
+  <form class="name-form" method="POST" action="/waiting/{{ code }}/claim">
+    <input class="name-input" type="text" name="name"
+           placeholder="Your name (optional)" maxlength="30" autocomplete="off">
+    <p class="claim-note">riders in this room will see your name when you join</p>
+    <button class="btn" type="submit">&#9654;&ensp;Claim &amp; Drive</button>
+  </form>
+</div>
+
+<footer class="site-footer">
+  <a href="https://www.estimstation.com">estimstation.com</a> &middot; ReDrive
+</footer>
+</body>
+</html>

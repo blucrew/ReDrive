@@ -28,9 +28,20 @@ async function pollStatus() {
   try {
     const d = await (await fetch(STATUS_URL)).json();
     if (d.claimed && d.touch_url) {
-      window.location = d.touch_url;
+      // Show claimed notification before redirecting
+      const label = document.querySelector('.waiting-label');
+      if (label) {
+        const name = d.driver_name && d.driver_name.trim();
+        label.style.animation = 'none';
+        label.style.color = 'var(--ok)';
+        label.textContent = name
+          ? '✔ ' + name + ' has joined as your driver'
+          : '✔ A driver has claimed your room';
+      }
+      setTimeout(() => { window.location = d.touch_url; }, 1800);
       return;
     }
+    if (d.expired) return; // stop polling
   } catch(_) {}
   setTimeout(pollStatus, 3000);
 }

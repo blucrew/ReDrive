@@ -427,6 +427,11 @@ function updateDriverStatus(connected, name) {
               renderRidersPanel(msg);
               break;
             }
+            case 'driver_joined':
+              _feelDriverConnected = true;
+              updateDriverStatus(true, msg.driver_name || '');
+              updateFeelCard({});
+              break;
             case 'pong':
               setConn(true);
               break;
