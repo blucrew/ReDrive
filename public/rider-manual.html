@@ -196,6 +196,24 @@
     margin-top: .6rem;
     line-height: 1.5;
   }
+  /* Before → after pair */
+  .fig-pair {
+    display: flex;
+    gap: .8rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .fig-pair > div { flex: 1 1 280px; max-width: 360px; }
+  .fig-pair img { max-width: 100%; }
+  .fig-pair .step-cap {
+    text-align: center;
+    font-size: .8rem;
+    margin-top: .45rem;
+    font-weight: 600;
+  }
+  .fig-pair .cap-before { color: var(--warn); }
+  .fig-pair .cap-after  { color: var(--ok); }
+  @media (max-width: 520px) { .fig-pair { flex-direction: column; align-items: center; } }
 
   /* ── Divider ── */
   hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
@@ -292,8 +310,17 @@
   <h3>Turn the volume up — every session</h3>
   <p>this is the single most important first step, and the easiest one to forget. <strong>ReStim defaults its Volume to 10% on every launch.</strong> at 10% you will feel almost nothing no matter what your driver does — in practice anything below about 60% is barely there on FOC/ReStim. set it to <strong>100%</strong> as soon as you open ReStim.</p>
   <figure>
-    <img src="/public/manual-img/restim-volume.png" alt="ReStim Live Control tab with the Volume control highlighted in the left sidebar">
-    <figcaption>ReStim → <strong>Live Control</strong> → the <strong>Volume</strong> box in the left sidebar (below the triphase circle). the slider is the current level; drag it to 100%. the number below it (e.g. <code>10.00</code>) is the session maximum — set it high too.</figcaption>
+    <div class="fig-pair">
+      <div>
+        <img src="/public/manual-img/restim-volume.png" alt="ReStim Volume control at the default 10%">
+        <div class="step-cap cap-before">✗ default on launch — 10%</div>
+      </div>
+      <div>
+        <img src="/public/manual-img/restim-volume-100.png" alt="ReStim Volume control dragged up to 100%">
+        <div class="step-cap cap-after">✓ drag it up to 100%</div>
+      </div>
+    </div>
+    <figcaption>ReStim → <strong>Live Control</strong> → the <strong>Volume</strong> box in the left sidebar (below the triphase circle). drag the slider from its default 10% up to 100%. the number below it (<code>10.00</code> → <code>100.00</code>) is the session maximum, which moves with it.</figcaption>
   </figure>
   <div class="callout note">
     <p>this Volume is a <strong>software percentage</strong> — it scales the output as a fraction of what your physical box puts out. turning it to 100% does <em>not</em> override or raise your box's actual power knobs; those stay exactly where you set them. it just stops ReStim from quietly throttling everything to a tenth before it ever reaches the hardware.</p>
