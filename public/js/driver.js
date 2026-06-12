@@ -1985,8 +1985,10 @@ function toggleSource(src) {
 
   if (src === 'touch' && !_srcEnabled.touch) {
     _touchActive = false;
-    // Stop server-side gesture loop
-    sendCmd({ stop: true });
+    // Stop only the server-side gesture loop — NOT a full stop. {stop:true}
+    // would also zero the master intensity and cancel any active ramp, which
+    // is why locking Touch used to reset everything to 0.
+    sendCmd({ gesture_stop: true });
   }
   if (src === 'script') {
     if (!_srcEnabled.script) {
