@@ -342,6 +342,16 @@
   <div class="callout tip">
     <p>if you have a 4-channel box and the driver wants to use 4-Phase mode, you'll also need the <code>e1</code>–<code>e4</code> electrode axes mapped in ReStim. ask your driver whether they plan to use it — for normal sessions the three axes above are all you need.</p>
   </div>
+
+  <h3>Press Start</h3>
+  <p>the last step, and the one most likely to be missed. ReStim doesn't output anything until you press its <strong>Start</strong> button — the red ▶ at the bottom-left of the Live Control panel. on a freshly booted ReStim with everything else left at defaults, this is usually the only click between you and feeling the driver's signal.</p>
+  <figure>
+    <img src="/public/manual-img/restim-start.png" alt="ReStim Live Control with the Start button highlighted at the bottom-left">
+    <figcaption>ReStim → <strong>Live Control</strong> → the <strong>Start</strong> button (red ▶, bottom-left). press it to arm output. it turns into a Stop button while running — that's also your in-app panic stop on the ReStim side.</figcaption>
+  </figure>
+  <div class="callout note">
+    <p>quick boot checklist: <strong>Volume → 100%</strong>, axes mapped, <strong>Start</strong> pressed. then open your rider link. if all three are done and you're connected, you'll feel the driver the moment they send.</p>
+  </div>
 </section>
 
 
@@ -489,7 +499,7 @@
     </tr>
     <tr>
       <td>Connected but feeling nothing</td>
-      <td>first check ReStim's <strong>Volume</strong> — it defaults to 10% every launch, which is barely perceptible. set it to 100% (<a href="#restim">section 3</a>). then confirm the driver is actually sending (their intensity may be at 0), and that your axes are mapped — especially <strong>Volume → V0</strong>, which is empty by default.</td>
+      <td>first check ReStim's <strong>Volume</strong> — it defaults to 10% every launch, which is barely perceptible. set it to 100%. make sure you've pressed <strong>Start</strong> in ReStim (red ▶, bottom-left). then confirm the driver is actually sending (their intensity may be at 0), and that your axes are mapped — especially <strong>Volume → V0</strong>, which is empty by default. (all in <a href="#restim">section 3</a>.)</td>
     </tr>
     <tr>
       <td>Position/sweep works but no power</td>
@@ -527,6 +537,10 @@
     <tr>
       <td>actually feel the signal (do this first!)</td>
       <td>in ReStim, drag the <strong>Volume</strong> slider to 100% — it resets to 10% every launch</td>
+    </tr>
+    <tr>
+      <td>arm ReStim to receive</td>
+      <td>press the <strong>Start</strong> button (red ▶, bottom-left of Live Control)</td>
     </tr>
     <tr>
       <td>connect to your device</td>
