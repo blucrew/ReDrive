@@ -1788,7 +1788,10 @@ function fsStop() {
   const stopCmd = {};
   if (_FS_SLOTS.intensity.actions.length) stopCmd.intensity = 0;
   if (_FS_SLOTS.beta.actions.length)      stopCmd.beta      = 5000; // park at neutral
-  if (_FS_SLOTS.alpha.actions.length)     stopCmd.alpha_pos = 0.5;
+  // Release alpha to the oscillator — parking via alpha_pos would leave the
+  // override stuck at 0.5 and silently kill alpha oscillation until the
+  // driver changed beta mode.
+  if (_FS_SLOTS.alpha.actions.length)     stopCmd.alpha_release = true;
   // Four-phase: zero electrodes so engine's _fs_e goes stale cleanly
   const hasE = _FS_SLOTS.e1.actions.length || _FS_SLOTS.e2.actions.length ||
                _FS_SLOTS.e3.actions.length || _FS_SLOTS.e4.actions.length;
@@ -1964,7 +1967,7 @@ function toggleSource(src) {
       const stopCmd = {};
       if (_FS_SLOTS && _FS_SLOTS.intensity.actions.length) stopCmd.intensity = 0;
       if (_FS_SLOTS && _FS_SLOTS.beta.actions.length)      stopCmd.beta      = 5000;
-      if (_FS_SLOTS && _FS_SLOTS.alpha.actions.length)     stopCmd.alpha_pos = 0.5;
+      if (_FS_SLOTS && _FS_SLOTS.alpha.actions.length)     stopCmd.alpha_release = true;
       const _hasE = _FS_SLOTS && (
         _FS_SLOTS.e1.actions.length || _FS_SLOTS.e2.actions.length ||
         _FS_SLOTS.e3.actions.length || _FS_SLOTS.e4.actions.length);

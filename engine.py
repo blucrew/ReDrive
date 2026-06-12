@@ -529,6 +529,9 @@ class DriveEngine:
                         self._fs_e[ax] = max(0.0, min(1.0, float(cmd[ax])))
                 if self._loop:
                     self._fs_e_t = self._loop.time()
+            # Release alpha back to the oscillator (funscript player on stop)
+            if cmd.get("alpha_release"):
+                self._alpha_override = None
             # alpha_pos after beta_mode so it re-overrides when both present (tcOnDown)
             if "alpha_pos" in cmd:
                 self._alpha_override = float(cmd["alpha_pos"])
@@ -592,19 +595,31 @@ class DriveEngine:
             "fp_electrodes":   [round(x, 3) for x in self._fp_electrodes],
         }
 
+    def _fp_indicator(self) -> tuple:
+        """(four_phase_active, electrode_weights) for rider displays.
+
+        A fresh e1-e4 funscript stream drives electrodes directly — show the
+        rider indicator even if the 4-phase toggle itself is off.
+        """
+        fs_fresh = bool(self._fs_e) and self._loop is not None \
+            and (self._loop.time() - self._fs_e_t) < 0.25
+        return (self._fourphase or fs_fresh,
+                [round(x, 3) for x in self._fp_electrodes])
+
     def _build_rider_state_dict(self):
         """Build rider state dict (used by HTTP and WS endpoints)."""
         now = time.monotonic()
         active = now < self._bottle_until
         remaining = max(0, self._bottle_until - now) if active else 0
+        four_phase, fp_electrodes = self._fp_indicator()
         return {
             "intensity":     self._pattern.intensity,
             "bottle_active": active,
             "bottle_remaining": round(remaining, 1),
             "bottle_mode":   self._bottle_mode,
             "driver_name":   self._driver_name,
-            "four_phase":    self._fourphase,
-            "fp_electrodes": [round(x, 3) for x in self._fp_electrodes],
+            "four_phase":    four_phase,
+            "fp_electrodes": fp_electrodes,
         }
 
     async def _broadcast_to_riders(self, msg_str: str):
@@ -774,8 +789,10 @@ class DriveEngine:
         """Append beta T-code parts. In four-phase mode, converts blend+within to e1-e4 weights."""
         # Funscript driving e1-e4 directly? Use passthrough values if fresh (< 250 ms).
         if self._loop and self._fs_e and (self._loop.time() - self._fs_e_t) < 0.25:
-            for ax in ('e1', 'e2', 'e3', 'e4'):
-                parts.append(f"{ax}{_tv(self._fs_e.get(ax, 0.0))}I{interval}")
+            e = [self._fs_e.get(ax, 0.0) for ax in ('e1', 'e2', 'e3', 'e4')]
+            self._fp_electrodes = e   # keep the rider electrode indicator live
+            for ax, v in zip(('e1', 'e2', 'e3', 'e4'), e):
+                parts.append(f"{ax}{_tv(v)}I{interval}")
             return
         if self._fourphase:
             # Sequential sweep: beta moves sensation along e1→e2→e3→e4.

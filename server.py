@@ -18,6 +18,7 @@ import random
 import secrets
 import time
 import uuid
+from collections import deque
 from pathlib import Path
 from typing import Optional
 
@@ -77,7 +78,10 @@ class Room:
         # Driver WebSocket connections
         self.driver_wss: set[web.WebSocketResponse] = set()
         self._push_task = None
-        # Back-pressure tracking for the 20 Hz T-code relay hook
+        # Back-pressure tracking for the 20 Hz T-code relay hook.
+        # deque is thread-safe for append/popleft; maxlen bounds the backlog
+        # (oldest frames dropped under sustained pressure).
+        self._cmd_q: deque = deque(maxlen=8)
         self._broadcast_pending = None
         if not waiting:
             if local_restim:
@@ -94,21 +98,33 @@ class Room:
             self.engine  = None
 
     def _hook(self, cmd: str):
-        # Back-pressure: if the previous broadcast coroutine hasn't finished yet,
-        # drop this T-code packet.  At 20 Hz a single dropped frame is imperceptible;
-        # without this check the main event loop can slowly fall behind and starve.
+        # Back-pressure: frames queue in a small bounded deque (oldest dropped
+        # under sustained pressure) and a single drain task sends them in order.
+        # A plain drop-if-busy check here silently killed alpha output: the
+        # pattern and alpha loops are phase-locked, so the alpha frame always
+        # arrived while the pattern frame's broadcast was still pending and
+        # was dropped on every tick.
+        self._cmd_q.append(cmd)
         if self._broadcast_pending is not None:
             try:
                 if not self._broadcast_pending.done():
-                    return
+                    return                       # drain task will pick it up
             except Exception:
                 pass
         try:
             self._broadcast_pending = asyncio.run_coroutine_threadsafe(
-                self._broadcast(cmd), self._main_loop
+                self._drain_broadcasts(), self._main_loop
             )
         except Exception:
             pass  # loop closed during shutdown — ignore
+
+    async def _drain_broadcasts(self):
+        while True:
+            try:
+                cmd = self._cmd_q.popleft()
+            except IndexError:
+                return
+            await self._broadcast(cmd)
 
     async def _broadcast(self, cmd: str):
         dead = set()
@@ -189,6 +205,8 @@ class Room:
         ramp_active   = False
         ramp_progress = 0.0
         ramp_target   = 0.0
+        four_phase    = False
+        fp_electrodes = [0.0, 0.0, 0.0, 0.0]
         if e:
             vol           = round(e._shared.get("__live__l0", 0.0), 4)
             intensity     = round(e._pattern.intensity, 4)
@@ -200,6 +218,7 @@ class Room:
             ramp_active   = e._ramp_active
             ramp_progress = round(e._shared.get("__ramp_progress__", 0.0), 4)
             ramp_target   = round(e._ramp_target, 4)
+            four_phase, fp_electrodes = e._fp_indicator()
         bottle_active = now < self.bottle_until
         return {
             "intensity":        intensity,
@@ -217,6 +236,8 @@ class Room:
             "bottle_mode":      self.bottle_mode,
             "driver_name":      self.driver_name,
             "driver_connected": len(self.driver_wss) > 0,
+            "four_phase":       four_phase,
+            "fp_electrodes":    fp_electrodes,
         }
 
     async def _state_push_loop(self):

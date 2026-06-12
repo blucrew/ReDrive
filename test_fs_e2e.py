@@ -122,6 +122,37 @@ async def run_test():
             lambda f: {"intensity": 0.7, "e1": f, "e2": 1 - f, "e3": 0.5, "e4": 0.2},
         )
 
+        # Scenario 6: rider-state reports four_phase + live electrodes while an
+        # e1-e4 funscript streams, even with the 4-phase toggle off.
+        await send_cmd({"four_phase": False})
+        for i in range(8):
+            await send_cmd({"e1": 0.9, "e2": 0.1, "e3": 0.0, "e4": 0.0})
+            await asyncio.sleep(0.05)
+        async with sess.get(f"{base}/room/{code}/rider-state") as r:
+            rs = await r.json()
+        print("\n== S6: rider-state during e1-e4 script (4-phase toggle OFF) ==")
+        print(f"  four_phase    : {rs.get('four_phase')}   (want True)")
+        print(f"  fp_electrodes : {rs.get('fp_electrodes')}   (want [0.9, 0.1, 0, 0])")
+        await drain_driver()
+
+        # Scenario 7: alpha oscillation must resume after an alpha script stops.
+        await send_cmd({"intensity": 0.6, "alpha": True})
+        for i in range(10):                       # alpha script playing
+            await send_cmd({"alpha_pos": 0.3})
+            await asyncio.sleep(0.05)
+        await send_cmd({"alpha_release": True})   # fsStop()
+        await drain_driver()
+        tcodes.clear()
+        await asyncio.sleep(1.0)                  # collect post-stop frames
+        await drain_driver()
+        l0_vals = {m.group(1) for t in tcodes
+                   for m in [re.match(r"^L0(\d{4})I", t)] if m}
+        print("\n== S7: alpha released after script stop ==")
+        print(f"  total frames in 1s       : {len(tcodes)}")
+        for t in tcodes[:6]:
+            print(f"  frame: {t}")
+        print(f"  distinct L0 values in 1s : {len(l0_vals)}   (>3 = oscillating)")
+
         reader.cancel()
         await rider_ws.close()
         await driver_ws.close()
