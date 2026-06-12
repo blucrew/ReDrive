@@ -305,10 +305,14 @@
 <section id="restim">
   <h2><span class="sec-num">03</span> Setting up ReStim</h2>
 
-  <p>ReDrive sends <strong>T-code</strong> — position and volume values — to ReStim over a local WebSocket. ReStim needs its axes mapped so those values land on the right controls, and its volume turned up so you can actually feel the signal. the axis mapping you do once; the volume you check every time you boot.</p>
+  <p>ReDrive sends <strong>T-code</strong> — position and volume values — to ReStim over a local WebSocket. there's a little one-time setup, but the part you actually repeat is short: <strong>two clicks every time you open ReStim.</strong> those two come first.</p>
 
-  <h3>Turn the volume up — every session</h3>
-  <p>this is the single most important first step, and the easiest one to forget. <strong>ReStim defaults its Volume to 10% on every launch.</strong> at 10% you will feel almost nothing no matter what your driver does — in practice anything below about 60% is barely there on FOC/ReStim. set it to <strong>100%</strong> as soon as you open ReStim.</p>
+  <div class="callout warn">
+    <p><strong>Every time you boot ReStim, do these two things:</strong> drag <strong>Volume to 100%</strong>, then press <strong>Start</strong>. that's the whole recurring ritual — the rest of this section is set-once stuff you'll rarely touch again.</p>
+  </div>
+
+  <h3>1 · Turn the volume up to 100%</h3>
+  <p>the single most important step, and the easiest to forget. <strong>ReStim resets its Volume to 10% on every launch.</strong> at 10% you'll feel almost nothing no matter what your driver does — in practice anything below about 60% is barely there on FOC/ReStim. drag it to <strong>100%</strong> the moment you open ReStim.</p>
   <figure>
     <div class="fig-pair">
       <div>
@@ -326,10 +330,22 @@
     <p>this Volume is a <strong>software percentage</strong> — it scales the output as a fraction of what your physical box puts out. turning it to 100% does <em>not</em> override or raise your box's actual power knobs; those stay exactly where you set them. it just stops ReStim from quietly throttling everything to a tenth before it ever reaches the hardware.</p>
   </div>
 
-  <h3>Turn on the WebSocket server</h3>
-  <p>in ReStim, make sure the T-code WebSocket server is enabled and listening. by default ReDrive connects to <code>ws://localhost:12346/tcode</code> — that's ReStim's standard local address. if you haven't changed ReStim's port, you don't need to change anything in ReDrive either.</p>
+  <h3>2 · Press Start</h3>
+  <p>ReStim doesn't output anything until you press its <strong>Start</strong> button — the red ▶ at the bottom-left of the Live Control panel. on a freshly booted ReStim with everything else left alone, Volume + Start are the only two clicks between you and feeling the driver.</p>
+  <figure>
+    <img src="/public/manual-img/restim-start.png" alt="ReStim Live Control with the Start button highlighted at the bottom-left">
+    <figcaption>ReStim → <strong>Live Control</strong> → the <strong>Start</strong> button (red ▶, bottom-left). press it to arm output. it turns into a Stop button while running — that's also your in-app panic stop on the ReStim side.</figcaption>
+  </figure>
 
-  <h3>Map the axes</h3>
+  <hr>
+
+  <h3>One-time setup <span style="font-size:.8rem;font-weight:400;color:var(--fg2)">— set it once, then forget it</span></h3>
+  <p>you do the rest of this <strong>once</strong>, the first time you wire ReStim up. it sticks between launches, so on later sessions you can skip straight back to the two steps above. if signals already worked for you before, this is all done — move on.</p>
+
+  <h4 style="font-size:.95rem;color:var(--fg);margin:1.2rem 0 .4rem">WebSocket server</h4>
+  <p>make sure ReStim's T-code WebSocket server is enabled and listening. by default ReDrive connects to <code>ws://localhost:12346/tcode</code> — ReStim's standard local address. if you haven't changed ReStim's port, there's nothing to change in ReDrive either.</p>
+
+  <h4 style="font-size:.95rem;color:var(--fg);margin:1.2rem 0 .4rem">Map the axes</h4>
   <p>open <strong>Tools → Preferences → Funscript / T-Code</strong> in ReStim and set the axes to match what ReDrive sends:</p>
   <table class="param-table">
     <tr><th>ReStim axis</th><th>Set it to</th></tr>
@@ -340,17 +356,7 @@
   <p>also set ReStim's <strong>Limit Min / Limit Max</strong> for each axis to match your device's range. for a FOC-Stim box that's typically Volume 0→1, Beta −1→1, Alpha −1→1.</p>
 
   <div class="callout tip">
-    <p>if you have a 4-channel box and the driver wants to use 4-Phase mode, you'll also need the <code>e1</code>–<code>e4</code> electrode axes mapped in ReStim. ask your driver whether they plan to use it — for normal sessions the three axes above are all you need.</p>
-  </div>
-
-  <h3>Press Start</h3>
-  <p>the last step, and the one most likely to be missed. ReStim doesn't output anything until you press its <strong>Start</strong> button — the red ▶ at the bottom-left of the Live Control panel. on a freshly booted ReStim with everything else left at defaults, this is usually the only click between you and feeling the driver's signal.</p>
-  <figure>
-    <img src="/public/manual-img/restim-start.png" alt="ReStim Live Control with the Start button highlighted at the bottom-left">
-    <figcaption>ReStim → <strong>Live Control</strong> → the <strong>Start</strong> button (red ▶, bottom-left). press it to arm output. it turns into a Stop button while running — that's also your in-app panic stop on the ReStim side.</figcaption>
-  </figure>
-  <div class="callout note">
-    <p>quick boot checklist: <strong>Volume → 100%</strong>, axes mapped, <strong>Start</strong> pressed. then open your rider link. if all three are done and you're connected, you'll feel the driver the moment they send.</p>
+    <p>if you have a 4-channel box and the driver wants to use 4-Phase mode, you'll also need the <code>e1</code>–<code>e4</code> electrode axes mapped here. ask your driver whether they plan to use it — for normal sessions the three axes above are all you need.</p>
   </div>
 </section>
 
