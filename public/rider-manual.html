@@ -298,6 +298,10 @@
   <div class="callout warn">
     <p><strong>phone or tablet won't work as a rider on their own.</strong> ReDrive needs to reach ReStim, and ReStim runs on a computer. the rider browser has to be on that same computer (or one that can reach it on the network). you can't ride from just a phone the way a driver can drive from one.</p>
   </div>
+
+  <div class="callout note">
+    <p>this manual is written around the <strong>FOC-Stim</strong> box, but <strong>audio-based boxes work fine too</strong> — the ErosTek ET312, the 2B, and similar. they just need a one-time device setup in ReStim, covered in <a href="#restim">section 3</a>.</p>
+  </div>
 </section>
 
 
@@ -358,6 +362,41 @@
 
   <div class="callout tip">
     <p>if you have a 4-channel box and the driver wants to use 4-Phase mode, you'll also need the <code>e1</code>–<code>e4</code> electrode axes mapped here. ask your driver whether they plan to use it — for normal sessions the three axes above are all you need.</p>
+  </div>
+
+  <h4 style="font-size:.95rem;color:var(--fg);margin:1.4rem 0 .4rem">Using an audio box instead (2B / ET312)</h4>
+  <p>this manual is written around the FOC-Stim box, but <strong>audio-based boxes like the ErosTek ET312 or the 2B work too.</strong> the only difference is a one-time choice in ReStim's <strong>device configuration wizard</strong> — once ReStim is pointed at your audio box, everything on the ReDrive side is exactly the same.</p>
+  <p>the wizard runs automatically the first time you launch ReStim. to reach it again later, open <strong>Setup → Device selection</strong> in ReStim's menu.</p>
+
+  <p style="margin-top:1rem"><strong>Step 1 — pick the device type.</strong> choose <strong>Audio-based three-phase</strong>.</p>
+  <figure>
+    <img src="/public/manual-img/restim-audio-1-device.png" alt="ReStim device configuration wizard — Select device type, with Audio-based three-phase selected">
+    <figcaption>Device configuration wizard → <strong>Select device type</strong> → <strong>Audio-based three-phase</strong> (not FOC-Stim).</figcaption>
+  </figure>
+
+  <p><strong>Step 2 — pick the generation algorithm.</strong> for the 312 and 2B, choose <strong>Continuous</strong> — ReStim labels it "Best for 312/2B" right on the screen.</p>
+  <figure>
+    <img src="/public/manual-img/restim-audio-2-algorithm.png" alt="ReStim wizard — Select generation algorithm, with Continuous selected">
+    <figcaption>Select generation algorithm → <strong>Continuous</strong> for 312/2B. (Pulse-based is more power-efficient but Continuous is the classic waveform these boxes expect.)</figcaption>
+  </figure>
+
+  <p><strong>Step 3 — safety limits / frequency.</strong> the last page sets the frequency range. <strong>read ReStim's on-screen recommendations here</strong> — they're printed right on the page and they matter for safety.</p>
+  <figure>
+    <img src="/public/manual-img/restim-audio-3-safety.png" alt="ReStim wizard — Safety limits page with frequency recommendations">
+    <figcaption>Safety limits → set the min/max frequency. ReStim's own guidance: Continuous ≈ 500–1000 Hz; for the 312/2B specifically it notes a frequency around 100 Hz tends to work best. low frequencies relate to electrochemical risk and high frequencies to thermal risk — follow the on-page notes and your device's documentation.</figcaption>
+  </figure>
+  <div class="callout warn">
+    <p>frequency on audio boxes is a real safety setting, not just a feel preference. go with ReStim's recommended ranges shown on that page and what your box's manufacturer advises — don't push outside them just to experiment.</p>
+  </div>
+
+  <p><strong>Changing which audio device the signal comes out of.</strong> if ReStim is sending audio to the wrong output (wrong soundcard / USB adapter), open <strong>Setup → Preferences → Audio</strong> tab and pick the right <strong>Output Device</strong>.</p>
+  <figure>
+    <img src="/public/manual-img/restim-audio-4-output.png" alt="ReStim Preferences — Audio tab, Output Device dropdown">
+    <figcaption>Setup → Preferences → <strong>Audio</strong> → <strong>Output Device</strong> — point this at the soundcard/adapter wired to your box.</figcaption>
+  </figure>
+
+  <div class="callout tip">
+    <p>that's the only extra setup. from here it's identical to any other box: set <strong>Volume to 100%</strong>, press <strong>Start</strong>, open your rider link.</p>
   </div>
 </section>
 
