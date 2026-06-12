@@ -789,13 +789,17 @@ async def handle_waiting_claim_post(req):
     if time.time() > room.waiting_expires:
         raise web.HTTPNotFound(text="Waiting room has expired")
 
+    # Claim the slot atomically — flip the guard before any await so two
+    # concurrent POSTs can't both pass the check above and each spin up an
+    # engine (the second would orphan the first's thread + push task).
+    room.waiting = False
+    room.waiting_expires = 0.0
+
     data = await req.post()
     driver_name = str(data.get("name", "")).strip()[:30]
 
     # Promote waiting room to a real room
     room.driver_key = secrets.token_urlsafe(20)
-    room.waiting = False
-    room.waiting_expires = 0.0
     room.driver_last_seen = time.monotonic()
     room.driver_name = driver_name
     cfg = DriveConfig()
