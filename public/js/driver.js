@@ -35,6 +35,7 @@ function syncUIFromState(d) {
   document.getElementById("intensity-slider").value = intPct;
   document.getElementById("int-val").textContent = intPct + "%";
   state.intensity = d.intensity;
+  _fsUpdateWarn();
 
   // Speed Hz
   let hzSlider = hzToSlider(d.hz);
@@ -1639,6 +1640,7 @@ function fsSlotLoad(axis, file) {
       const ejectBtn = document.getElementById('fs-eject-' + axis);
       if (ejectBtn) ejectBtn.style.display = '';
       _fsUpdateSeek();
+      _fsUpdateWarn();
       requestAnimationFrame(() => fsDrawSlot(axis));
     } catch (_) { alert('Could not parse funscript — check it is valid JSON.'); }
   };
@@ -1653,6 +1655,7 @@ function fsSlotEject(axis) {
   const ejectBtn = document.getElementById('fs-eject-' + axis);
   if (ejectBtn) ejectBtn.style.display = 'none';
   _fsUpdateSeek();
+  _fsUpdateWarn();
   requestAnimationFrame(() => fsDrawSlot(axis));
   if (!_fsHasAny() && _fsPlaying) fsStop();
 }
@@ -1708,8 +1711,36 @@ function _fsSetStatusInd(state) {
   if (txt) txt.textContent = state === 'playing' ? 'PLAYING' : 'PAUSED';
 }
 
+let _fsPrevBetaMode = null;  // beta mode to restore when script playback stops
+
+// Surface silent-output traps: electrode scripts loaded with no volume source.
+function _fsUpdateWarn() {
+  const el = document.getElementById('fs-warn');
+  if (!el) return;
+  const hasE   = ['e1','e2','e3','e4'].some(a => _FS_SLOTS[a].actions.length);
+  const hasVol = _FS_SLOTS.intensity.actions.length || _FS_SLOTS.volume.actions.length;
+  const want   = !!(hasE && !hasVol && state.intensity <= 0);
+  const showing = el.style.display !== 'none';
+  if (want === showing) return;
+  if (want) {
+    el.textContent = '⚠ Electrode scripts loaded but volume is 0 — raise the '
+                   + 'Intensity slider or load a .volume funscript, or nothing will be felt.';
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function fsPlay() {
   if (!_fsHasAny() || _fsPlaying) return;
+  // A beta script only steers position in Hold mode — sweep/spiral keep
+  // driving beta themselves and ignore script values. Switch to Hold for
+  // the duration of playback and restore the previous mode on stop.
+  if (_FS_SLOTS.beta.actions.length && state.betaMode !== 'hold') {
+    _fsPrevBetaMode = state.betaMode;
+    sendCmd({ beta_mode: 'hold' }, 'script');
+  }
+  _fsUpdateWarn();
   _fsPlaying   = true;
   _fsWallStart = performance.now();
   const v = document.getElementById('fs-video-el');
@@ -1744,6 +1775,13 @@ function fsStop() {
   _fsPlaying = false;
   _fsOffset  = 0;
   clearInterval(_fsSendTimer);
+  // Restore the beta mode that was active before a beta script took Hold
+  if (_fsPrevBetaMode) {
+    sendCmd({ beta_mode: _fsPrevBetaMode }, 'script');
+    _fsPrevBetaMode = null;
+  }
+  const warn = document.getElementById('fs-warn');
+  if (warn) warn.style.display = 'none';
   const v = document.getElementById('fs-video-el');
   if (v) { v.pause(); v.currentTime = 0; }
   // Only zero out axes that were actually driven by the script
