@@ -619,7 +619,7 @@
     <p style="margin-bottom:.4rem"><strong>Beta <span class="tag tag-beta">L1</span></strong> — the script drives electrode position. a funscript that goes 0→100→0 will sweep L+ → R+ → L+. ideal for scripts made specifically for triphase setups, or anything labelled "position" or "surge".</p>
   </div>
   <div class="callout tip">
-    <p>a beta script only steers position in <strong>Hold</strong> beta mode — Sweep and Spiral keep driving beta themselves and ignore the script. ReDrive handles this for you: pressing Play with a beta script loaded automatically switches to Hold, and Stop restores whatever mode you were in.</p>
+    <p>a beta script only steers position in <strong>Hold</strong> beta mode — Sweep and Spiral keep driving beta themselves and ignore the script. switch the Controls-tab beta mode to <strong>Hold</strong> before you play a beta script, or its position channel won't have any effect.</p>
   </div>
   <div class="callout note">
     <p><strong>Alpha <span class="tag tag-alpha">L0</span></strong> — drives the secondary oscillation axis. layered on top of whatever beta is doing. scripts labelled "alpha", "twist", or "vibr" auto-route here.</p>
@@ -635,8 +635,11 @@
   <p>use <strong>Load Set</strong> (or drop all four files at once onto the panel) to auto-route a matched set. ReDrive reads the filename and routes by suffix: <code>.e1.funscript</code> → E1, <code>.e2.funscript</code> → E2, and so on. the engine bypasses its normal blend math and sends your script values directly for as long as fresh data is arriving.</p>
 
   <div class="callout danger">
-    <p><strong>electrode scripts need a volume source or the rider feels nothing.</strong> the e1–e4 channels set <em>where</em> the signal goes, not <em>how strong</em> it is — volume is a separate axis. if you load only e1–e4 scripts with no Volume channel and the Intensity slider at 0, the output is dead silent even though everything looks like it's playing. either load a <code>.volume.funscript</code> or raise the Controls-tab Intensity slider. ReDrive shows an orange warning on the Script panel when it catches this.</p>
+    <p><strong>electrode scripts need a volume source or the rider feels nothing.</strong> the e1–e4 channels set <em>where</em> the signal goes, not <em>how strong</em> it is — volume is a separate axis. if you load only e1–e4 scripts with the volume at 0, the output is dead silent even though everything looks like it's playing. use the <strong>Volume slider on the Script tab</strong> (it shares the Controls-tab master volume) to bring it up, or load a <code>.volume.funscript</code>. ReDrive shows an orange warning on the Script panel when it catches this.</p>
   </div>
+
+  <h3>Volume slider <span class="tag tag-intensity">V0</span></h3>
+  <p>the Script tab has its own <strong>Volume</strong> slider — the same master volume as the Controls-tab Intensity slider, just reachable without leaving the Script tab. move either and the other follows. it works even when the Controls source is locked, so you can run a clean scripted session and still ride the volume. if a <code>.volume</code> or intensity funscript is loaded, that script owns the volume and the slider dims out.</p>
 
   <h3>Loading scripts</h3>
   <p>hit Load on the channel you want and pick a <code>.funscript</code> file, or drag one (or several at once) onto the script panel. ReDrive reads the filename and routes automatically:</p>
@@ -782,7 +785,7 @@
     </tr>
     <tr>
       <td>fix "4-channel script plays but nothing's felt"</td>
-      <td>raise the Intensity slider or load a <code>.volume</code> script — e1–e4 set position, not power</td>
+      <td>raise the <strong>Script-tab Volume slider</strong> or load a <code>.volume</code> script — e1–e4 set position, not power</td>
     </tr>
     <tr>
       <td>lock sensation to one electrode (4-phase)</td>

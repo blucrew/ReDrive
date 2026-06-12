@@ -683,18 +683,11 @@ class DriveEngine:
                 tv    = _tv_floor(intensity, cfg.tcode_floor)
                 parts = [f"{cfg.axis_volume}{tv}I{cfg.send_interval_ms}"]
 
-                # Funscript e1-e4 passthrough — when fresh, always emit the
-                # weights (even at zero volume) so a 4-channel script keeps
-                # electrode positions current and hold/auto dedup can't
-                # starve it.
-                fs_fresh = bool(self._fs_e) and (now - self._fs_e_t) < 0.25
-
-                # L1 beta / four-phase electrodes
-                if fs_fresh:
-                    self._emit_beta(self._current_beta, parts, cfg,
-                                    cfg.send_interval_ms)
-
-                elif intensity <= 0.0:
+                # L1 beta / four-phase electrodes.
+                # Output is gated by volume: when intensity is 0 nothing is
+                # emitted (including e1-e4), so a script always needs a volume
+                # source — the Script-tab Volume slider or a .volume funscript.
+                if intensity <= 0.0:
                     # Park when silent
                     if not self._fourphase:
                         desired = cfg.beta_off

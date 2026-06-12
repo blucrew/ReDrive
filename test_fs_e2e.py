@@ -108,16 +108,25 @@ async def run_test():
             lambda f: {"intensity": 0.8, "beta": int(f * 9999)},
         )
 
-        # Scenario 4: 4-phase, e1-e4 scripts only, master intensity untouched (0).
+        # Scenario 4: 4-phase, e1-e4 scripts, master volume 0 → intentionally
+        # SILENT. Output is gated by volume, so e1-e4 must NOT emit here.
         await scenario(
-            "S4: 4-phase ON, e1-e4 scripts only, master intensity 0",
+            "S4: 4-phase ON, e1-e4 scripts, master volume 0 (want SILENT)",
             [{"four_phase": True}, {"stop": True}],
             lambda f: {"e1": f, "e2": 1 - f, "e3": 0.5, "e4": 0.2},
         )
 
-        # Scenario 5: 4-phase, e1-e4 scripts + volume script driving intensity.
+        # Scenario 5a: 4-phase, e1-e4 scripts + master volume raised via the
+        # Script-tab Volume slider (sent as {intensity}). e1-e4 should emit.
         await scenario(
-            "S5: 4-phase ON, e1-e4 + volume scripts",
+            "S5a: 4-phase ON, e1-e4 scripts + Script Volume slider raised",
+            [{"four_phase": True}, {"intensity": 0.7}],
+            lambda f: {"e1": f, "e2": 1 - f, "e3": 0.5, "e4": 0.2},
+        )
+
+        # Scenario 5b: 4-phase, e1-e4 scripts + a volume funscript driving it.
+        await scenario(
+            "S5b: 4-phase ON, e1-e4 + volume funscript",
             [{"four_phase": True}],
             lambda f: {"intensity": 0.7, "e1": f, "e2": 1 - f, "e3": 0.5, "e4": 0.2},
         )

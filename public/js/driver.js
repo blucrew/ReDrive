@@ -30,10 +30,9 @@ function syncUIFromState(d) {
   document.querySelectorAll(".pat-btn").forEach(b =>
     b.classList.toggle("active", b.textContent === d.pattern));
 
-  // Intensity
+  // Intensity (master volume — mirrored on the Script-tab Volume slider)
   let intPct = Math.round(d.intensity * 100);
-  document.getElementById("intensity-slider").value = intPct;
-  document.getElementById("int-val").textContent = intPct + "%";
+  _syncVolumeUI(intPct);
   state.intensity = d.intensity;
   _fsUpdateWarn();
 
@@ -153,10 +152,33 @@ function setPattern(p) {
   sendCmd({ pattern: p });
 }
 
+// Master volume is shared between the Controls Intensity slider and the
+// Script-tab Volume slider — they're two views of the same value.
+function _syncVolumeUI(pct) {
+  const cs = document.getElementById("intensity-slider");
+  const cl = document.getElementById("int-val");
+  if (cs) cs.value = pct;
+  if (cl) cl.textContent = pct + "%";
+  const ss = document.getElementById("fs-vol-slider");
+  const sl = document.getElementById("fs-vol-val");
+  if (ss) ss.value = pct;
+  if (sl) sl.textContent = pct + "%";
+}
+
 function onIntensity(v) {
   state.intensity = v / 100;
-  document.getElementById("int-val").textContent = v + "%";
+  _syncVolumeUI(Math.round(v));
   sendCmd({ intensity: state.intensity });
+  document.getElementById("ramp-progress-wrap").style.display = "none";
+}
+
+// Script-tab master volume. Bypasses the source gate/priority filter so it
+// works even when the Controls source is locked out for a clean scripted
+// session — it IS the master volume, just reachable from the Script tab.
+function onScriptVolume(v) {
+  state.intensity = v / 100;
+  _syncVolumeUI(Math.round(v));
+  _sendRaw({ intensity: state.intensity });
   document.getElementById("ramp-progress-wrap").style.display = "none";
 }
 
@@ -399,6 +421,13 @@ async function sendCmd(cmd, _src = 'controls') {
     cmd = c;
   }
 
+  return _sendRaw(cmd);
+}
+
+// Transport only — no source gate or priority filtering. sendCmd() applies
+// those then calls this; callers that must always reach the engine (e.g. the
+// master volume slider) can call it directly.
+async function _sendRaw(cmd) {
   if (_driverWs && _driverWs.readyState === WebSocket.OPEN) {
     try {
       _driverWs.send(JSON.stringify({type: "command", data: cmd}));
@@ -521,8 +550,7 @@ function handleStateUpdate(d) {
   document.getElementById("beta-dot").style.left = ((1 - d.beta/9999)*100)+"%";
   // Ramp progress
   if (d.ramp_active) {
-    document.getElementById("intensity-slider").value = Math.round(d.intensity*100);
-    document.getElementById("int-val").textContent = Math.round(d.intensity*100)+"%";
+    _syncVolumeUI(Math.round(d.intensity*100));
     document.getElementById("ramp-progress-wrap").style.display = "flex";
     document.getElementById("ramp-bar").style.width = (d.ramp_progress*100)+"%";
     document.getElementById("ramp-pct").textContent =
@@ -1711,20 +1739,29 @@ function _fsSetStatusInd(state) {
   if (txt) txt.textContent = state === 'playing' ? 'PLAYING' : 'PAUSED';
 }
 
-let _fsPrevBetaMode = null;  // beta mode to restore when script playback stops
-
-// Surface silent-output traps: electrode scripts loaded with no volume source.
+// Surface silent-output traps: any script loaded with the master volume at 0.
+// Also dim the Script-tab Volume slider when a volume/intensity funscript is
+// driving the axis (the script owns volume; the manual slider is moot).
 function _fsUpdateWarn() {
+  const scriptDrivesVol = _FS_SLOTS.intensity.actions.length || _FS_SLOTS.volume.actions.length;
+
+  // Slider state
+  const ss = document.getElementById('fs-vol-slider');
+  const wrap = document.getElementById('fs-vol-row');
+  if (ss) ss.disabled = !!scriptDrivesVol;
+  if (wrap) wrap.classList.toggle('script-driven', !!scriptDrivesVol);
+
   const el = document.getElementById('fs-warn');
   if (!el) return;
-  const hasE   = ['e1','e2','e3','e4'].some(a => _FS_SLOTS[a].actions.length);
-  const hasVol = _FS_SLOTS.intensity.actions.length || _FS_SLOTS.volume.actions.length;
-  const want   = !!(hasE && !hasVol && state.intensity <= 0);
+  // Warn when output-producing channels are loaded but the master volume is 0
+  // and no funscript is driving volume.
+  const hasOutput = ['e1','e2','e3','e4','beta','alpha'].some(a => _FS_SLOTS[a].actions.length);
+  const want   = !!(hasOutput && !scriptDrivesVol && state.intensity <= 0);
   const showing = el.style.display !== 'none';
   if (want === showing) return;
   if (want) {
-    el.textContent = '⚠ Electrode scripts loaded but volume is 0 — raise the '
-                   + 'Intensity slider or load a .volume funscript, or nothing will be felt.';
+    el.textContent = '⚠ Scripts loaded but volume is 0 — raise the Script Volume '
+                   + 'slider (or load a .volume funscript), or nothing will be felt.';
     el.style.display = '';
   } else {
     el.style.display = 'none';
@@ -1733,13 +1770,6 @@ function _fsUpdateWarn() {
 
 function fsPlay() {
   if (!_fsHasAny() || _fsPlaying) return;
-  // A beta script only steers position in Hold mode — sweep/spiral keep
-  // driving beta themselves and ignore script values. Switch to Hold for
-  // the duration of playback and restore the previous mode on stop.
-  if (_FS_SLOTS.beta.actions.length && state.betaMode !== 'hold') {
-    _fsPrevBetaMode = state.betaMode;
-    sendCmd({ beta_mode: 'hold' }, 'script');
-  }
   _fsUpdateWarn();
   _fsPlaying   = true;
   _fsWallStart = performance.now();
@@ -1775,11 +1805,6 @@ function fsStop() {
   _fsPlaying = false;
   _fsOffset  = 0;
   clearInterval(_fsSendTimer);
-  // Restore the beta mode that was active before a beta script took Hold
-  if (_fsPrevBetaMode) {
-    sendCmd({ beta_mode: _fsPrevBetaMode }, 'script');
-    _fsPrevBetaMode = null;
-  }
   const warn = document.getElementById('fs-warn');
   if (warn) warn.style.display = 'none';
   const v = document.getElementById('fs-video-el');

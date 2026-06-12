@@ -357,6 +357,17 @@ const DRIVER_KEY = "";
            background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.35);
            border-radius:6px;padding:6px 10px;margin-top:6px"></div>
 
+      <!-- Master volume — shared with the Controls Intensity slider -->
+      <div class="slider-row" id="fs-vol-row" style="margin-top:8px">
+        <div class="slider-header">
+          <span class="slider-label">Volume  <small style="color:var(--fg2)">(master · shared with Controls)</small></span>
+          <span class="slider-val" id="fs-vol-val">0%</span>
+        </div>
+        <input type="range" id="fs-vol-slider" min="0" max="100" value="0"
+               oninput="onScriptVolume(this.value)">
+        <div class="fs-vol-driven-note" style="display:none;font-size:10px;color:var(--fg2);margin-top:2px">driven by loaded volume script</div>
+      </div>
+
       <!-- Three axis slots -->
       <div class="section-label" style="margin-top:2px">
         Channels <small style="font-size:9px;text-transform:none;font-weight:400;color:var(--fg2)">drag &amp; drop .funscripts + video — auto-routed by filename</small>

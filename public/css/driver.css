@@ -146,6 +146,9 @@
   .pat-btn.active { background:var(--accent); color:#000; font-weight:700; box-shadow:0 0 18px var(--accent-glow); border-color:var(--accent); }
   /* Sliders */
   .slider-row { display:flex; flex-direction:column; gap:4px; }
+  /* Script-tab Volume slider when a .volume/.intensity funscript owns the axis */
+  #fs-vol-row.script-driven input[type=range] { opacity:.4; cursor:not-allowed; }
+  #fs-vol-row.script-driven .fs-vol-driven-note { display:block !important; }
   .slider-header { display:flex; justify-content:space-between; align-items:center; }
   .slider-label { font-size:12px; color:var(--fg2); }
   .slider-val { font-size:12px; color:var(--fg); font-weight:600; }
