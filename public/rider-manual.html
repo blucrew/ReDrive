@@ -173,6 +173,30 @@
     color: var(--accent);
   }
 
+  /* ── Figures ── */
+  figure {
+    margin: 1.2rem 0;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .8rem;
+  }
+  figure img {
+    display: block;
+    width: 100%;
+    max-width: 460px;
+    margin: 0 auto;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  figure figcaption {
+    color: var(--fg2);
+    font-size: .82rem;
+    text-align: center;
+    margin-top: .6rem;
+    line-height: 1.5;
+  }
+
   /* ── Divider ── */
   hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
 
@@ -238,7 +262,7 @@
   <p>nothing gets installed. the whole thing runs in your browser. the only software on your machine is ReStim itself, which you're already running to use your hardware.</p>
 
   <div class="callout note">
-    <p><strong>your hardware limit is always yours.</strong> the driver controls the <em>shape</em> and <em>level</em> of the signal, but only within the maximum you've set on your own ReStim volume dial. they can't push past the ceiling you set. that dial is your safety floor — set it before you start.</p>
+    <p><strong>your hardware limit is always yours.</strong> the driver controls the <em>shape</em> and <em>level</em> of the signal, but only within the maximum your own hardware allows — your physical box is the real ceiling and the driver can't touch it. set your power and your ReStim volume before you start (<a href="#restim">section 3</a>).</p>
   </div>
 </section>
 
@@ -263,7 +287,17 @@
 <section id="restim">
   <h2><span class="sec-num">03</span> Setting up ReStim</h2>
 
-  <p>ReDrive sends <strong>T-code</strong> — position and volume values — to ReStim over a local WebSocket. ReStim needs its axes mapped so those values land on the right controls. you only do this once.</p>
+  <p>ReDrive sends <strong>T-code</strong> — position and volume values — to ReStim over a local WebSocket. ReStim needs its axes mapped so those values land on the right controls, and its volume turned up so you can actually feel the signal. the axis mapping you do once; the volume you check every time you boot.</p>
+
+  <h3>Turn the volume up — every session</h3>
+  <p>this is the single most important first step, and the easiest one to forget. <strong>ReStim defaults its Volume to 10% on every launch.</strong> at 10% you will feel almost nothing no matter what your driver does — in practice anything below about 60% is barely there on FOC/ReStim. set it to <strong>100%</strong> as soon as you open ReStim.</p>
+  <figure>
+    <img src="/public/manual-img/restim-volume.png" alt="ReStim Live Control tab with the Volume control highlighted in the left sidebar">
+    <figcaption>ReStim → <strong>Live Control</strong> → the <strong>Volume</strong> box in the left sidebar (below the triphase circle). the slider is the current level; drag it to 100%. the number below it (e.g. <code>10.00</code>) is the session maximum — set it high too.</figcaption>
+  </figure>
+  <div class="callout note">
+    <p>this Volume is a <strong>software percentage</strong> — it scales the output as a fraction of what your physical box puts out. turning it to 100% does <em>not</em> override or raise your box's actual power knobs; those stay exactly where you set them. it just stops ReStim from quietly throttling everything to a tenth before it ever reaches the hardware.</p>
+  </div>
 
   <h3>Turn on the WebSocket server</h3>
   <p>in ReStim, make sure the T-code WebSocket server is enabled and listening. by default ReDrive connects to <code>ws://localhost:12346/tcode</code> — that's ReStim's standard local address. if you haven't changed ReStim's port, you don't need to change anything in ReDrive either.</p>
@@ -381,16 +415,19 @@
 <section id="control">
   <h2><span class="sec-num">08</span> Staying in control</h2>
 
-  <p>you are never locked in. two layers of control are always yours, no matter what the driver does.</p>
+  <p>you are never locked in. three layers of control are always yours, no matter what the driver does — and they sit in a clear order.</p>
 
   <h3>The STOP button</h3>
   <p>big red <strong>■ STOP</strong> at the top of the page. tap it and ReDrive stops forwarding signal to your device immediately — it sends a zero and pauses the connection. tap it again to resume. use it any time you want a break, want to adjust, or just want it to stop. no explanation owed.</p>
 
-  <h3>Your hardware dial</h3>
-  <p>your ReStim volume dial is your hard ceiling. the driver's "100%" is only ever 100% <em>of whatever you've set there</em>. if something's too much, turn your dial down — that's a physical limit the driver cannot override from their end.</p>
+  <h3>ReStim's Volume (software)</h3>
+  <p>the Volume control from <a href="#restim">section 3</a> — the 0–100% slider in ReStim. keep it at <strong>100%</strong> so the driver's range is usable, but it's still a lever: it multiplies everything, so dropping it instantly cuts the overall level across the board. handy as a quick global trim without touching the box.</p>
+
+  <h3>Your physical box</h3>
+  <p>the knobs on your actual hardware are the real-world power, and your true off-switch. nothing the driver does — and nothing in any browser — can move them. if something is too much, this is the control that always wins. turn it down, or off.</p>
 
   <div class="callout danger">
-    <p><strong>STOP in ReDrive cuts the ReDrive signal — it does not turn your hardware off.</strong> if your ReStim dial is cranked and ReStim has its own activity, you may still feel something after a ReDrive stop. for a true kill, also turn your physical device down or off. agree on a limit with your driver before you start, and start low.</p>
+    <p><strong>STOP in ReDrive cuts the ReDrive signal — it does not turn your hardware off.</strong> ReStim may have its own activity, and your box holds whatever charge the moment allows. for a guaranteed stop, turn your <strong>physical device</strong> down or off — don't rely on the browser alone. agree on a limit with your driver before you start, and start low.</p>
   </div>
 </section>
 
@@ -425,7 +462,7 @@
     </tr>
     <tr>
       <td>Connected but feeling nothing</td>
-      <td>check your ReStim volume dial isn't at zero, and that the driver has actually started sending (their intensity may be at 0). confirm your axes are mapped — especially <strong>Volume → V0</strong>, which is empty by default.</td>
+      <td>first check ReStim's <strong>Volume</strong> — it defaults to 10% every launch, which is barely perceptible. set it to 100% (<a href="#restim">section 3</a>). then confirm the driver is actually sending (their intensity may be at 0), and that your axes are mapped — especially <strong>Volume → V0</strong>, which is empty by default.</td>
     </tr>
     <tr>
       <td>Position/sweep works but no power</td>
@@ -459,6 +496,10 @@
     <tr>
       <td>stop everything right now</td>
       <td>tap the red STOP button (tap again to resume) — and turn your hardware dial down for a true kill</td>
+    </tr>
+    <tr>
+      <td>actually feel the signal (do this first!)</td>
+      <td>in ReStim, drag the <strong>Volume</strong> slider to 100% — it resets to 10% every launch</td>
     </tr>
     <tr>
       <td>connect to your device</td>
@@ -497,7 +538,6 @@
   <hr>
 
   <p style="margin-top:1.5rem; font-size:.92rem;">you set your hardware limit, always. ReDrive only ever shapes the signal within the ceiling you've chosen. agree on that limit with your driver before you begin, start low, and use STOP whenever you want — it's there for you.</p>
-  <p style="font-size:.92rem;">pleasant dreams.</p>
 </section>
 
 </body>
