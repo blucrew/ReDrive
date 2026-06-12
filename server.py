@@ -258,7 +258,13 @@ class Room:
                         line = self._log_q.get_nowait()
                     except queue.Empty:
                         break
-                    print(f"[engine {self.code}] {line}", flush=True)
+                    # Isolate the print: some engine log lines contain non-ASCII
+                    # (→, ·); under a C-locale stdout that raises UnicodeEncodeError,
+                    # which must never disrupt the state-push loop.
+                    try:
+                        print(f"[engine {self.code}] {line}", flush=True)
+                    except Exception:
+                        pass
                     drained += 1
 
                 # Cap pending_likes so it can't grow unboundedly
