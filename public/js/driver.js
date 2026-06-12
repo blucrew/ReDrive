@@ -548,13 +548,17 @@ function handleStateUpdate(d) {
   drawTriangle(d.vol, d.beta, d.alpha);
   // Beta position dot
   document.getElementById("beta-dot").style.left = ((1 - d.beta/9999)*100)+"%";
-  // Ramp progress
+  // Ramp progress \u2014 show the live level counting toward the target so the
+  // direction reads correctly (a down-ramp visibly counts down).
   if (d.ramp_active) {
-    _syncVolumeUI(Math.round(d.intensity*100));
+    const nowPct = Math.round(d.intensity * 100);
+    const tgtPct = Math.round(d.ramp_target * 100);
+    _syncVolumeUI(nowPct);
     document.getElementById("ramp-progress-wrap").style.display = "flex";
     document.getElementById("ramp-bar").style.width = (d.ramp_progress*100)+"%";
+    const arrow = tgtPct < nowPct ? "\u2193" : tgtPct > nowPct ? "\u2191" : "\u2192";
     document.getElementById("ramp-pct").textContent =
-      Math.round(d.ramp_progress*100)+"% \u2192 "+Math.round(d.ramp_target*100)+"%";
+      nowPct + "% " + arrow + " " + tgtPct + "%";
   } else {
     if (document.getElementById("ramp-progress-wrap").style.display === "flex")
       document.getElementById("ramp-progress-wrap").style.display = "none";
