@@ -301,7 +301,17 @@ class DriveEngine:
         self._rider_wss:  set = set()
 
     def _log(self, msg: str):
-        self._log_q.put_nowait(msg)
+        # Self-limiting: if no consumer is draining (or it stalls), drop the
+        # oldest lines instead of growing the queue without bound.
+        try:
+            while self._log_q.qsize() > 1000:
+                self._log_q.get_nowait()
+        except Exception:
+            pass
+        try:
+            self._log_q.put_nowait(msg)
+        except Exception:
+            pass
 
     # ── ReStim connection ────────────────────────────────────────────────────
 

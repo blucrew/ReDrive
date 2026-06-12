@@ -248,6 +248,19 @@ class Room:
                 await asyncio.sleep(0.2)  # 5 Hz
                 tick += 1
 
+                # Drain the engine log queue. Nothing else consumes it in
+                # relay mode, so left alone it grows for the room's whole
+                # lifetime (a slow leak, worse if any per-tick error recurs).
+                # Surface to stdout → systemd journal for diagnostics.
+                drained = 0
+                while drained < 200:
+                    try:
+                        line = self._log_q.get_nowait()
+                    except queue.Empty:
+                        break
+                    print(f"[engine {self.code}] {line}", flush=True)
+                    drained += 1
+
                 # Cap pending_likes so it can't grow unboundedly
                 if len(self.pending_likes) > 100:
                     self.pending_likes = self.pending_likes[-100:]
