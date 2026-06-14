@@ -103,12 +103,15 @@ const RIDER_WS  = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + loc
 <script src="/public/js/rider_join.js"></script>
 <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
 <script>
-  kofiWidgetOverlay.draw('stimstation', {
-    'type': 'floating-chat',
-    'floating-chat.donateButton.text': 'Support Us',
-    'floating-chat.donateButton.background-color': '#d9534f',
-    'floating-chat.donateButton.text-color': '#fff'
-  });
+  // Floating widget on desktop only — off mobile to avoid overlapping content.
+  if (window.matchMedia('(min-width: 601px)').matches) {
+    kofiWidgetOverlay.draw('stimstation', {
+      'type': 'floating-chat',
+      'floating-chat.donateButton.text': 'Support Us',
+      'floating-chat.donateButton.background-color': '#d9534f',
+      'floating-chat.donateButton.text-color': '#fff'
+    });
+  }
 </script>
 </body>
 </html>

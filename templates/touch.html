@@ -94,6 +94,7 @@ const API_PREFIX = "{{ api_prefix }}";
 
 <div id="footer">
   <button id="room-code-btn" onclick="copyRoomCode(this)"></button>
+  <a id="footer-support" href="https://ko-fi.com/stimstation" target="_blank" rel="noopener">&#9829;&nbsp;Support</a>
   <label id="upload-avatar-btn" title="Upload your anatomy image (sets your avatar)"
     style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:4px;
            color:var(--fg2);font-size:11px;cursor:pointer">
@@ -137,13 +138,17 @@ const API_PREFIX = "{{ api_prefix }}";
 {% endif %}
 <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
 <script>
-  kofiWidgetOverlay.draw('stimstation', {
-    'type': 'floating-chat',
-    'floating-chat.donateButton.text': 'Support Us',
-    'floating-chat.donateButton.background-color': '#d9534f',
-    'floating-chat.donateButton.text-color': '#fff',
-    'floating-chat.donateButton.position': 'bottom-right'
-  });
+  // Floating widget on desktop only — on mobile it overlaps the controls,
+  // so the footer "Support" link covers mobile instead.
+  if (window.matchMedia('(min-width: 601px)').matches) {
+    kofiWidgetOverlay.draw('stimstation', {
+      'type': 'floating-chat',
+      'floating-chat.donateButton.text': 'Support Us',
+      'floating-chat.donateButton.background-color': '#d9534f',
+      'floating-chat.donateButton.text-color': '#fff',
+      'floating-chat.donateButton.position': 'bottom-right'
+    });
+  }
 </script>
 </body>
 </html>

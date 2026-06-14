@@ -174,7 +174,8 @@
     <span class="foot-mark">&#9670;</span>
     &copy; EstimStation &middot;
     <a href="https://www.estimstation.com">estimstation.com</a> &middot;
-    <a href="https://github.com/blucrew/ReDrive" target="_blank" rel="noopener">open-source</a>
+    <a href="https://github.com/blucrew/ReDrive" target="_blank" rel="noopener">open-source</a> &middot;
+    <a href="https://ko-fi.com/stimstation" target="_blank" rel="noopener" class="foot-support">&#9829;&nbsp;Support&nbsp;Us</a>
   </footer>
 
 </div><!-- /wrap -->
@@ -182,12 +183,16 @@
 <script src="/public/js/landing.js"></script>
 <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
 <script>
-  kofiWidgetOverlay.draw('stimstation', {
-    'type': 'floating-chat',
-    'floating-chat.donateButton.text': 'Support Us',
-    'floating-chat.donateButton.background-color': '#d9534f',
-    'floating-chat.donateButton.text-color': '#fff'
-  });
+  // Floating widget on desktop only — on mobile it overlaps content,
+  // so the footer "Support Us" link covers mobile instead.
+  if (window.matchMedia('(min-width: 601px)').matches) {
+    kofiWidgetOverlay.draw('stimstation', {
+      'type': 'floating-chat',
+      'floating-chat.donateButton.text': 'Support Us',
+      'floating-chat.donateButton.background-color': '#d9534f',
+      'floating-chat.donateButton.text-color': '#fff'
+    });
+  }
 </script>
 </body>
 </html>

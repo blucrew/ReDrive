@@ -525,13 +525,16 @@ const DRIVER_KEY = "";
 <script src="/public/js/driver.js"></script>
 <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
 <script>
-  kofiWidgetOverlay.draw('stimstation', {
-    'type': 'floating-chat',
-    'floating-chat.donateButton.text': 'Support Us',
-    'floating-chat.donateButton.background-color': '#d9534f',
-    'floating-chat.donateButton.text-color': '#fff',
-    'floating-chat.donateButton.position': 'bottom-right'
-  });
+  // Floating widget on desktop only — keeps it off the dense mobile control UI.
+  if (window.matchMedia('(min-width: 601px)').matches) {
+    kofiWidgetOverlay.draw('stimstation', {
+      'type': 'floating-chat',
+      'floating-chat.donateButton.text': 'Support Us',
+      'floating-chat.donateButton.background-color': '#d9534f',
+      'floating-chat.donateButton.text-color': '#fff',
+      'floating-chat.donateButton.position': 'bottom-right'
+    });
+  }
 </script>
 
 </body>

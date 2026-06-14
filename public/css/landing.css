@@ -392,6 +392,8 @@ details p a:hover { border-bottom-color: var(--blue); }
 .foot-mark { color: var(--blue); opacity: .5; margin-right: .3rem; }
 .site-footer a { color: var(--fg-2); text-decoration: none; }
 .site-footer a:hover { color: var(--blue); }
+.site-footer a.foot-support { color: var(--red); }
+.site-footer a.foot-support:hover { color: #ff8a93; text-shadow: 0 0 10px rgba(255,95,109,.5); }
 
 /* ── Power-on reveal ────────────────────────────────────────────────── */
 .reveal { opacity: 0; transform: translateY(16px); animation: power-on .7s cubic-bezier(.2,.7,.2,1) forwards; animation-delay: calc(var(--d) * 90ms + 120ms); }

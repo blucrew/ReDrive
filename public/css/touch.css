@@ -221,3 +221,11 @@
   #rider-name-input:focus {
     outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(95,176,255,.14);
   }
+
+  /* Footer support link (mobile replacement for the floating ko-fi widget) */
+  #footer-support {
+    font-family:var(--mono); font-size:11px; color:var(--err);
+    text-decoration:none; white-space:nowrap; opacity:.85;
+    transition:opacity .15s, text-shadow .15s;
+  }
+  #footer-support:hover { opacity:1; text-shadow:0 0 10px rgba(255,95,109,.5); }
