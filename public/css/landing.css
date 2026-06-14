@@ -235,12 +235,7 @@ body {
 }
 .card:hover::before { opacity: 1; box-shadow: 0 0 12px var(--glow-b); }
 
-.card-head { display: flex; align-items: baseline; gap: .7rem; margin-bottom: .55rem; }
-.card-ch {
-  font-family: var(--mono); font-size: .64rem; font-weight: 700; letter-spacing: .12em;
-  color: var(--blue); border: 1px solid var(--line-2); border-radius: 4px;
-  padding: .12em .45em; flex-shrink: 0;
-}
+.card-head { margin-bottom: .55rem; }
 .card-title { font-family: var(--disp); font-weight: 600; font-size: 1.12rem; color: var(--fg); letter-spacing: .01em; }
 .card-desc { color: var(--fg-2); font-size: .9rem; line-height: 1.6; margin-bottom: 1.15rem; }
 .card-note { color: var(--fg-3); font-size: .78rem; margin-top: .85rem; line-height: 1.6; }
