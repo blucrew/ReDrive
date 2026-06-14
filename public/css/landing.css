@@ -151,7 +151,7 @@ body {
     linear-gradient(180deg, rgba(95,176,255,.05), rgba(176,124,255,.03)),
     var(--bg-2);
   border: 1px solid var(--line-2);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 1.4rem .6rem .7rem;
   margin: 0 auto 1.5rem;
   box-shadow:
@@ -196,7 +196,7 @@ body {
   display: flex; align-items: stretch; gap: 0;
   background: linear-gradient(90deg, rgba(255,183,77,.07), transparent);
   border: 1px solid rgba(255,183,77,.28);
-  border-radius: 9px; overflow: hidden;
+  border-radius: 0; overflow: hidden;
   margin-bottom: 2rem;
 }
 .warn-tab {
@@ -219,26 +219,34 @@ body {
 .card {
   position: relative;
   background: var(--bg-2);
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  padding: 1.4rem 1.6rem;
-  transition: border-color .25s, transform .25s, box-shadow .25s;
+  border: none;
+  border-radius: 0;
+  padding: 1.5rem 1.7rem;
+  transition: transform .25s, box-shadow .25s, background .25s;
 }
-.card::before { /* bottom signal bar */
-  content: ""; position: absolute; left: 18px; right: 18px; bottom: 0; height: 2px;
-  border-radius: 2px;
-  background: var(--line-2);
-  opacity: .55; transition: opacity .25s, background .25s, box-shadow .25s;
+/* Corner brackets hint the boundary — sharp top-left + bottom-right (HUD frame) */
+.card::before, .card::after {
+  content: ""; position: absolute; width: 18px; height: 18px;
+  border: 0 solid var(--line-2);
+  transition: border-color .25s, width .2s, height .2s, filter .25s;
+  pointer-events: none;
 }
-.card:hover { transform: translateY(-2px); }
+.card::before { top: 0;    left: 0;  border-top-width: 2px;    border-left-width: 2px;  }
+.card::after  { bottom: 0; right: 0; border-bottom-width: 2px; border-right-width: 2px; }
+
+.card:hover { transform: translateY(-2px); background: var(--bg-3); }
+.card:hover::before, .card:hover::after { width: 26px; height: 26px; }
 
 /* per-card hover signal: Drive = red, Join = blue, Waiting = yellow */
-.channels .card:nth-child(1):hover { border-color: rgba(255,95,109,.5); box-shadow: 0 16px 38px -26px rgba(255,95,109,.55); }
-.channels .card:nth-child(1):hover::before { background: var(--red); opacity: 1; box-shadow: 0 0 14px var(--red); }
-.channels .card:nth-child(2):hover { border-color: rgba(95,176,255,.5); box-shadow: 0 16px 38px -26px var(--glow-b); }
-.channels .card:nth-child(2):hover::before { background: var(--blue); opacity: 1; box-shadow: 0 0 14px var(--glow-b); }
-.channels .card:nth-child(3):hover { border-color: rgba(255,213,74,.5); box-shadow: 0 16px 38px -26px rgba(255,213,74,.5); }
-.channels .card:nth-child(3):hover::before { background: var(--yellow); opacity: 1; box-shadow: 0 0 14px var(--yellow); }
+.channels .card:nth-child(1):hover { box-shadow: 0 18px 42px -28px rgba(255,95,109,.55); }
+.channels .card:nth-child(1):hover::before,
+.channels .card:nth-child(1):hover::after { border-color: var(--red);   filter: drop-shadow(0 0 5px var(--red)); }
+.channels .card:nth-child(2):hover { box-shadow: 0 18px 42px -28px var(--glow-b); }
+.channels .card:nth-child(2):hover::before,
+.channels .card:nth-child(2):hover::after { border-color: var(--blue);  filter: drop-shadow(0 0 5px var(--blue)); }
+.channels .card:nth-child(3):hover { box-shadow: 0 18px 42px -28px rgba(255,213,74,.5); }
+.channels .card:nth-child(3):hover::before,
+.channels .card:nth-child(3):hover::after { border-color: var(--yellow); filter: drop-shadow(0 0 5px var(--yellow)); }
 
 .card-head { margin-bottom: .55rem; }
 .card-title { font-family: var(--disp); font-weight: 600; font-size: 1.12rem; color: var(--fg); letter-spacing: .01em; }
@@ -277,7 +285,7 @@ body {
 .join-row { display: flex; gap: .6rem; }
 .join-row input {
   flex: 1; min-width: 0; padding: .8rem .9rem;
-  background: #04060b; border: 1px solid var(--line-2); border-radius: 7px;
+  background: #04060b; border: 1px solid var(--line-2); border-radius: 0;
   color: var(--blue); font-family: var(--mono); font-size: 1rem; font-weight: 700;
   letter-spacing: .22em; text-align: center; text-transform: uppercase;
   transition: border-color .2s, box-shadow .2s;
@@ -291,7 +299,7 @@ body {
 
 code {
   background: #04060b; border: 1px solid var(--line); padding: .1em .4em;
-  border-radius: 4px; font-family: var(--mono); font-size: .85em; color: var(--cyan);
+  border-radius: 0; font-family: var(--mono); font-size: .85em; color: var(--cyan);
 }
 
 /* ── Live sessions ──────────────────────────────────────────────────── */
