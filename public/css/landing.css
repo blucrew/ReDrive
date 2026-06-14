@@ -18,6 +18,8 @@
   --cyan:    #57e6d8;
   --amber:   #ffb74d;
   --ok:      #58d97a;
+  --red:     #ff5f6d;   /* drive hover */
+  --yellow:  #ffd54a;   /* waiting hover */
   --glow-b:  rgba(95,176,255,.55);
   --glow-v:  rgba(176,124,255,.45);
   --mono:    'Space Mono', ui-monospace, monospace;
@@ -198,7 +200,7 @@ body {
   margin-bottom: 2rem;
 }
 .warn-tab {
-  flex-shrink: 0; display: flex; align-items: center;
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
   background: repeating-linear-gradient(45deg, rgba(255,183,77,.18) 0 8px, rgba(255,183,77,.06) 8px 16px);
   border-right: 1px solid rgba(255,183,77,.28);
   font-family: var(--mono); font-size: .62rem; font-weight: 700;
@@ -222,18 +224,21 @@ body {
   padding: 1.4rem 1.6rem;
   transition: border-color .25s, transform .25s, box-shadow .25s;
 }
-.card::before { /* left signal rail */
-  content: ""; position: absolute; left: 0; top: 16px; bottom: 16px; width: 2px;
+.card::before { /* bottom signal bar */
+  content: ""; position: absolute; left: 18px; right: 18px; bottom: 0; height: 2px;
   border-radius: 2px;
-  background: linear-gradient(var(--blue), var(--violet));
-  opacity: .35; transition: opacity .25s, box-shadow .25s;
+  background: var(--line-2);
+  opacity: .55; transition: opacity .25s, background .25s, box-shadow .25s;
 }
-.card:hover {
-  border-color: var(--line-2);
-  transform: translateY(-2px);
-  box-shadow: 0 16px 38px -26px rgba(95,176,255,.6);
-}
-.card:hover::before { opacity: 1; box-shadow: 0 0 12px var(--glow-b); }
+.card:hover { transform: translateY(-2px); }
+
+/* per-card hover signal: Drive = red, Join = blue, Waiting = yellow */
+.channels .card:nth-child(1):hover { border-color: rgba(255,95,109,.5); box-shadow: 0 16px 38px -26px rgba(255,95,109,.55); }
+.channels .card:nth-child(1):hover::before { background: var(--red); opacity: 1; box-shadow: 0 0 14px var(--red); }
+.channels .card:nth-child(2):hover { border-color: rgba(95,176,255,.5); box-shadow: 0 16px 38px -26px var(--glow-b); }
+.channels .card:nth-child(2):hover::before { background: var(--blue); opacity: 1; box-shadow: 0 0 14px var(--glow-b); }
+.channels .card:nth-child(3):hover { border-color: rgba(255,213,74,.5); box-shadow: 0 16px 38px -26px rgba(255,213,74,.5); }
+.channels .card:nth-child(3):hover::before { background: var(--yellow); opacity: 1; box-shadow: 0 0 14px var(--yellow); }
 
 .card-head { margin-bottom: .55rem; }
 .card-title { font-family: var(--disp); font-weight: 600; font-size: 1.12rem; color: var(--fg); letter-spacing: .01em; }
