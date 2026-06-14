@@ -263,7 +263,7 @@
 
   /* ── Touch panel ── */
   #touch-panel { display:none; flex:1; flex-direction:column; gap:8px; min-height:0; overflow:hidden; }
-  #tc-body { display:flex; gap:8px; flex:1; min-height:0; align-items:flex-start; }
+  #tc-body { display:flex; gap:8px; flex:1; min-height:0; align-items:flex-start; justify-content:center; position:relative; }
   #tc-main {
     flex:0 0 auto; width:min(100%,340px); aspect-ratio:9/16;
     min-height:0; position:relative; border-radius:0;
@@ -277,7 +277,7 @@
   }
   #tc-main.looping { animation:tc-loop-pulse 1.1s ease-in-out infinite; }
   /* Category buttons */
-  #cat-panel { display:flex; flex-direction:column; gap:6px; }
+  #cat-panel { display:flex; flex-direction:column; gap:6px; position:absolute; right:0; top:0; }
   .cat-btn {
     padding:10px 12px; background:var(--bg3); border:1px solid var(--border);
     border-radius:0; color:var(--fg2); font-size:12px; font-weight:600;
@@ -455,6 +455,9 @@
     #rider-cards { flex-direction:row; gap:8px; overflow-y:visible; overflow-x:auto; }
     .rider-card { width:64px; flex-shrink:0; }
     #overlay-btn, #cursor-btn { width:auto; min-width:52px; flex-shrink:0; }
+    /* Touch tab: stack the category picker below the centred canvas */
+    #tc-body { flex-direction:column; align-items:center; }
+    #cat-panel { position:static; flex-direction:row; flex-wrap:wrap; justify-content:center; }
   }
 
   /* ══ Signal Lab chrome ════════════════════════════════════════════ */
