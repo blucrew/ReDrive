@@ -462,7 +462,8 @@ function drawWaveform(vol, alpha) {
   volHist.push(vol);   if (volHist.length   > HIST) volHist.shift();
   alphaHist.push(alpha); if (alphaHist.length > HIST) alphaHist.shift();
   const cvs = document.getElementById("waveform");
-  const W = cvs.parentElement ? cvs.parentElement.clientWidth - 126 : 180;
+  // Width tracks the canvas's own rendered size (it owns its grid cell now).
+  const W = Math.round(cvs.clientWidth) || (cvs.parentElement ? cvs.parentElement.clientWidth : 180);
   if (W < 20) return;
   cvs.width = W;
   const H = cvs.height;

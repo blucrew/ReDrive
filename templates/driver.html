@@ -35,17 +35,17 @@ const DRIVER_KEY = "";
   <div id="hdr-row2">
     <input id="driver-name-input" type="text" placeholder="Your driver name…"
            oninput="setDriverName(this.value)">
-    <button onclick="copyRoomCode(this)"
-      style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#128279; Room</button>
     <button onclick="copyRiderLink(this)"
-      style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#9654; Rider Link</button>
+      style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#128279; Rider Link</button>
     <a href="/public/driver-manual.html" target="_blank"
       style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none">&#63; Manual</a>
   </div>
   <div id="hdr-row3">
-    <!-- Poppers mode radios above the Poppers button -->
-    <div style="flex:1;display:flex;flex-direction:column;gap:4px">
-      <div id="poppers-mode-row" style="display:flex;gap:10px;align-items:center;justify-content:flex-end">
+    <button id="stop-btn" onclick="sendStop()">&#11035; STOP</button>
+    <!-- Poppers group: timing radios affect ONLY the Poppers cue -->
+    <div id="poppers-box">
+      <span class="poppers-box-label">POPPERS</span>
+      <div id="poppers-mode-row" style="display:flex;gap:10px;align-items:center">
         <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:#999">
           <input type="radio" name="poppers-mode" value="normal" checked onchange="_poppersMode=this.value" style="accent-color:var(--accent);cursor:pointer">
           <span id="pm-lbl-normal" style="color:#fff">Normal</span>
@@ -59,11 +59,8 @@ const DRIVER_KEY = "";
           <span id="pm-lbl-double_hit">Double Hit</span>
         </label>
       </div>
-      <div style="display:flex;gap:6px">
-        <button id="stop-btn" onclick="sendStop()">&#11035; STOP</button>
-        <button id="bottle-btn" onclick="sendBottle()"
-          style="flex:1;height:44px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);border-radius:6px;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><img src="/bottle.png" style="width:18px;height:18px;object-fit:contain">Poppers</button>
-      </div>
+      <button id="bottle-btn" onclick="sendBottle()"
+        style="height:40px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><img src="/bottle.png" style="width:18px;height:18px;object-fit:contain">Poppers</button>
     </div>
   </div>
 </div>
@@ -95,11 +92,9 @@ const DRIVER_KEY = "";
     <!-- Controls tab -->
     <div id="controls-panel" style="display:flex">
       <div class="section-label" style="margin-top:4px">Live</div>
-      <div id="viz-row">
+      <div id="live-grid">
         <canvas id="waveform" height="72"></canvas>
-        <canvas id="tri-canvas" width="110" height="90"></canvas>
-      </div>
-      <div id="beta-pos">
+        <div id="beta-pos">
         <div id="beta-track">
           <div id="beta-dot" style="left:50%"></div>
           <div class="beta-tick" style="left:33.3%"></div>
@@ -112,7 +107,9 @@ const DRIVER_KEY = "";
           <div class="fp-lbl"><span class="fp-name">e3</span><span class="fp-hint">perineum</span></div>
           <div class="fp-lbl"><span class="fp-name">e4</span><span class="fp-hint">anal</span></div>
         </div>
-      </div>
+        </div><!-- end #beta-pos -->
+        <canvas id="tri-canvas" width="200" height="170"></canvas>
+      </div><!-- end #live-grid -->
       <div id="live"></div>
 
       <div class="section-label">Presets</div>
