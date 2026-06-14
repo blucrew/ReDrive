@@ -543,7 +543,7 @@
     /* STOP ~ as wide as the row-2 buttons above (name + rider link + manual) */
     #stop-btn { flex:0 0 362px; height:88px; font-size:18px; letter-spacing:.05em; }
     /* Poppers box hugs its 362×88 button so it matches STOP exactly */
-    #poppers-box { flex:0 0 auto; align-self:flex-start; }
+    #poppers-box { flex:0 0 auto; align-self:flex-start; margin-top:-34px; }
     #bottle-btn {
       flex:0 0 auto !important; height:88px !important; width:362px !important;
       background:var(--warn) !important; color:#1a1200 !important;
