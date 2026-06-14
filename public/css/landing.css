@@ -144,6 +144,30 @@ body {
   96% { transform: translate(3px,-2px); opacity: .25; }
 }
 
+/* ReStim position dot — roams over the V like the triphase electrode marker */
+.wm-v { position: relative; }
+.wm-v::after {
+  content: "";
+  position: absolute;
+  top: .42em; left: 50%;
+  width: .15em; height: .15em;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 32%, #d6ffe4 0%, #45e884 55%, #16a34a 100%);
+  box-shadow: 0 0 .14em #45e884, 0 0 .42em rgba(69,232,132,.75);
+  -webkit-text-fill-color: initial;
+  pointer-events: none;
+  animation: wm-roam 4.5s ease-in-out infinite;
+}
+/* small wandering drift — keeps the dot roaming over the V */
+@keyframes wm-roam {
+  0%   { transform: translate(-50%,-50%) translate( .00em,  .00em); }
+  25%  { transform: translate(-50%,-50%) translate( .14em,  .05em); }
+  50%  { transform: translate(-50%,-50%) translate(-.02em, -.07em); }
+  75%  { transform: translate(-50%,-50%) translate(-.13em,  .04em); }
+  100% { transform: translate(-50%,-50%) translate( .00em,  .00em); }
+}
+@media (prefers-reduced-motion: reduce) { .wm-v::after { animation: none; } }
+
 /* Oscilloscope panel */
 .scope {
   position: relative;

@@ -40,6 +40,14 @@ async function refreshPublicRooms() {
 refreshPublicRooms();
 setInterval(refreshPublicRooms, 30000);
 
+// ── Wordmark: perch the ReStim position dot on the V ──────────────────────────
+(function () {
+  const wm = document.querySelector('.wordmark');
+  if (wm && wm.textContent.trim() === 'REDRIVE') {
+    wm.innerHTML = 'REDRI<span class="wm-v">V</span>E';
+  }
+})();
+
 // ── Hero oscilloscope ─────────────────────────────────────────────────────────
 // A live trace that morphs through ReDrive's actual pattern shapes — the page
 // shows you the signal the product sends.
