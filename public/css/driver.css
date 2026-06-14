@@ -493,6 +493,11 @@
   /* ══ Controls-tab: poppers group (base = mobile; boxed on desktop) ══ */
   #poppers-box { flex:1 1 100%; display:flex; flex-direction:column; gap:6px; }
   .poppers-box-label { display:none; }
+  /* Header columns — base = mobile stack (desktop reflows to two columns) */
+  #hdr-cols { display:flex; flex-direction:column; gap:7px; }
+  #hdr-left { display:flex; flex-direction:column; gap:7px; }
+  #session-box { display:flex; flex-direction:column; gap:6px; }
+  .box-label { display:none; }
 
   @media (min-width:601px) {
     /* Live: waveform full width; beta (half) beside a 2× triangle */
@@ -503,19 +508,17 @@
     #tri-canvas { width:176px; height:150px; justify-self:center; align-self:center; }
     #beta-pos  { align-self:center; }
 
-    /* Driver-name box ~1/4 width */
-    #driver-name-input { flex:0 0 180px; }
-
-    /* Poppers: enclosed, labelled box, separate from STOP */
-    #hdr-row3 { flex-wrap:nowrap; align-items:stretch; }
-    #poppers-box {
-      flex:0 1 auto; border:1px solid var(--border); background:rgba(95,176,255,.04);
+    /* SESSION + POPPERS share box styling so they read as a matched pair */
+    #session-box, #poppers-box {
+      border:1px solid var(--border); background:rgba(95,176,255,.04);
       padding:7px 11px 9px;
     }
-    .poppers-box-label {
+    .box-label, .poppers-box-label {
       display:block; font-family:var(--mono); font-size:9px; letter-spacing:.14em;
       color:var(--accent); text-transform:uppercase; margin-bottom:5px;
     }
+    /* Name input fills the session box after the share buttons */
+    #driver-name-input { flex:1 1 auto; }
 
     /* Sources styled as toggle switches */
     .src-btn { position:relative; padding-left:34px; text-align:left; }
@@ -538,12 +541,14 @@
   #drv-footer { display:none; }
 
   @media (min-width:601px) {
-    /* STOP (left) and the POPPERS area pushed to the far right */
-    #hdr-row3 { align-items:flex-start; justify-content:space-between; }
-    /* STOP ~ as wide as the row-2 buttons above (name + rider link + manual) */
-    #stop-btn { flex:0 0 362px; height:88px; font-size:18px; letter-spacing:.05em; }
+    /* Header: SESSION box + STOP (left column) balanced with POPPERS box (right) */
+    #hdr-cols { flex-direction:row; justify-content:space-between; align-items:flex-start; gap:14px; }
+    #hdr-left { flex-direction:column; gap:8px; flex:0 0 384px; width:384px; }
+    #session-box { width:100%; }
+    /* STOP fills the left column, matches the 88px height */
+    #stop-btn { flex:0 0 auto; width:100%; height:88px; font-size:18px; letter-spacing:.05em; }
     /* Poppers box hugs its 362×88 button so it matches STOP exactly */
-    #poppers-box { flex:0 0 auto; align-self:flex-start; margin-top:-34px; }
+    #poppers-box { flex:0 0 auto; align-self:flex-start; }
     #bottle-btn {
       flex:0 0 auto !important; height:88px !important; width:362px !important;
       background:var(--warn) !important; color:#1a1200 !important;

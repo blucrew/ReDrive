@@ -32,16 +32,22 @@ const DRIVER_KEY = "";
     <div id="dot"></div>
     <span id="status-text">Connecting…</span>
   </div>
-  <div id="hdr-row2">
-    <input id="driver-name-input" type="text" placeholder="Your driver name…"
-           oninput="setDriverName(this.value)">
-    <button onclick="copyRiderLink(this)"
-      style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#128279; Rider Link</button>
-    <a href="/public/driver-manual.html" target="_blank"
-      style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none">&#63; Manual</a>
-  </div>
-  <div id="hdr-row3">
+  <div id="hdr-cols">
+   <div id="hdr-left">
+    <!-- Session group: name + share links -->
+    <div id="session-box">
+      <span class="box-label">SESSION</span>
+      <div id="hdr-row2">
+        <input id="driver-name-input" type="text" placeholder="Your driver name…"
+               oninput="setDriverName(this.value)">
+        <button onclick="copyRiderLink(this)"
+          style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#128279; Rider Link</button>
+        <a href="/public/driver-manual.html" target="_blank"
+          style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none">&#63; Manual</a>
+      </div>
+    </div>
     <button id="stop-btn" onclick="sendStop()">&#11035; STOP</button>
+   </div>
     <!-- Poppers group: timing radios affect ONLY the Poppers cue -->
     <div id="poppers-box">
       <span class="poppers-box-label">POPPERS</span>
