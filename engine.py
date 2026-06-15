@@ -24,6 +24,33 @@ CONFIG_FILE = Path(__file__).parent / "redrive_config.json"
 
 PATTERNS = ["Hold", "Sine", "Ramp ↑", "Ramp ↓", "Pulse", "Burst", "Random", "Edge"]
 
+# Path (2D trajectory) shapes — beta=x, alpha=y, both in -1..1. Borrowed from
+# the restim/foc-companion 3-phase pattern set. t is a 0..1 phase.
+PATH_SHAPES = ["circle", "figure8", "rose", "tremor", "panning", "vertical"]
+
+
+def _path_point(shape: str, t: float) -> tuple[float, float]:
+    """Return (x, y) in -1..1 for the given path shape at phase t (0..1)."""
+    two_pi = 2.0 * math.pi
+    if shape == "figure8":            # lemniscate ∞
+        return math.sin(two_pi * t), 0.5 * math.sin(2.0 * two_pi * t)
+    if shape == "rose":               # 5-petal rose r=cos(5θ)
+        th = two_pi * t
+        r = abs(math.cos(5.0 * th))
+        return r * math.cos(th), r * math.sin(th)
+    if shape == "tremor":             # circle with layered shimmer
+        th = two_pi * t
+        r = 0.7 + 0.18 * math.sin(25.0 * th) * math.sin(31.5 * th)
+        return r * math.cos(th), r * math.sin(th)
+    if shape == "panning":            # smooth arc sweep within ±120°
+        ang = (two_pi / 3.0) * math.sin(two_pi * t)
+        return math.sin(ang), 0.4 * math.cos(ang)
+    if shape == "vertical":           # slow beta sweep + fast small shimmer
+        return math.sin(math.pi * t), 0.2 * math.sin(10.0 * math.pi * t)
+    # default: circle
+    th = two_pi * t
+    return math.cos(th), math.sin(th)
+
 # ── Saved presets ─────────────────────────────────────────────────────────────
 # Each preset is a full snapshot of driver state applied atomically on load.
 # beta_sweep.skew: -1..1 (negative = dwell A, positive = dwell B)
@@ -288,6 +315,12 @@ class DriveEngine:
         self._spiral_amp:         float = 1.0     # current amplitude 0..1 (1=full width)
         self._spiral_tighten:     bool  = False   # gradually reduce amplitude over time
         self._spiral_tighten_rate:float = 0.03    # fraction of amp lost per second
+        # Path state — 2D trajectory traced as beta (x) + alpha (y), borrowed from
+        # restim/foc-companion 3-phase patterns. Shapes in PATH_SHAPES.
+        self._path_shape:         str   = "circle"
+        self._path_hz:            float = 0.15
+        self._path_phase:         float = 0.0
+        self._path_y:             float = 0.0      # last alpha component, read by alpha loop
         # Gesture loop playback
         self._gesture_active:   bool  = False
         self._gesture_seq:      list  = []  # [(t_rel, beta, alpha, intensity), ...]
@@ -515,14 +548,24 @@ class DriveEngine:
                 self._alpha_on = bool(cmd["alpha"])
             if "beta_mode" in cmd:
                 mode = cmd["beta_mode"]
-                if mode in ("auto", "sweep", "hold", "spiral", "touch"):
+                if mode in ("auto", "sweep", "hold", "spiral", "touch", "path"):
                     self._beta_mode = mode
                     self._beta_sweep_phase = 0.0
                     self._alpha_override = None  # release alpha to oscillator
                     if mode == "spiral":
                         self._spiral_phase = 0.0
                         self._spiral_amp   = 1.0
+                    if mode == "path":
+                        self._path_phase = 0.0
                     self._log(f"Beta mode: {mode}")
+            if "path" in cmd:
+                p = cmd["path"]
+                if isinstance(p, dict):
+                    if p.get("shape") in PATH_SHAPES:
+                        self._path_shape = p["shape"]
+                        self._path_phase = 0.0
+                    if "hz" in p:
+                        self._path_hz = max(0.01, min(2.0, float(p["hz"])))
             if "fp_spread" in cmd:
                 self._fp_spread = max(0.0, min(1.0, float(cmd["fp_spread"])))
             if "four_phase" in cmd:
@@ -597,6 +640,8 @@ class DriveEngine:
             "alpha_on":       self._alpha_on,
             "spiral_amp":      self._spiral_amp,
             "spiral_tighten":  self._spiral_tighten,
+            "path_shape":      self._path_shape,
+            "path_shapes":     PATH_SHAPES,
             "gesture_active":  self._gesture_active,
             "gesture_dur":     (lambda s: s[-1][0] if s else 0.0)(self._gesture_seq),
             "presets":         list(PRESETS.keys()),
@@ -756,6 +801,16 @@ class DriveEngine:
                     self._emit_beta(desired, parts, cfg, cfg.send_interval_ms)
                     self._current_beta = desired
 
+                elif self._beta_mode == "path":
+                    # 2D trajectory: beta = x, alpha = y (alpha loop reads _path_y)
+                    x, y = _path_point(self._path_shape, self._path_phase)
+                    self._path_y = y
+                    raw = self._beta_sweep_centre + self._beta_sweep_width * x
+                    desired = max(0, min(9999, int(raw)))
+                    self._path_phase = (self._path_phase + self._path_hz * dt) % 1.0
+                    self._emit_beta(desired, parts, cfg, cfg.send_interval_ms)
+                    self._current_beta = desired
+
                 elif self._beta_mode == "hold":
                     desired = (self._beta_override
                                if self._beta_override is not None
@@ -883,6 +938,9 @@ class DriveEngine:
                         # Quadrature: cosine of shared spiral_phase → 90° offset from beta sine
                         theta = 2.0 * math.pi * self._spiral_phase
                         pos   = 0.5 + amp * self._spiral_amp * math.cos(theta)
+                    elif self._beta_mode == "path":
+                        # Alpha follows the trajectory's y, set by the pattern loop
+                        pos = 0.5 + amp * self._path_y
                     else:
                         hz  = cfg.alpha_min_hz + (cfg.alpha_max_hz - cfg.alpha_min_hz) * eff
                         pos = 0.5 + amp * math.sin(2 * math.pi * self._alpha_phase)

@@ -63,6 +63,14 @@ function syncUIFromState(d) {
     d.beta_mode === "sweep" ? "block" : "none";
   document.getElementById("hold-controls").style.display =
     d.beta_mode === "hold"  ? "block" : "none";
+  document.getElementById("spiral-controls").style.display =
+    d.beta_mode === "spiral" ? "block" : "none";
+  document.getElementById("path-controls").style.display =
+    d.beta_mode === "path" ? "block" : "none";
+  if (d.path_shape) {
+    document.querySelectorAll("#path-shape-row .path-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.shape === d.path_shape));
+  }
 
   // Sweep Hz
   let swSlider = sweepHzToSlider(d.sweep_hz);
@@ -225,6 +233,7 @@ function setBetaMode(btn) {
   document.getElementById("sweep-controls").style.display   = mode === "sweep"  ? "block" : "none";
   document.getElementById("spiral-controls").style.display  = mode === "spiral" ? "block" : "none";
   document.getElementById("hold-controls").style.display    = mode === "hold"   ? "block" : "none";
+  document.getElementById("path-controls").style.display    = mode === "path"   ? "block" : "none";
   // Sync touch gesture visual with mode
   if (mode === "touch" && _tcGesturePath.length > 1) {
     _tcLoopStart = performance.now(); tcSetLooping(true);
@@ -278,6 +287,19 @@ function onSpiralRate(v) {
   v = parseInt(v);
   document.getElementById("spiral-rate-val").textContent = v + "%/s";
   sendCmd({ spiral: { tighten_rate: v / 100 } });
+}
+
+// ── Path (trajectory) ───────────────────────────────────────────────────────
+function setPathShape(btn) {
+  document.querySelectorAll("#path-shape-row .path-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  sendCmd({ path: { shape: btn.dataset.shape } });
+}
+
+function onPathHz(v) {
+  const hz = Math.round(Math.pow(v/200, 2) * 498 + 2) / 100;
+  document.getElementById("path-hz-val").textContent = hz.toFixed(2) + " Hz";
+  sendCmd({ path: { hz } });
 }
 
 function toggleSpiralTighten() {
@@ -575,6 +597,8 @@ function handleStateUpdate(d) {
       d.beta_mode === "spiral" ? "block" : "none";
     document.getElementById("hold-controls").style.display    =
       d.beta_mode === "hold"   ? "block" : "none";
+    document.getElementById("path-controls").style.display    =
+      d.beta_mode === "path"   ? "block" : "none";
   }
   // Spiral amplitude bar
   if (d.beta_mode === "spiral" && d.spiral_amp !== undefined) {

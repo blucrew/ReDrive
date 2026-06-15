@@ -182,6 +182,7 @@ const DRIVER_KEY = "";
         <button class="mode-btn" data-mode="auto" onclick="setBetaMode(this)">Auto</button>
         <button class="mode-btn active" data-mode="sweep" onclick="setBetaMode(this)">Sweep &#8596;</button>
         <button class="mode-btn" data-mode="spiral" onclick="setBetaMode(this)">Spiral &#9678;</button>
+        <button class="mode-btn" data-mode="path" onclick="setBetaMode(this)">Path &#8734;</button>
         <button class="mode-btn" data-mode="hold" onclick="setBetaMode(this)">Hold</button>
         <button class="mode-btn" data-mode="touch" onclick="setBetaMode(this)">Touch</button>
       </div>
@@ -268,6 +269,26 @@ const DRIVER_KEY = "";
           <span style="font-size:11px;color:var(--fg2);min-width:60px">Amplitude</span>
           <div id="spiral-amp-track"><div id="spiral-amp-bar"></div></div>
           <span id="spiral-amp-pct" style="font-size:11px;color:var(--accent);min-width:35px;text-align:right">100%</span>
+        </div>
+      </div>
+
+      <div id="path-controls" style="display:none">
+        <div class="section-label" style="margin-top:0">Trajectory</div>
+        <div id="path-shape-row">
+          <button class="path-btn active" data-shape="circle"   onclick="setPathShape(this)">Circle &#9711;</button>
+          <button class="path-btn"        data-shape="figure8"  onclick="setPathShape(this)">Figure-8 &#8734;</button>
+          <button class="path-btn"        data-shape="rose"     onclick="setPathShape(this)">Rose &#10047;</button>
+          <button class="path-btn"        data-shape="tremor"   onclick="setPathShape(this)">Tremor &#9680;</button>
+          <button class="path-btn"        data-shape="panning"  onclick="setPathShape(this)">Panning &#8646;</button>
+          <button class="path-btn"        data-shape="vertical" onclick="setPathShape(this)">Vertical &#8597;</button>
+        </div>
+        <div class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label">Path speed</span>
+            <span class="slider-val" id="path-hz-val">0.15 Hz</span>
+          </div>
+          <input type="range" id="path-hz" min="1" max="200" value="15"
+                 oninput="onPathHz(this.value)">
         </div>
       </div>
 

@@ -564,3 +564,12 @@
     }
     #drv-footer::first-letter { color:var(--accent); }
   }
+
+  /* Path (trajectory) shape selector */
+  #path-shape-row { display:flex; gap:6px; flex-wrap:wrap; }
+  .path-btn {
+    padding:7px 10px; background:var(--bg3); border:1px solid var(--border);
+    border-radius:0; color:var(--fg2); font-size:12px; font-weight:600;
+    cursor:pointer; transition:all .15s;
+  }
+  .path-btn.active { background:rgba(95,163,255,0.18); border-color:var(--accent); color:var(--accent); }
