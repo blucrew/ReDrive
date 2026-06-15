@@ -149,7 +149,7 @@ body {
 .wm-v::after {
   content: "";
   position: absolute;
-  top: .42em; left: 50%;
+  top: .80em; left: 50%;
   width: .15em; height: .15em;
   border-radius: 50%;
   background: radial-gradient(circle at 36% 32%, #d6ffe4 0%, #45e884 55%, #16a34a 100%);
@@ -161,9 +161,9 @@ body {
 /* small wandering drift — keeps the dot roaming over the V */
 @keyframes wm-roam {
   0%   { transform: translate(-50%,-50%) translate( .00em,  .00em); }
-  25%  { transform: translate(-50%,-50%) translate( .14em,  .05em); }
-  50%  { transform: translate(-50%,-50%) translate(-.02em, -.07em); }
-  75%  { transform: translate(-50%,-50%) translate(-.13em,  .04em); }
+  25%  { transform: translate(-50%,-50%) translate( .20em,  .05em); }
+  50%  { transform: translate(-50%,-50%) translate(-.03em, -.07em); }
+  75%  { transform: translate(-50%,-50%) translate(-.19em,  .04em); }
   100% { transform: translate(-50%,-50%) translate( .00em,  .00em); }
 }
 @media (prefers-reduced-motion: reduce) { .wm-v::after { animation: none; } }
