@@ -46,7 +46,7 @@ const DRIVER_KEY = "";
           style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none">&#63; Manual</a>
       </div>
     </div>
-    <button id="stop-btn" onclick="sendStop()">&#11035; STOP</button>
+    <button id="stop-btn" onclick="sendStop()"><span class="stop-ico">&#11035; </span>STOP</button>
    </div>
     <!-- Poppers group: timing radios affect ONLY the Poppers cue -->
     <div id="poppers-box">
@@ -66,7 +66,7 @@ const DRIVER_KEY = "";
         </label>
       </div>
       <button id="bottle-btn" onclick="sendBottle()"
-        style="height:40px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><img src="/bottle.png" style="width:18px;height:18px;object-fit:contain">Poppers</button>
+        style="height:40px;background:var(--bg3);color:var(--fg2);border:1px solid var(--border);font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px"><img src="/bottle.png" style="width:18px;height:18px;object-fit:contain"><span class="bottle-txt">Poppers</span></button>
     </div>
   </div>
 </div>
