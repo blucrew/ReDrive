@@ -152,12 +152,21 @@ async function loadPreset(name) {
   syncUIFromState(d);
 }
 
-// Build pattern buttons
+// Build pattern buttons. data-pat drives the waveform preview drawn behind the
+// label (see .pat-btn[data-pat=...] in driver.css).
+const PAT_SLUG = {
+  "Hold":"hold", "Sine":"sine", "Ramp ↑":"rampup", "Ramp ↓":"rampdn",
+  "Pulse":"pulse", "Burst":"burst", "Random":"random", "Edge":"edge"
+};
 const grid = document.getElementById("pattern-grid");
 PATTERNS.forEach(p => {
   const b = document.createElement("button");
   b.className = "pat-btn" + (p === state.pattern ? " active" : "");
-  b.textContent = p;
+  b.dataset.pat = PAT_SLUG[p] || "";
+  const lbl = document.createElement("span");
+  lbl.className = "pat-lbl";
+  lbl.textContent = p;
+  b.appendChild(lbl);
   b.onclick = () => setPattern(p);
   grid.appendChild(b);
 });

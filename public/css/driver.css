@@ -140,12 +140,32 @@
   /* Pattern grid */
   #pattern-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(68px,1fr)); gap:5px; }
   .pat-btn {
+    position:relative; overflow:hidden;
     padding:9px 6px; background:var(--bg3); border:1px solid var(--border);
     border-radius:0; font-size:12px; font-weight:500;
     color:var(--fg2); cursor:pointer; transition:all .15s; text-align:center;
   }
   .pat-btn:active { transform:scale(0.96); }
   .pat-btn.active { background:var(--accent); color:#000; font-weight:700; box-shadow:0 0 18px var(--accent-glow); border-color:var(--accent); }
+  /* Signal preview — the pattern's waveform drawn as a thin blue line behind
+     the label, so the driver can read the shape at a glance. Rendered via a
+     mask so the colour swaps (blue on the dark button, dark on the active one). */
+  .pat-btn .pat-lbl { position:relative; z-index:1; }
+  .pat-btn::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:var(--accent); opacity:.5;
+    -webkit-mask:var(--wave) center / 100% 62% no-repeat;
+            mask:var(--wave) center / 100% 62% no-repeat;
+  }
+  .pat-btn.active::before { background:#06182d; opacity:.66; }
+  .pat-btn[data-pat="hold"]   { --wave:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><path d='M0 20H100' fill='none' stroke='black' stroke-width='2.5'/></svg>"); }
+  .pat-btn[data-pat="sine"]   { --wave:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><path d='M0 20Q12.5 4 25 20T50 20T75 20T100 20' fill='none' stroke='black' stroke-width='2.5'/></svg>"); }
+  .pat-btn[data-pat="rampup"] { --wave:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><path d='M0 33L100 7' fill='none' stroke='black' stroke-width='2.5'/></svg>"); }
+  .pat-btn[data-pat="rampdn"] { --wave:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><path d='M0 7L100 33' fill='none' stroke='black' stroke-width='2.5'/></svg>"); }
+  .pat-btn[data-pat="pulse"]  { --wave:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><path d='M0 30H18V10H36V30H54V10H72V30H90V10H100' fill='none' stroke='black' stroke-width='2.5'/></svg>"); }
+  .pat-btn[data-pat="burst"]  { --wave:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><path d='M0 20Q3 5 6 20T12 20T18 20T24 20L48 20Q51 5 54 20T60 20T66 20T72 20L100 20' fill='none' stroke='black' stroke-width='2.5'/></svg>"); }
+  .pat-btn[data-pat="random"] { --wave:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><path d='M0 20L9 11L18 28L27 13L36 30L45 12L54 23L63 8L72 28L81 15L90 25L100 17' fill='none' stroke='black' stroke-width='2.5'/></svg>"); }
+  .pat-btn[data-pat="edge"]   { --wave:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40' preserveAspectRatio='none'><path d='M0 33L22 9L40 9L43 33L65 9L83 9L86 33L100 33' fill='none' stroke='black' stroke-width='2.5'/></svg>"); }
   /* Sliders */
   .slider-row { display:flex; flex-direction:column; gap:4px; }
   /* Script-tab Volume slider when a .volume/.intensity funscript owns the axis */
