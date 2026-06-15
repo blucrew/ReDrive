@@ -29,6 +29,38 @@ PATTERNS = ["Hold", "Sine", "Ramp ↑", "Ramp ↓", "Pulse", "Burst", "Random", 
 PATH_SHAPES = ["circle", "figure8", "rose", "tremor", "panning", "vertical"]
 
 
+# 4-phase electrode patterns — drive e1-e4 weights directly (e1=A cock, e2=B
+# balls, e3=C perineum, e4=D anal). Borrowed from foc-companion's 4-phase set.
+FP_PATTERNS = ["cycle", "cross", "e12", "e34", "e14", "throb1", "throball", "diag"]
+
+
+def _fp_pattern_weights(name: str, t: float) -> list:
+    """Return [e1,e2,e3,e4] in 0..1 for a 4-phase pattern at phase t (0..1)."""
+    tp = 2.0 * math.pi
+    pulse = (1.0 - math.cos(tp * t)) / 2.0   # 0 → 1 → 0
+    e = [0.0, 0.0, 0.0, 0.0]
+    if name in ("cycle", "cross"):           # sequential focus, cyclic
+        order = [0, 1, 2, 3] if name == "cycle" else [0, 2, 1, 3]
+        pos = (t * 4.0) % 4.0
+        seg = int(pos); frac = pos - seg
+        e[order[seg % 4]]       = 1.0 - frac
+        e[order[(seg + 1) % 4]] = frac
+        return e
+    if name in ("e12", "e34", "e14"):        # rock between two electrodes
+        a, b = {"e12": (0, 1), "e34": (2, 3), "e14": (0, 3)}[name]
+        e[a] = 1.0 - pulse; e[b] = pulse
+        return e
+    if name == "throb1":                     # e1 pulses on/off
+        e[0] = pulse
+        return e
+    if name == "throball":                   # all four pulse together
+        return [pulse, pulse, pulse, pulse]
+    if name == "diag":                       # e1+e4 ⇄ e2+e3 diagonals
+        e[0] = e[3] = pulse; e[1] = e[2] = 1.0 - pulse
+        return e
+    return e
+
+
 def _path_point(shape: str, t: float) -> tuple[float, float]:
     """Return (x, y) in -1..1 for the given path shape at phase t (0..1)."""
     two_pi = 2.0 * math.pi
@@ -321,6 +353,11 @@ class DriveEngine:
         self._path_hz:            float = 0.15
         self._path_phase:         float = 0.0
         self._path_y:             float = 0.0      # last alpha component, read by alpha loop
+        # 4-phase electrode pattern — when set, drives e1-e4 weights directly
+        # (overriding the beta-position electrode sweep). None = manual/beta-driven.
+        self._fp_pattern:         str   = ""       # "" = manual; else a FP_PATTERNS key
+        self._fp_pattern_hz:      float = 0.25
+        self._fp_pattern_phase:   float = 0.0
         # Gesture loop playback
         self._gesture_active:   bool  = False
         self._gesture_seq:      list  = []  # [(t_rel, beta, alpha, intensity), ...]
@@ -566,6 +603,20 @@ class DriveEngine:
                         self._path_phase = 0.0
                     if "hz" in p:
                         self._path_hz = max(0.01, min(2.0, float(p["hz"])))
+            if "fp_pattern" in cmd:
+                v = cmd["fp_pattern"]
+                if isinstance(v, dict):
+                    if "name" in v:
+                        name = v["name"] or ""
+                        self._fp_pattern = name if name in FP_PATTERNS else ""
+                        self._fp_pattern_phase = 0.0
+                    if "hz" in v:
+                        self._fp_pattern_hz = max(0.02, min(2.0, float(v["hz"])))
+                else:
+                    name = v or ""
+                    self._fp_pattern = name if name in FP_PATTERNS else ""
+                    self._fp_pattern_phase = 0.0
+                self._log(f"4-phase pattern: {self._fp_pattern or 'manual'}")
             if "fp_spread" in cmd:
                 self._fp_spread = max(0.0, min(1.0, float(cmd["fp_spread"])))
             if "four_phase" in cmd:
@@ -642,6 +693,8 @@ class DriveEngine:
             "spiral_tighten":  self._spiral_tighten,
             "path_shape":      self._path_shape,
             "path_shapes":     PATH_SHAPES,
+            "fp_pattern":      self._fp_pattern,
+            "fp_patterns":     FP_PATTERNS,
             "gesture_active":  self._gesture_active,
             "gesture_dur":     (lambda s: s[-1][0] if s else 0.0)(self._gesture_seq),
             "presets":         list(PRESETS.keys()),
@@ -742,7 +795,20 @@ class DriveEngine:
                 # Output is gated by volume: when intensity is 0 nothing is
                 # emitted (including e1-e4), so a script always needs a volume
                 # source — the Script-tab Volume slider or a .volume funscript.
-                if intensity <= 0.0:
+                fs_fresh = (bool(self._fs_e) and self._loop is not None
+                            and (self._loop.time() - self._fs_e_t) < 0.25)
+                if (self._fourphase and self._fp_pattern
+                        and intensity > 0.0 and not fs_fresh):
+                    # Named 4-phase pattern drives e1-e4 directly (beta position
+                    # is ignored; a fresh four-channel funscript still wins).
+                    e = _fp_pattern_weights(self._fp_pattern, self._fp_pattern_phase)
+                    self._fp_pattern_phase = (
+                        self._fp_pattern_phase + self._fp_pattern_hz * dt) % 1.0
+                    self._fp_electrodes = e
+                    si = cfg.send_interval_ms
+                    parts += [f"e1{_tv(e[0])}I{si}", f"e2{_tv(e[1])}I{si}",
+                              f"e3{_tv(e[2])}I{si}", f"e4{_tv(e[3])}I{si}"]
+                elif intensity <= 0.0:
                     # Park when silent
                     if not self._fourphase:
                         desired = cfg.beta_off

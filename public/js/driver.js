@@ -99,6 +99,15 @@ function syncUIFromState(d) {
     _fourPhase = d.four_phase;
     _applyFourPhaseUI(_fourPhase);
   }
+  if (d.fp_pattern !== undefined) {
+    const name = d.fp_pattern || "";
+    document.querySelectorAll("#fp-pattern-grid .path-btn").forEach(b =>
+      b.classList.toggle("active", (b.dataset.fp || "") === name));
+    const spd = document.getElementById("fp-pattern-speed-row");
+    if (spd) spd.style.display = name ? "flex" : "none";
+    const spreadRow = document.getElementById("fp-spread-row");
+    if (spreadRow) spreadRow.style.opacity = name ? "0.4" : "";
+  }
   if (d.fp_spread !== undefined) {
     const v = Math.round(d.fp_spread * 100);
     const slider = document.getElementById("fp-spread");
@@ -364,6 +373,9 @@ function _applyFourPhaseUI(on) {
   // Spread slider
   const spreadRow = document.getElementById("fp-spread-row");
   if (spreadRow) spreadRow.style.display = on ? "" : "none";
+  // Electrode pattern selector
+  const fpPatRow = document.getElementById("fp-pattern-row");
+  if (fpPatRow) fpPatRow.style.display = on ? "" : "none";
   // Spiral button — disabled in 4-phase (alpha is off, spiral degrades to plain sweep)
   const spiralBtn = document.querySelector(".mode-btn[data-mode='spiral']");
   if (spiralBtn) spiralBtn.classList.toggle("fp-disabled", on);
@@ -384,6 +396,25 @@ function onFpSpread(v) {
   const el = document.getElementById("fp-spread-val");
   if (el) el.textContent = lbl;
   sendCmd({ fp_spread: v / 100 });
+}
+
+// ── 4-phase electrode patterns ───────────────────────────────────────────────
+function setFpPattern(btn) {
+  document.querySelectorAll("#fp-pattern-grid .path-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const name = btn.dataset.fp || "";
+  // Manual (empty) → beta position drives electrodes + Spread applies.
+  // A named pattern → drives electrodes itself; show its speed, dim Spread.
+  document.getElementById("fp-pattern-speed-row").style.display = name ? "flex" : "none";
+  const spreadRow = document.getElementById("fp-spread-row");
+  if (spreadRow) spreadRow.style.opacity = name ? "0.4" : "";
+  sendCmd({ fp_pattern: { name } });
+}
+
+function onFpPatternHz(v) {
+  const hz = Math.round(Math.pow(v/200, 2) * 498 + 2) / 100;
+  document.getElementById("fp-pattern-hz-val").textContent = hz.toFixed(2) + " Hz";
+  sendCmd({ fp_pattern: { hz } });
 }
 
 function sendStop() {

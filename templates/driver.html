@@ -303,6 +303,29 @@ const DRIVER_KEY = "";
         </div>
       </div>
 
+      <div id="fp-pattern-row" style="display:none">
+        <div class="section-label" style="margin-top:0">Electrode pattern</div>
+        <div id="fp-pattern-grid">
+          <button class="path-btn active" data-fp=""         onclick="setFpPattern(this)">Manual</button>
+          <button class="path-btn"        data-fp="cycle"    onclick="setFpPattern(this)">Cycle &#8594;</button>
+          <button class="path-btn"        data-fp="cross"    onclick="setFpPattern(this)">Cross &#10005;</button>
+          <button class="path-btn"        data-fp="e12"      onclick="setFpPattern(this)">e1&#8596;e2</button>
+          <button class="path-btn"        data-fp="e34"      onclick="setFpPattern(this)">e3&#8596;e4</button>
+          <button class="path-btn"        data-fp="e14"      onclick="setFpPattern(this)">e1&#8596;e4</button>
+          <button class="path-btn"        data-fp="throb1"   onclick="setFpPattern(this)">Throb e1</button>
+          <button class="path-btn"        data-fp="throball" onclick="setFpPattern(this)">Throb all</button>
+          <button class="path-btn"        data-fp="diag"     onclick="setFpPattern(this)">Diagonals</button>
+        </div>
+        <div class="slider-row" id="fp-pattern-speed-row" style="display:none">
+          <div class="slider-header">
+            <span class="slider-label">Pattern speed</span>
+            <span class="slider-val" id="fp-pattern-hz-val">0.25 Hz</span>
+          </div>
+          <input type="range" id="fp-pattern-hz" min="2" max="200" value="25"
+                 oninput="onFpPatternHz(this.value)">
+        </div>
+      </div>
+
       <div id="alpha-row">
         <button id="alpha-toggle" class="active" onclick="toggleAlpha()">
           &#945;  Alpha oscillation: ON
