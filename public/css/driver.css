@@ -542,15 +542,17 @@
 
   @media (min-width:601px) {
     /* Header: SESSION box + STOP (left column) balanced with POPPERS box (right) */
-    #hdr-cols { flex-direction:row; justify-content:space-between; align-items:flex-start; gap:14px; }
+    #hdr-cols { flex-direction:row; justify-content:space-between; align-items:stretch; gap:14px; }
     #hdr-left { flex-direction:column; gap:8px; flex:0 0 384px; width:384px; }
     #session-box { width:100%; }
     /* STOP fills the left column, matches the 88px height */
     #stop-btn { flex:0 0 auto; width:100%; height:88px; font-size:18px; letter-spacing:.05em; }
-    /* Poppers box hugs its 362×88 button so it matches STOP exactly */
-    #poppers-box { flex:0 0 auto; align-self:flex-start; }
+    /* Poppers box stretches to the full left column (SESSION + gap + STOP);
+       the yellow button grows to fill the space below the timing radios. */
+    #poppers-box { flex:0 0 auto; align-self:stretch; }
     #bottle-btn {
-      flex:0 0 auto !important; height:88px !important; width:362px !important;
+      flex:1 1 auto !important; height:auto !important; min-height:88px !important;
+      width:362px !important;
       background:var(--warn) !important; color:#1a1200 !important;
       border-color:var(--warn) !important; font-size:18px; font-weight:800;
     }
