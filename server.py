@@ -59,6 +59,16 @@ class Room:
         self.driver_last_seen = time.monotonic()
         self.bottle_until: float = 0.0
         self.bottle_mode:  str   = "normal"
+        # Watch-along: latest media anchor from the driver's funscript player.
+        # Riders extrapolate the live playhead from (pos at anchor + elapsed).
+        self.media_active:  bool  = False
+        self.media_playing: bool  = False
+        self.media_has_video: bool = False
+        self.media_pos_ms:  float = 0.0
+        self.media_dur_ms:  float = 0.0
+        self.media_src:     str   = ""
+        self.media_name:    str   = ""
+        self.media_anchor:  float = 0.0   # monotonic time the anchor arrived
         self.pending_likes: list = []
         self.rider_wss:  set[web.WebSocketResponse] = set()
         self._main_loop  = main_loop
@@ -220,6 +230,12 @@ class Room:
             ramp_target   = round(e._ramp_target, 4)
             four_phase, fp_electrodes = e._fp_indicator()
         bottle_active = now < self.bottle_until
+        # Live playhead: extrapolate from the last anchor while playing.
+        media_pos = self.media_pos_ms
+        if self.media_active and self.media_playing:
+            media_pos = self.media_pos_ms + (now - self.media_anchor) * 1000.0
+            if self.media_dur_ms > 0:
+                media_pos = min(media_pos, self.media_dur_ms)
         return {
             "intensity":        intensity,
             "vol":              vol,
@@ -238,6 +254,13 @@ class Room:
             "driver_connected": len(self.driver_wss) > 0,
             "four_phase":       four_phase,
             "fp_electrodes":    fp_electrodes,
+            "media_active":     self.media_active,
+            "media_playing":    self.media_playing,
+            "media_has_video":  self.media_has_video,
+            "media_pos_ms":     round(media_pos, 1),
+            "media_dur_ms":     round(self.media_dur_ms, 1),
+            "media_src":        self.media_src,
+            "media_name":       self.media_name,
         }
 
     async def _state_push_loop(self):
@@ -576,6 +599,17 @@ async def _process_driver_command(room, cmd: dict):
         room.bottle_mode  = mode
         room.bottle_until = time.monotonic() + duration
         await room._broadcast_bottle_status(mode, duration)
+        return
+    if "media" in cmd:
+        m = cmd["media"] if isinstance(cmd["media"], dict) else {}
+        room.media_active    = bool(m.get("active", False))
+        room.media_playing   = bool(m.get("playing", False))
+        room.media_has_video = bool(m.get("has_video", False))
+        room.media_pos_ms    = max(0.0, float(m.get("pos_ms", 0.0)))
+        room.media_dur_ms    = max(0.0, float(m.get("dur_ms", 0.0)))
+        room.media_src       = str(m.get("src", ""))[:2000]
+        room.media_name      = str(m.get("name", ""))[:160]
+        room.media_anchor    = time.monotonic()
         return
     if room.engine is not None:
         return await room.engine._handle_command_data(cmd)

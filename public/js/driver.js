@@ -1659,6 +1659,28 @@ let _fsWallStart = 0;   // performance.now() at last fsPlay()
 let _fsSeekDrag  = false;
 let _fsDelay     = 0;   // ms — signal offset vs video; +ahead, -behind
 
+// ── Watch-along: broadcast the playhead so riders can sync their own video ──────
+let _fsMediaSrc      = '';   // shareable http(s) URL, or '' when the video is local
+let _fsMediaName     = '';   // filename / URL shown to riders as a hint
+let _fsLastMediaSend = 0;    // performance.now() throttle for re-anchoring
+
+// Broadcast a media anchor to the room (relayed to riders in rider_state).
+// active=false on stop; otherwise carries play state + current playhead.
+function _fsSendMedia(active) {
+  const v = document.getElementById('fs-video-el');
+  const hasVideo = !!(v && v.getAttribute('src') && v.style.display !== 'none');
+  _sendRaw({ media: {
+    active:    !!active,
+    playing:   !!(active && _fsPlaying),
+    pos_ms:    Math.round(_fsMsNow()),
+    dur_ms:    Math.round(_fsDuration()),
+    src:       _fsMediaSrc  || '',
+    name:      _fsMediaName || '',
+    has_video: hasVideo
+  }});
+  _fsLastMediaSend = performance.now();
+}
+
 const _FS_ALL_AXES = ['intensity','beta','alpha','e1','e2','e3','e4','volume'];
 
 function _fsDuration() {
@@ -1854,6 +1876,7 @@ function fsPlay() {
   if (pb) pb.disabled = true;
   if (pa) pa.disabled = false;
   _fsSetStatusInd('playing');
+  _fsSendMedia(true);
 }
 
 function fsPause() {
@@ -1868,6 +1891,7 @@ function fsPause() {
   if (pb) pb.disabled = false;
   if (pa) pa.disabled = true;
   _fsSetStatusInd('paused');
+  _fsSendMedia(true);
 }
 
 function fsStop() {
@@ -1904,6 +1928,7 @@ function fsStop() {
   if (pb) pb.disabled = false;
   if (pa) pa.disabled = true;
   _fsSetStatusInd('stopped');
+  _fsSendMedia(false);
 }
 
 function _fsTick() {
@@ -1940,6 +1965,10 @@ function _fsTick() {
 
   if (Object.keys(cmd).length) sendCmd(cmd, 'script');
 
+  // Re-anchor the watch-along playhead ~1×/s so the server's extrapolation
+  // stays true to the real (possibly video-driven) position.
+  if (performance.now() - _fsLastMediaSend > 1000) _fsSendMedia(true);
+
   if (!_fsSeekDrag && dur > 0) {
     const pct = ms / dur;
     const seek = document.getElementById('fs-seek-input');
@@ -1955,7 +1984,7 @@ function _fsTick() {
 // ── Seek ──────────────────────────────────────────────────────────────────────
 
 function fsSeekStart() { _fsSeekDrag = true; if (_fsPlaying) _fsOffset = _fsMsNow(); }
-function fsSeekEnd()   { _fsSeekDrag = false; }
+function fsSeekEnd()   { _fsSeekDrag = false; if (_fsHasAny()) _fsSendMedia(true); }
 
 function fsSeekInput(v) {
   const ms  = parseFloat(v);
@@ -2085,6 +2114,10 @@ function fsLoadVideoUrl() {
   if (!url) return;
   const v = document.getElementById('fs-video-el');
   v.src = url; v.style.display = 'block';
+  // http(s) URLs are shareable — riders can one-click load the same source.
+  _fsMediaSrc  = /^https?:\/\//i.test(url) ? url : '';
+  _fsMediaName = url.replace(/^https?:\/\//i, '').slice(0, 120);
+  _fsSendMedia(_fsPlaying || _fsOffset > 0);
 }
 
 function fsLoadVideoFile(file) {
@@ -2093,6 +2126,10 @@ function fsLoadVideoFile(file) {
   v.src = URL.createObjectURL(file);
   v.style.display = 'block';
   document.getElementById('fs-video-url-input').value = '[local] ' + file.name;
+  // Local file — not shareable; riders sync the playhead to their own copy.
+  _fsMediaSrc  = '';
+  _fsMediaName = file.name;
+  _fsSendMedia(_fsPlaying || _fsOffset > 0);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

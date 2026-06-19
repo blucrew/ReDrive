@@ -47,6 +47,23 @@
 
 </div><!-- end feel-card -->
 
+<!-- ── Watch-along card (appears when the driver is playing a video) ─────── -->
+<div class="card" id="watch-card" style="display:none">
+  <h2>Watch along</h2>
+  <video id="watch-video" playsinline controls preload="metadata"
+         style="display:none;width:100%;border-radius:6px;background:#000"></video>
+  <div id="watch-name" class="watch-name"></div>
+  <div id="watch-offer" style="display:none">
+    <button class="watch-btn" onclick="watchLoadShared()">&#9654; Driver shared a video &mdash; Load &amp; sync</button>
+  </div>
+  <div class="watch-row">
+    <label class="watch-file-btn" for="watch-file-input">&#128193; Load your own copy</label>
+    <input type="file" id="watch-file-input" accept="video/*" style="display:none"
+           onchange="watchLoadFile(this.files[0])">
+  </div>
+  <p class="watch-hint">Your video follows the driver&rsquo;s playback automatically. If it doesn&rsquo;t start, press play on the video.</p>
+</div>
+
 <!-- ── Avatar card ────────────────────────────────────────────── -->
 <div class="card" id="avatar-card">
   <div id="avatar-row">

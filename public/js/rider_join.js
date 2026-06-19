@@ -292,6 +292,72 @@ function updateStats(d) {
       }
     }
   }
+
+  // ── Watch-along video sync ──────────────────────────────────────────────────
+  if (d.media_active !== undefined) handleMediaSync(d);
+}
+
+// ── Watch-along ───────────────────────────────────────────────────────────────
+// The driver broadcasts its funscript playhead; the rider loads a matching video
+// (the driver's shared URL or their own local copy) and we keep it in step.
+let _mediaLoaded   = false;   // rider has loaded a video source
+let _mediaSrcSeen  = '';      // the driver's last shared URL (for one-click load)
+let _lastMediaState = null;   // most recent media_* fields, for use inside clicks
+const MEDIA_DRIFT_S = 0.4;    // re-seek only when off by more than this
+
+function handleMediaSync(d) {
+  _lastMediaState = d;
+  const card = document.getElementById('watch-card');
+  if (!card) return;
+  const active = d.media_active && d.media_has_video;
+  card.style.display = active ? '' : 'none';
+  if (!active) return;
+
+  const nameEl = document.getElementById('watch-name');
+  if (nameEl) nameEl.textContent = d.media_name || '';
+
+  // Offer one-click load of the driver's shared URL (until the rider loads one)
+  const offer = document.getElementById('watch-offer');
+  const canOffer = !!d.media_src && !_mediaLoaded;
+  if (offer) offer.style.display = canOffer ? '' : 'none';
+  if (canOffer) _mediaSrcSeen = d.media_src;
+
+  if (!_mediaLoaded) return;
+  const v = document.getElementById('watch-video');
+  if (!v || !v.duration) return;
+
+  const targetS = (d.media_pos_ms || 0) / 1000;
+  if (d.media_playing && v.paused)  v.play().catch(() => {});
+  if (!d.media_playing && !v.paused) v.pause();
+  if (Math.abs(v.currentTime - targetS) > MEDIA_DRIFT_S) v.currentTime = targetS;
+}
+
+function _watchStart(v) {
+  // Called inside the user's click so autoplay-with-audio is allowed.
+  _mediaLoaded = true;
+  v.style.display = 'block';
+  const offer = document.getElementById('watch-offer');
+  if (offer) offer.style.display = 'none';
+  v.onloadedmetadata = () => {
+    if (_lastMediaState && _lastMediaState.media_playing) {
+      v.currentTime = (_lastMediaState.media_pos_ms || 0) / 1000;
+      v.play().catch(() => {});
+    }
+  };
+}
+
+function watchLoadShared() {
+  const v = document.getElementById('watch-video');
+  if (!v || !_mediaSrcSeen) return;
+  v.src = _mediaSrcSeen;
+  _watchStart(v);
+}
+
+function watchLoadFile(file) {
+  if (!file) return;
+  const v = document.getElementById('watch-video');
+  v.src = URL.createObjectURL(file);
+  _watchStart(v);
 }
 
 // ── Bottle overlay ──────────────────────────────────────────────────────────
