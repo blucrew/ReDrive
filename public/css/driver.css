@@ -22,6 +22,24 @@
     background:radial-gradient(ellipse 100% 55% at 50% 0%, #11151f 0%, #07080c 62%) fixed;
   }
 
+  /* ── Atmosphere: oscilloscope graticule + film grain (matches landing/rider) ── */
+  .graticule {
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:46px 46px;
+    -webkit-mask-image:radial-gradient(ellipse 92% 62% at 50% 2%, #000 0%, transparent 72%);
+            mask-image:radial-gradient(ellipse 92% 62% at 50% 2%, #000 0%, transparent 72%);
+    opacity:.4;
+  }
+  .grain {
+    position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.035;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  /* keep driver content above the atmosphere layers */
+  #page-hdr, #page-body, #drv-footer { position:relative; z-index:2; }
+
   /* ── Page header ── */
   #page-hdr {
     background:var(--glass); backdrop-filter:blur(20px);
@@ -503,6 +521,21 @@
   }
   #page-hdr::before { top:0; left:0; border-top-width:2px; border-left-width:2px; }
   #page-hdr::after  { bottom:0; right:0; border-bottom-width:2px; border-right-width:2px; }
+
+  /* Same HUD framing on the active tab panel */
+  #controls-panel, #touch-panel, #script-panel { position:relative; }
+  #controls-panel::before, #controls-panel::after,
+  #touch-panel::before, #touch-panel::after,
+  #script-panel::before, #script-panel::after {
+    content:""; position:absolute; width:13px; height:13px;
+    border:0 solid var(--accent); opacity:.38; pointer-events:none; z-index:1;
+  }
+  #controls-panel::before, #touch-panel::before, #script-panel::before {
+    top:0; left:0; border-top-width:2px; border-left-width:2px;
+  }
+  #controls-panel::after, #touch-panel::after, #script-panel::after {
+    bottom:0; right:0; border-bottom-width:2px; border-right-width:2px;
+  }
 
   /* Crisper focus + sharper interactive glints */
   #driver-name-input:focus, #fs-video-url-input:focus {
