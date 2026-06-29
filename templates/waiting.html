@@ -8,8 +8,8 @@
 </head>
 <body>
 <div class="card">
-  <h1>ReDrive</h1>
-  <p class="sub">Share the driver invite link below</p>
+  <h1>ReDrive{% if ez_drive %} &middot; EZ{% endif %}</h1>
+  <p class="sub">{% if ez_drive %}Send this link to your driver &mdash; they&rsquo;ll get a simple touch pad, nothing to set up{% else %}Share the driver invite link below{% endif %}</p>
   <div class="waiting-label">&#9679; Waiting for a driver&#8230;</div>
   <div class="code-display">{{ code }}</div>
   <div class="invite-link" id="invite-link">{{ invite_url }}</div>

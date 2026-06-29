@@ -20,14 +20,14 @@
 </head>
 <body>
 <div class="card">
-  <h1>ReDrive</h1>
+  <h1>ReDrive{% if ez_drive %} &middot; EZ{% endif %}</h1>
   <p class="sub">You&rsquo;ve been invited to drive room</p>
   <div class="code-display">{{ code }}</div>
 
   <form class="name-form" method="POST" action="/waiting/{{ code }}/claim">
     <input class="name-input" type="text" name="name"
            placeholder="Your name (optional)" maxlength="30" autocomplete="off">
-    <p class="claim-note">riders in this room will see your name when you join</p>
+    <p class="claim-note">{% if ez_drive %}you&rsquo;ll get a simple touch pad &mdash; drag on the body to drive. riders see your name when you join{% else %}riders in this room will see your name when you join{% endif %}</p>
     <button class="btn" type="submit">&#9654;&ensp;Claim &amp; Drive</button>
   </form>
 </div>

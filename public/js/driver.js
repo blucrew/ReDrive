@@ -2151,3 +2151,16 @@ document.addEventListener('visibilitychange', () => {
     try { _driverWs.send(JSON.stringify({type: 'ping'})); } catch(_) {}
   }
 });
+
+// ── EZ-DRIVE ──────────────────────────────────────────────────────────────────
+// Rider-initiated "simple driving" room: the newbie driver sees only the
+// touch/anatomy pad (the Controls/Script tabs, tab bar, source switches and the
+// session box are hidden by body.ez-drive CSS). Land on the Touch tab so the pad
+// is live the moment the page loads.
+if (typeof EZ_DRIVE !== 'undefined' && EZ_DRIVE) {
+  const _ezInit = () => { try { setTab('touch'); } catch (_) {} };
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', _ezInit);
+  else
+    _ezInit();
+}

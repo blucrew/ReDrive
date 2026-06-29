@@ -13,6 +13,7 @@ window.fetch = function(url, opts = {}) {
 {% else %}
 const DRIVER_KEY = "";
 {% endif %}
+const EZ_DRIVE = {% if ez_drive %}true{% else %}false{% endif %};
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -22,7 +23,7 @@ const DRIVER_KEY = "";
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/public/css/driver.css">
 </head>
-<body>
+<body{% if ez_drive %} class="ez-drive"{% endif %}>
 <div class="graticule"></div>
 <div class="grain"></div>
 {% if room_code %}{% include "_partials/room_banner.html" %}{% endif %}
@@ -30,7 +31,7 @@ const DRIVER_KEY = "";
 <!-- ── Always-visible header ── -->
 <div id="page-hdr">
   <div id="hdr-row1">
-    <h1>RESTIM DRIVE</h1>
+    <h1>{% if ez_drive %}EZ-DRIVE{% else %}RESTIM DRIVE{% endif %}</h1>
     <div id="dot"></div>
     <span id="status-text">Connecting…</span>
   </div>

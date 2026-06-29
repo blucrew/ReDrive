@@ -77,6 +77,9 @@ class Room:
         # Waiting room support
         self.waiting: bool = waiting
         self.waiting_expires: float = time.time() + 1800 if waiting else 0.0
+        # EZ-DRIVE: rider-initiated room whose claimed driver sees only the
+        # touch/anatomy pad (no Controls/Script tabs). Survives the claim.
+        self.ez_drive: bool = False
         # Public session list
         self.public: bool = True
         # Custom anatomy uploads
@@ -415,6 +418,7 @@ async def handle_room_driver(req):
         "api_prefix": prefix,
         "driver_key": room.driver_key,
         "room_code": code,
+        "ez_drive": room.ez_drive,
     })
 
 
@@ -771,14 +775,24 @@ async def handle_bottle_png(_req):
 # -- Waiting room handlers
 
 async def handle_create_waiting(req):
-    """Rider creates a waiting room -- no driver key yet."""
+    """Rider creates a waiting room -- no driver key yet.
+
+    A `ez=1` form field marks it EZ-DRIVE: the claimed driver gets the
+    touch/anatomy pad only.
+    """
     if len(_rooms) >= 500:
         raise web.HTTPTooManyRequests(text="Server at capacity — try again later")
+    try:
+        data = await req.post()
+        ez = str(data.get("ez", "")) == "1"
+    except Exception:
+        ez = False
     code = _new_code()
     loop = asyncio.get_event_loop()
     room = Room(code, loop, waiting=True)
+    room.ez_drive = ez
     _rooms[code] = room
-    print(f"[room] waiting created {code}  (total: {len(_rooms)})")
+    print(f"[room] waiting created {code}{' (EZ-DRIVE)' if ez else ''}  (total: {len(_rooms)})")
     raise web.HTTPFound(f"/waiting/{code}")
 
 
@@ -796,6 +810,7 @@ async def handle_waiting_page(req):
         "code": code,
         "invite_url": invite_url,
         "ms_remaining": ms_remaining,
+        "ez_drive": room.ez_drive,
     })
 
 
@@ -828,7 +843,7 @@ async def handle_waiting_claim(req):
         raise web.HTTPNotFound(text="Waiting room already claimed")
     if time.time() > room.waiting_expires:
         raise web.HTTPNotFound(text="Waiting room has expired")
-    return aiohttp_jinja2.render_template("claim.html", req, {"code": code})
+    return aiohttp_jinja2.render_template("claim.html", req, {"code": code, "ez_drive": room.ez_drive})
 
 
 async def handle_waiting_claim_post(req):

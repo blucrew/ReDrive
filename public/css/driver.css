@@ -22,6 +22,13 @@
     background:radial-gradient(ellipse 100% 55% at 50% 0%, #11151f 0%, #07080c 62%) fixed;
   }
 
+  /* ── EZ-DRIVE: newbie driver sees only the touch/anatomy pad + STOP/poppers ── */
+  body.ez-drive #tab-btns,
+  body.ez-drive #src-row,
+  body.ez-drive #session-box,
+  body.ez-drive #controls-panel,
+  body.ez-drive #script-panel { display:none !important; }
+
   /* ── Atmosphere: oscilloscope graticule + film grain (matches landing/rider) ── */
   .graticule {
     position:fixed; inset:0; z-index:0; pointer-events:none;
