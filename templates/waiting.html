@@ -20,6 +20,20 @@
   <div id="countdown">Expires in <span id="cd-timer">30:00</span></div>
 </div>
 
+{% if ez_drive and creator_key %}
+<div class="card">
+  <h2>Body image <span class="ez-anat-opt">optional</span></h2>
+  <p class="sub" style="margin-bottom:1rem">Choose the body your driver drags on. Skip it and they&rsquo;ll get a default outline.</p>
+  <div id="ez-anat-thumb" class="ez-anat-thumb">
+    {% if anatomy %}<img src="/touch_assets/anatomy/{{ anatomy }}" alt="">{% else %}<span>Default body</span>{% endif %}
+  </div>
+  <label class="btn" for="ez-anat-file">&#128247; {% if anatomy %}Replace image{% else %}Upload image{% endif %}</label>
+  <input type="file" id="ez-anat-file" accept="image/png,image/jpeg,image/webp" style="display:none"
+         onchange="uploadAnatomy(this.files[0])">
+  <p class="ez-anat-hint">For best alignment to the touch zones, build a PNG with the <a href="/anatomy-maker" target="_blank">overlay maker</a> first.</p>
+</div>
+{% endif %}
+
 <footer class="site-footer">
   <a href="https://www.estimstation.com">estimstation.com</a> &middot; ReDrive
 </footer>
@@ -29,6 +43,30 @@ const CODE = "{{ code }}";
 const STATUS_URL = "/waiting/" + CODE + "/status";
 const INVITE_URL = "{{ invite_url }}";
 const EXPIRES_AT = Date.now() + {{ ms_remaining }};
+const CREATOR_KEY = "{{ creator_key }}";
+
+// EZ-DRIVE: let the room creator (rider) set the body image before any driver
+// exists. Authenticated with the creator key, it persists into the claimed room.
+async function uploadAnatomy(file) {
+  if (!file || !CREATOR_KEY) return;
+  const lbl = document.querySelector('label[for="ez-anat-file"]');
+  const prev = lbl ? lbl.textContent : '';
+  if (lbl) lbl.textContent = 'Uploading…';
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const r = await fetch('/room/' + CODE + '/upload_anatomy', {
+      method: 'POST', headers: { 'X-Creator-Key': CREATOR_KEY }, body: fd });
+    if (!r.ok) throw new Error((await r.text()) || r.status);
+    const j = await r.json();
+    const thumb = document.getElementById('ez-anat-thumb');
+    const src = '/touch_assets/anatomy/' + j.name.split('/').map(encodeURIComponent).join('/') + '?t=' + Date.now();
+    if (thumb) thumb.innerHTML = '<img src="' + src + '" alt="">';
+    if (lbl) lbl.textContent = '📷 Replace image';
+  } catch (e) {
+    alert('Upload failed: ' + (e.message || e));
+    if (lbl) lbl.textContent = prev;
+  }
+}
 </script>
 <script src="/public/js/waiting.js"></script>
 </body>

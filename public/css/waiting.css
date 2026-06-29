@@ -34,3 +34,14 @@
   #countdown { font-size:.85rem; color:var(--fg2); margin-top:.8rem }
   .site-footer { color:var(--fg2); font-size:.8rem; margin-top:2rem }
   .site-footer a { color:var(--accent); text-decoration:none }
+  /* EZ-DRIVE body-image picker */
+  h2 { font-size:1.05rem; margin-bottom:.4rem; color:var(--fg) }
+  .ez-anat-opt { font-size:.7rem; color:var(--fg2); font-weight:400; vertical-align:middle }
+  .ez-anat-thumb { width:120px; height:165px; margin:.4rem auto 1.1rem; border-radius:8px;
+                   background:var(--bg3); border:1px solid var(--border); overflow:hidden;
+                   display:flex; align-items:center; justify-content:center;
+                   color:var(--fg2); font-size:.8rem }
+  .ez-anat-thumb img { width:100%; height:100%; object-fit:cover; object-position:top center }
+  .ez-anat-hint { font-size:.75rem; color:var(--fg2); margin-top:.9rem; line-height:1.45 }
+  .ez-anat-hint a { color:var(--accent); text-decoration:none }
+  .ez-anat-hint a:hover { text-decoration:underline }

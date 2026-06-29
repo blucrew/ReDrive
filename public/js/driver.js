@@ -776,16 +776,38 @@ function _applyImage() {
     _loadRiderAvatar(rider);
   } else if (withAvatars.length === 0 && _tcRiderImageSource !== null) {
     _tcRiderImageSource = null;
-    const savedIdx = parseInt(localStorage.getItem('reDriveTouchIdx') || '0', 10);
-    if (savedIdx >= 0 && savedIdx < _tcImages.length) {
-      selectTouchImage(savedIdx);
+    // Fall back to the room preset (rider's waiting-page image) if there is one,
+    // otherwise the saved config default.
+    if (_tcRoomPresetSrc) {
+      _tcLoadPreset();
     } else {
-      tcCustomImg = null;
-      tcDraw();
+      const savedIdx = parseInt(localStorage.getItem('reDriveTouchIdx') || '0', 10);
+      if (savedIdx >= 0 && savedIdx < _tcImages.length) selectTouchImage(savedIdx);
+      else { tcCustomImg = null; tcDraw(); }
     }
     // Reset AFTER selectTouchImage (which sets manual=true) so auto-select rearms
     _tcRiderImageManual = false;
   }
+}
+
+// Room-level preset body image (set by the rider on an EZ waiting page). Stored
+// as the room's first custom anatomy; the live pad otherwise uses config images.
+async function _tcFetchRoomPreset() {
+  const m = location.pathname.match(/\/room\/([^/]+)/);
+  if (!m) return null;
+  try {
+    const a = await (await fetch('/room/' + m[1] + '/anatomies')).json();
+    if (a && Array.isArray(a.custom) && a.custom.length)
+      return '/touch_assets/anatomy/' + a.custom[0].split('/').map(encodeURIComponent).join('/');
+  } catch (_) {}
+  return null;
+}
+function _tcLoadPreset() {
+  if (!_tcRoomPresetSrc) return;
+  const img = new Image();
+  img.onload = () => { tcCustomImg = img; tcDraw(); };
+  img.src = _tcRoomPresetSrc;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
 }
 
 // ── Like animation ──────────────────────────────────────────────────────────
@@ -880,6 +902,7 @@ let _tcPowerSlider = 0.5; // 0=min 1=max, default middle
 let _tcParticipants = []; // latest participants list from WS
 let _tcRiderImageSource = null;   // idx of rider whose avatar is on the touch canvas
 let _tcRiderImageManual = false;  // true if driver manually picked a rider/preset
+let _tcRoomPresetSrc    = null;   // room-level preset body image (e.g. rider set it on an EZ waiting page)
 
 function tcElecAt() {
   const valid = ['1','2','3'];
@@ -1549,10 +1572,18 @@ let _tcSelectedIdx = -1;
         panel.appendChild(btn);
       });
     }
-    // Restore saved selection
-    const savedIdx = parseInt(localStorage.getItem('reDriveTouchIdx') || '0', 10);
-    if (savedIdx >= 0 && savedIdx < _tcImages.length) selectTouchImage(savedIdx);
-    else if (_tcImages.length) selectTouchImage(0);
+    // A room preset (rider's waiting-page body image) wins over the generic
+    // default; leaving _tcRiderImageManual false lets a rider avatar still take
+    // over if one appears.
+    _tcRoomPresetSrc = await _tcFetchRoomPreset();
+    if (_tcRoomPresetSrc) {
+      _tcLoadPreset();
+    } else {
+      // Restore saved selection
+      const savedIdx = parseInt(localStorage.getItem('reDriveTouchIdx') || '0', 10);
+      if (savedIdx >= 0 && savedIdx < _tcImages.length) selectTouchImage(savedIdx);
+      else if (_tcImages.length) selectTouchImage(0);
+    }
   } catch(_) {}
 })();
 

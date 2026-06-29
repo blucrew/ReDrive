@@ -80,6 +80,9 @@ class Room:
         # EZ-DRIVE: rider-initiated room whose claimed driver sees only the
         # touch/anatomy pad (no Controls/Script tabs). Survives the claim.
         self.ez_drive: bool = False
+        # Creator key — lets the rider who opened a waiting room set the anatomy
+        # before any driver exists (the driver key is only minted on claim).
+        self.creator_key: str = ""
         # Public session list
         self.public: bool = True
         # Custom anatomy uploads
@@ -388,10 +391,26 @@ async def handle_index(req):
 
 
 def _check_driver_key(req, room) -> bool:
-    """Return True if the request carries the correct driver key."""
+    """Return True if the request carries the correct driver key.
+
+    A room with no driver key yet (an unclaimed waiting room) has driver_key=""
+    — never treat a missing/empty key as a match against it.
+    """
+    if not room.driver_key:
+        return False
     key = (req.rel_url.query.get("key")
            or req.headers.get("X-Driver-Key", ""))
     return secrets.compare_digest(key, room.driver_key)
+
+
+def _check_creator_key(req, room) -> bool:
+    """Return True if the request carries the room's creator key (rider who
+    opened a waiting room — used to set the anatomy before a driver claims)."""
+    if not room.creator_key:
+        return False
+    key = (req.rel_url.query.get("ck")
+           or req.headers.get("X-Creator-Key", ""))
+    return secrets.compare_digest(key, room.creator_key)
 
 
 async def handle_create(req):
@@ -791,9 +810,10 @@ async def handle_create_waiting(req):
     loop = asyncio.get_event_loop()
     room = Room(code, loop, waiting=True)
     room.ez_drive = ez
+    room.creator_key = secrets.token_urlsafe(20)
     _rooms[code] = room
     print(f"[room] waiting created {code}{' (EZ-DRIVE)' if ez else ''}  (total: {len(_rooms)})")
-    raise web.HTTPFound(f"/waiting/{code}")
+    raise web.HTTPFound(f"/waiting/{code}?ck={room.creator_key}")
 
 
 async def handle_waiting_page(req):
@@ -806,11 +826,16 @@ async def handle_waiting_page(req):
     ms_remaining = max(0, int((room.waiting_expires - time.time()) * 1000))
     base = req.url.origin()
     invite_url = f"{base}/waiting/{code}/claim"
+    # Only hand the creator key back to someone who already holds it (the ?ck
+    # from the create redirect) — a bare /waiting/{code} visitor must not get it.
+    creator_key = room.creator_key if _check_creator_key(req, room) else ""
     return aiohttp_jinja2.render_template("waiting.html", req, {
         "code": code,
         "invite_url": invite_url,
         "ms_remaining": ms_remaining,
         "ez_drive": room.ez_drive,
+        "creator_key": creator_key,
+        "anatomy": room.custom_anatomies[0] if room.custom_anatomies else "",
     })
 
 
@@ -954,8 +979,8 @@ async def handle_anatomy_upload(req):
     room = _rooms.get(code)
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
-    if not _check_driver_key(req, room):
-        raise web.HTTPForbidden(text="Driver key required")
+    if not (_check_driver_key(req, room) or _check_creator_key(req, room)):
+        raise web.HTTPForbidden(text="Driver or creator key required")
 
     try:
         reader = await req.multipart()
