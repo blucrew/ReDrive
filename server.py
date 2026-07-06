@@ -474,9 +474,17 @@ async def handle_room_command(req):
     try:
         body = await req.read()
         cmd = json.loads(body)
+        if not isinstance(cmd, dict):
+            raise ValueError("command must be a JSON object")
     except Exception:
         return web.Response(status=400)
-    result = await _process_driver_command(room, cmd)
+    try:
+        result = await _process_driver_command(room, cmd)
+    except web.HTTPException:
+        raise
+    except Exception as e:
+        # Malformed-but-valid-JSON command (bad types/values) -> 400, not a 500.
+        return web.Response(status=400, text=f"Bad command: {e}")
     if isinstance(result, web.Response):
         return result
     return web.Response(text="{}", content_type="application/json")
@@ -543,8 +551,10 @@ async def handle_driver_ws(req):
     room = _rooms.get(code)
     if room is None:
         raise web.HTTPNotFound(text="Room not found or expired")
-    key = req.rel_url.query.get("key", "")
-    if not secrets.compare_digest(key, room.driver_key):
+    # Use the shared check (rejects empty key vs an unclaimed room's empty
+    # driver_key — a raw compare_digest("","") would pass and let anyone drive
+    # a waiting room they never claimed).
+    if not _check_driver_key(req, room):
         ws = web.WebSocketResponse(max_msg_size=65536)
         await ws.prepare(req)
         await ws.close(code=4403, message=b"Invalid driver key")

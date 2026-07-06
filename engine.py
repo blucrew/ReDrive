@@ -580,7 +580,7 @@ class DriveEngine:
                 self._ramp_active = False
             self._pattern.set_command(cmd)
             if "beta" in cmd:
-                self._beta_override = int(cmd["beta"])
+                self._beta_override = max(0, min(9999, int(cmd["beta"])))
             if "alpha" in cmd:
                 self._alpha_on = bool(cmd["alpha"])
             if "beta_mode" in cmd:
@@ -639,7 +639,7 @@ class DriveEngine:
             # alpha_pos after beta_mode so it re-overrides when both present (tcOnDown)
             if "alpha_pos" in cmd:
                 self._alpha_override = float(cmd["alpha_pos"])
-            if "beta_sweep" in cmd:
+            if isinstance(cmd.get("beta_sweep"), dict):
                 s = cmd["beta_sweep"]
                 if "hz" in s:
                     self._beta_sweep_hz = max(0.01, min(5.0, float(s["hz"])))
@@ -649,7 +649,7 @@ class DriveEngine:
                     self._beta_sweep_width = max(0, min(4999, int(s["width"])))
                 if "skew" in s:
                     self._beta_sweep_skew = max(-1.0, min(1.0, float(s["skew"])))
-            if "spiral" in cmd:
+            if isinstance(cmd.get("spiral"), dict):
                 s = cmd["spiral"]
                 if "hz" in s:
                     self._spiral_hz = max(0.01, min(2.0, float(s["hz"])))
