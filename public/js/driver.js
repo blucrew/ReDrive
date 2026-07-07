@@ -640,6 +640,17 @@ function handleStateUpdate(d) {
     document.getElementById("path-controls").style.display    =
       d.beta_mode === "path"   ? "block" : "none";
   }
+  // Keep the active trajectory-shape / electrode-pattern buttons in sync with
+  // server state (this live path previously only toggled the panels, so the
+  // highlighted shape/pattern could go stale after a reconnect).
+  if (d.path_shape) {
+    document.querySelectorAll("#path-shape-row .path-btn").forEach(b =>
+      b.classList.toggle("active", b.dataset.shape === d.path_shape));
+  }
+  if (d.fp_pattern !== undefined) {
+    document.querySelectorAll("#fp-pattern-grid .path-btn").forEach(b =>
+      b.classList.toggle("active", (b.dataset.fp || "") === (d.fp_pattern || "")));
+  }
   // Spiral amplitude bar
   if (d.beta_mode === "spiral" && d.spiral_amp !== undefined) {
     const pct = Math.round(d.spiral_amp * 100);
@@ -2154,6 +2165,7 @@ function fsLoadVideoUrl() {
 function fsLoadVideoFile(file) {
   if (!file) return;
   const v = document.getElementById('fs-video-el');
+  if (v.src && v.src.startsWith('blob:')) URL.revokeObjectURL(v.src);
   v.src = URL.createObjectURL(file);
   v.style.display = 'block';
   document.getElementById('fs-video-url-input').value = '[local] ' + file.name;

@@ -903,6 +903,10 @@ async def handle_waiting_claim_post(req):
 
     # Promote waiting room to a real room
     room.driver_key = secrets.token_urlsafe(20)
+    # Retire the creator key — the room is claimed, so the pre-claim upload
+    # token must stop working (otherwise the original rider could keep uploading
+    # anatomies after a driver has taken over).
+    room.creator_key = ""
     room.driver_last_seen = time.monotonic()
     room.driver_name = driver_name
     cfg = DriveConfig()
@@ -951,18 +955,10 @@ async def handle_api_rooms(req):
     return web.Response(text=json.dumps(result), content_type="application/json")
 
 
-async def handle_api_waiting(req):
-    """Return JSON list of active waiting rooms (for driver claiming)."""
-    now_wall = time.time()
-    result = []
-    for code, room in _rooms.items():
-        if not room.waiting:
-            continue
-        if now_wall > room.waiting_expires:
-            continue
-        expires_in = max(0, int(room.waiting_expires - now_wall))
-        result.append({"code": code, "expires_in": expires_in})
-    return web.Response(text=json.dumps(result), content_type="application/json")
+# NOTE: a public /api/waiting listing used to live here. It exposed every
+# active waiting-room code to anyone, which — before the driver-ws auth fix —
+# was a room-enumeration vector. It had no frontend consumer, so it was removed.
+# A waiting room is reachable only by its private claim link.
 
 
 async def handle_room_privacy(req):
@@ -1166,7 +1162,6 @@ def build_app(local_room: Optional["Room"] = None) -> web.Application:
     app.router.add_post("/waiting/{code}/claim",               handle_waiting_claim_post)
     # Public session list
     app.router.add_get("/api/rooms",                           handle_api_rooms)
-    app.router.add_get("/api/waiting",                         handle_api_waiting)
     # Room routes
     app.router.add_get("/room/{code}",                         handle_room_driver)
     app.router.add_get("/room/{code}/rider",                   handle_room_touch)

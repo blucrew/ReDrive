@@ -356,6 +356,7 @@ function watchLoadShared() {
 function watchLoadFile(file) {
   if (!file) return;
   const v = document.getElementById('watch-video');
+  if (v.src && v.src.startsWith('blob:')) URL.revokeObjectURL(v.src);
   v.src = URL.createObjectURL(file);
   _watchStart(v);
 }
