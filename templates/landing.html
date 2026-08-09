@@ -39,7 +39,33 @@
       <span class="scope-corner bl"></span><span class="scope-corner br"></span>
     </div>
 
-    <p class="page-sub">A driver runs the session from any browser &mdash; patterns, intensity, ramps, electrode sweeps &mdash; while riders bridge their local <b>ReStim</b> device into the room. Everything syncs live, over the wire.</p>
+    <p class="page-sub">Remote stim used to mean a Bluetooth toy tied to an app. <b>ReDrive</b> drives the raw signal from any browser &mdash; patterns, position, intensity, ramps &mdash; into a rider&rsquo;s own <b>ReStim</b> rig, anywhere. ReStim plays it out however they&rsquo;re wired.</p>
+  </section>
+
+  <!-- How it works -->
+  <section class="how reveal" style="--d:1">
+    <div class="section-label">// HOW&nbsp;IT&nbsp;WORKS</div>
+    <div class="how-flow">
+      <div class="how-stage s1">
+        <div class="how-badge">01 / DRIVE</div>
+        <div class="how-title">ReDrive</div>
+        <div class="how-sub">Any browser. The driver shapes the signal &mdash; patterns, position, intensity, ramps.</div>
+      </div>
+      <div class="how-arrow">&rarr;</div>
+      <div class="how-stage s2">
+        <div class="how-badge">02 / BRIDGE</div>
+        <div class="how-title">ReStim</div>
+        <div class="how-sub">The rider&rsquo;s own ReStim <b>is</b> the client. Open the link and it bridges in &mdash; nothing new to install.</div>
+      </div>
+      <div class="how-arrow">&rarr;</div>
+      <div class="how-stage s3">
+        <div class="how-badge">03 / FEEL</div>
+        <div class="how-title">Your box</div>
+        <div class="how-sub">ReStim sends it out your way:</div>
+        <div class="how-tags">Audio&nbsp;/&nbsp;StereoStim &middot; FOC-Stim &middot; NeoStim</div>
+      </div>
+    </div>
+    <p class="how-note">No app lock-in, no Bluetooth range limit &mdash; the raw signal, driven to any ReStim rig anywhere, over the wire.</p>
   </section>
 
   <!-- Caution strip -->
@@ -120,12 +146,17 @@
 
       <details>
         <summary>What is ReDrive?</summary>
-        <p>ReDrive lets a driver remotely control one or more riders&rsquo; ReStim e-stim devices in real time over the internet. The driver uses a browser-based control panel &mdash; adjusting patterns, intensity, ramps, beta sweeps and more. Riders run a small bridge app on their PC that forwards the signal to their local ReStim. There&rsquo;s also an optional touch canvas the driver can use with an anatomy overlay, but the main controls are the standard sliders and pattern buttons.</p>
+        <p>ReDrive lets a driver remotely control one or more riders&rsquo; ReStim e-stim devices in real time over the internet. The driver uses a browser-based control panel &mdash; adjusting patterns, intensity, ramps, beta sweeps and more. Riders don&rsquo;t install anything new &mdash; their own ReStim <em>is</em> the client. They open a join link in any browser and it bridges the signal straight into their local ReStim. There&rsquo;s also an optional touch canvas the driver can use with an anatomy overlay, but the main controls are the standard sliders and pattern buttons.</p>
       </details>
 
       <details>
         <summary>What do I need as a rider?</summary>
-        <p>A PC running ReStim with its WebSocket server enabled (default port 12346), and any modern browser. That&rsquo;s it &mdash; no app to download. Your driver sends you a join link; open it in your browser and it bridges automatically to your local ReStim. <a href="/public/rider-manual.html" target="_blank">Read the rider guide &rarr;</a></p>
+        <p>A PC running ReStim with its WebSocket server enabled (default port 12346), and any modern browser. That&rsquo;s it &mdash; no app to download. Your driver sends you a join link; open it in your browser and it bridges automatically to your local ReStim. ReStim then sends the signal to whatever you run &mdash; audio / StereoStim, FOC-Stim, or NeoStim. <a href="/public/rider-manual.html" target="_blank">Read the rider guide &rarr;</a></p>
+      </details>
+
+      <details>
+        <summary>Can I ride without keeping a browser tab open?</summary>
+        <p>Yes &mdash; there&rsquo;s an optional headless bridge, <code>redrive_bridge.py</code>, in the <a href="https://github.com/blucrew/ReDrive/blob/main/redrive_bridge.py" target="_blank" rel="noopener">ReDrive repo</a>. It connects to a room from the command line and forwards the signal to your local ReStim, no browser needed (<code>pip install websockets</code>, then <code>python redrive_bridge.py YOURCODE</code>). Handy on Linux/Mac or if your browser blocks <code>ws://localhost</code>. You lose the rider UI (feel orb, watch-along) &mdash; it&rsquo;s a pure signal bridge.</p>
       </details>
 
       <details>
