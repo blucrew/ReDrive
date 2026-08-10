@@ -259,6 +259,23 @@ body {
   .how-arrow { transform: rotate(90deg); padding: .1rem 0; }
 }
 
+/* ── FAQ: touch-panel wiring list ───────────────────────────────────── */
+.wire-list { list-style: none; margin: .55rem 0 .25rem; padding: 0; font-size: .9rem; }
+.wire-list li {
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .4rem 0; color: var(--fg-2); border-bottom: 1px solid var(--line);
+}
+.wire-list li:last-child { border-bottom: none; }
+.wire-list b { font-family: var(--mono); font-weight: 700; font-size: .82rem; flex-shrink: 0; min-width: 12.5em; }
+.wire-list .wire-arrow { color: var(--fg-3); }
+.wire-list .ch-b { color: var(--blue); }
+.wire-list .ch-a { color: var(--red); }
+.wire-list .ch-c { color: var(--yellow); }
+@media (max-width: 440px) {
+  .wire-list li { flex-wrap: wrap; }
+  .wire-list b { min-width: 0; }
+}
+
 /* ── Caution strip ──────────────────────────────────────────────────── */
 .warn {
   display: flex; align-items: stretch; gap: 0;
