@@ -323,6 +323,11 @@ class DriveEngine:
         self._fp_electrodes: list = [0.0, 0.0, 0.0, 0.0]  # last computed e1-e4 weights
         self._fs_e: dict = {}              # direct e1-e4 from funscript player (passthrough)
         self._fs_e_t: float = -999.0   # monotonic time of last _fs_e update
+        # Script-exclusive: while a funscript is playing it is the sole source of
+        # truth — intensity passes through un-patterned, beta follows the script
+        # (no sweep), alpha holds unless the script drives it. Controls/Touch are
+        # muted client-side. Set by {script_exclusive: bool}.
+        self._script_exclusive: bool = False
         self._stop_ev: Optional[asyncio.Event] = None
         self._loop:    Optional[asyncio.AbstractEventLoop] = None
         self._next_connect_at: float = 0.0          # reconnect cooldown
@@ -456,11 +461,15 @@ class DriveEngine:
 
     async def _process_command(self, cmd: dict):
 
+        if "script_exclusive" in cmd:
+            self._script_exclusive = bool(cmd["script_exclusive"])
+
         if cmd.get("stop"):
             self._pattern.stop()
             self._ramp_active    = False
             self._gesture_active = False
             self._gesture_seq    = []
+            self._script_exclusive = False
         elif "gesture_record" in cmd:
             pts = cmd["gesture_record"]
             if len(pts) >= 4:
@@ -784,7 +793,11 @@ class DriveEngine:
                         self._ramp_active = False
                         self._log(f"Ramp complete → {int(self._ramp_target * 100)}%")
 
-                intensity = self._pattern.tick(dt)
+                # Script-exclusive: volume passes through un-patterned (the
+                # Script-tab slider or a .volume funscript is the sole level),
+                # so a Sine/Ramp/etc. pattern can't reshape the scripted signal.
+                intensity = (max(0.0, min(1.0, self._pattern.intensity))
+                             if self._script_exclusive else self._pattern.tick(dt))
                 self._shared["__live__l0"] = intensity
 
                 # L0 volume
@@ -797,7 +810,15 @@ class DriveEngine:
                 # source — the Script-tab Volume slider or a .volume funscript.
                 fs_fresh = (bool(self._fs_e) and self._loop is not None
                             and (self._loop.time() - self._fs_e_t) < 0.25)
-                if (self._fourphase and self._fp_pattern
+                if self._script_exclusive and intensity > 0.0:
+                    # Funscript owns position: beta comes straight from the script
+                    # (via _beta_override), or a fresh four-channel script drives
+                    # e1-e4 through _emit_beta — no sweep / beta-mode in between.
+                    desired = (self._beta_override if self._beta_override is not None
+                               else cfg.beta_active)
+                    self._emit_beta(desired, parts, cfg, cfg.send_interval_ms)
+                    self._current_beta = desired
+                elif (self._fourphase and self._fp_pattern
                         and intensity > 0.0 and not fs_fresh):
                     # Named 4-phase pattern drives e1-e4 directly (beta position
                     # is ignored; a fresh four-channel funscript still wins).
@@ -980,12 +1001,23 @@ class DriveEngine:
                     await asyncio.sleep(dt)
                     continue
 
-                # Touch arc override: driver sends explicit alpha position
+                # Touch arc override: driver sends explicit alpha position.
+                # (Also how a script's alpha funscript drives L0.)
                 if self._alpha_override is not None:
                     pos = max(0.0, min(1.0, self._alpha_override))
                     await self._send(f"{cfg.axis_alpha}{_tv(pos)}I{int(dt * 1000)}")
                     self._alpha_parked = False
                     self._shared["__live__l2"] = self._pattern.intensity
+                    await asyncio.sleep(dt)
+                    continue
+
+                # Script-exclusive with no alpha funscript: hold alpha steady so
+                # the Controls oscillation doesn't mix into the scripted signal.
+                if self._script_exclusive:
+                    if not self._alpha_parked:
+                        await self._send(f"{cfg.axis_alpha}{_tv(0.5)}I500")
+                        self._alpha_parked = True
+                    self._shared["__live__l2"] = 0.0
                     await asyncio.sleep(dt)
                     continue
 

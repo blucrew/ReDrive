@@ -429,6 +429,8 @@ function onFpPatternHz(v) {
 }
 
 function sendStop() {
+  // Halt a playing script too, otherwise its next tick re-drives the signal.
+  if (typeof _fsPlaying !== 'undefined' && _fsPlaying) fsStop();
   state.intensity = 0;
   document.getElementById("intensity-slider").value = 0;
   document.getElementById("int-val").textContent = "0%";
@@ -467,23 +469,12 @@ async function sendCmd(cmd, _src = 'controls') {
   // ── Source enable gate ──────────────────────────────────────────────────────
   if (!_srcEnabled[_src]) return;
 
-  // ── Priority filtering (Script > Controls > Touch) ──────────────────────────
-  // Controls cannot send axes that Script currently owns.
-  // Touch while finger is down overrides everything (handled by _touchActive
-  // meaning touch events only fire when the finger IS down).
-  if (_src === 'controls' && _fsPlaying && _FS_SLOTS) {
-    const c = { ...cmd };
-    if (_FS_SLOTS.intensity.actions.length) delete c.intensity;
-    if (_FS_SLOTS.beta.actions.length)      delete c.beta;
-    if (_FS_SLOTS.alpha.actions.length)     delete c.alpha_pos;
-    if (_FS_SLOTS.e1.actions.length)        delete c.e1;
-    if (_FS_SLOTS.e2.actions.length)        delete c.e2;
-    if (_FS_SLOTS.e3.actions.length)        delete c.e3;
-    if (_FS_SLOTS.e4.actions.length)        delete c.e4;
-    if (_FS_SLOTS.volume.actions.length)    delete c.volume;
-    if (!Object.keys(c).length) return;
-    cmd = c;
-  }
+  // ── Script is the source of truth while it plays ────────────────────────────
+  // A playing funscript owns the signal entirely: Controls and Touch are fully
+  // muted so nothing mixes into the scripted output. STOP still passes, and the
+  // Script-tab volume slider reaches the engine via _sendRaw() (it's the master
+  // level, so it must keep working).
+  if (_fsPlaying && (_src === 'controls' || _src === 'touch') && !cmd.stop) return;
 
   return _sendRaw(cmd);
 }
@@ -1921,6 +1912,10 @@ function fsPlay() {
   if (pa) pa.disabled = false;
   _fsSetStatusInd('playing');
   _fsSendMedia(true);
+  // Hand the whole signal to the script. If it carries no alpha axis, park alpha
+  // steady so the Controls oscillation doesn't bleed in.
+  _sendRaw({ script_exclusive: true });
+  if (!_FS_SLOTS.alpha.actions.length) _sendRaw({ alpha_pos: 0.5 });
 }
 
 function fsPause() {
@@ -1936,6 +1931,8 @@ function fsPause() {
   if (pa) pa.disabled = true;
   _fsSetStatusInd('paused');
   _fsSendMedia(true);
+  // Hand control back to Controls/Touch while paused.
+  _sendRaw({ script_exclusive: false, alpha_release: true });
 }
 
 function fsStop() {
@@ -1959,6 +1956,8 @@ function fsStop() {
                _FS_SLOTS.e3.actions.length || _FS_SLOTS.e4.actions.length;
   if (hasE) { stopCmd.e1 = 0; stopCmd.e2 = 0; stopCmd.e3 = 0; stopCmd.e4 = 0; }
   if (Object.keys(stopCmd).length) sendCmd(stopCmd);
+  // Release exclusive control and unpark alpha so Controls/Touch resume.
+  _sendRaw({ script_exclusive: false, alpha_release: true });
   const seek = document.getElementById('fs-seek-input');
   if (seek) seek.value = 0;
   const fill = document.getElementById('fs-seek-fill');
