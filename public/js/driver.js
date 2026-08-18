@@ -1912,10 +1912,11 @@ function fsPlay() {
   if (pa) pa.disabled = false;
   _fsSetStatusInd('playing');
   _fsSendMedia(true);
-  // Hand the whole signal to the script. If it carries no alpha axis, park alpha
-  // steady so the Controls oscillation doesn't bleed in.
+  // Hand the whole signal to the script. If it carries no alpha axis, release
+  // any stale alpha override so alpha keeps oscillating (the base carrier) —
+  // freezing it would halve the per-electrode output.
   _sendRaw({ script_exclusive: true });
-  if (!_FS_SLOTS.alpha.actions.length) _sendRaw({ alpha_pos: 0.5 });
+  if (!_FS_SLOTS.alpha.actions.length) _sendRaw({ alpha_release: true });
 }
 
 function fsPause() {

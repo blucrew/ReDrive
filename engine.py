@@ -116,11 +116,13 @@ PRESETS: dict[str, dict] = {
 class DriveConfig:
     restim_url:       str   = "ws://localhost:12346/tcode"
     ctrl_port:        int   = 8765          # HTTP port for driver browser UI
-    # T-code axes (must match ReStim Preferences → Funscript/T-Code)
-    # ReStim defaults: V0=volume, L0=alpha position, L1=beta position
-    axis_volume:      str   = "V0"
+    # T-code axes — MUST match ReStim's Funscript/T-Code axis mapping.
+    # ReStim: volume=L0, beta=L1, alpha=L2, gamma=L3.
+    # (ReDrive previously sent volume on V0 — which ReStim ignores — and alpha on
+    #  L0, which ReStim reads as *volume*; that swap capped volume at alpha's value.)
+    axis_volume:      str   = "L0"
     axis_beta:        str   = "L1"
-    axis_alpha:       str   = "L0"
+    axis_alpha:       str   = "L2"
     # Output floor: min T-code value sent when intensity > 0
     tcode_floor:      int   = 0
     # Beta positions  (9999 = L+ ←── 5000 = Centre ──→ 0 = R+)
@@ -1014,16 +1016,10 @@ class DriveEngine:
                     await asyncio.sleep(dt)
                     continue
 
-                # Script-exclusive with no alpha funscript: hold alpha steady so
-                # the Controls oscillation doesn't mix into the scripted signal.
-                if self._script_exclusive:
-                    if not self._alpha_parked:
-                        await self._send(f"{cfg.axis_alpha}{_tv(0.5)}I500")
-                        self._alpha_parked = True
-                    self._shared["__live__l2"] = 0.0
-                    await asyncio.sleep(dt)
-                    continue
-
+                # Note: in script-exclusive mode alpha still oscillates normally
+                # (the base three-phase carrier). Freezing it at 0.5 would split
+                # energy 50/50 across the pair and cap perceived output at ~50%.
+                # A script's own alpha funscript overrides via _alpha_override above.
                 eff = self._pattern.intensity if self._alpha_on else 0.0
 
                 if eff < 0.01:
