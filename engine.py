@@ -116,13 +116,14 @@ PRESETS: dict[str, dict] = {
 class DriveConfig:
     restim_url:       str   = "ws://localhost:12346/tcode"
     ctrl_port:        int   = 8765          # HTTP port for driver browser UI
-    # T-code axes — MUST match ReStim's Funscript/T-Code axis mapping.
-    # ReStim: volume=L0, beta=L1, alpha=L2, gamma=L3.
-    # (ReDrive previously sent volume on V0 — which ReStim ignores — and alpha on
-    #  L0, which ReStim reads as *volume*; that swap capped volume at alpha's value.)
-    axis_volume:      str   = "L0"
+    # T-code axes — match ReStim's DEFAULT Funscript/T-Code axis mapping
+    # (verified against restim source qt_ui/models/funscript_kit.py):
+    #   alpha=L0, beta=L1, gamma=(unassigned), volume=V0.
+    # If a rider has customised their ReStim axes, they must set them back to
+    # these defaults (or match ReDrive's output) for the signal to land right.
+    axis_volume:      str   = "V0"
     axis_beta:        str   = "L1"
-    axis_alpha:       str   = "L2"
+    axis_alpha:       str   = "L0"
     # Output floor: min T-code value sent when intensity > 0
     tcode_floor:      int   = 0
     # Beta positions  (9999 = L+ ←── 5000 = Centre ──→ 0 = R+)
