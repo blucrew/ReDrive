@@ -1912,11 +1912,11 @@ function fsPlay() {
   if (pa) pa.disabled = false;
   _fsSetStatusInd('playing');
   _fsSendMedia(true);
-  // Hand the whole signal to the script. If it carries no alpha axis, release
-  // any stale alpha override so alpha keeps oscillating (the base carrier) —
-  // freezing it would halve the per-electrode output.
+  // Hand the whole signal to the script. If it carries no alpha axis, lock alpha
+  // to centre (0.5) so a position script strokes cleanly across on beta with no
+  // alpha bounce. A script's own alpha funscript overrides this per-tick.
   _sendRaw({ script_exclusive: true });
-  if (!_FS_SLOTS.alpha.actions.length) _sendRaw({ alpha_release: true });
+  if (!_FS_SLOTS.alpha.actions.length) _sendRaw({ alpha_pos: 0.5 });
 }
 
 function fsPause() {
