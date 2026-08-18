@@ -462,7 +462,10 @@ class DriveEngine:
     async def _process_command(self, cmd: dict):
 
         if "script_exclusive" in cmd:
-            self._script_exclusive = bool(cmd["script_exclusive"])
+            new_excl = bool(cmd["script_exclusive"])
+            if new_excl != self._script_exclusive:
+                self._log(f"Script-exclusive: {'ON — script owns the signal' if new_excl else 'OFF'}")
+            self._script_exclusive = new_excl
 
         if cmd.get("stop"):
             self._pattern.stop()

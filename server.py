@@ -1141,6 +1141,11 @@ def build_app(local_room: Optional["Room"] = None) -> web.Application:
     _template_dir = str(Path(__file__).parent / "templates")
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(_template_dir),
                          autoescape=True)
+    # Cache-bust token appended to static asset URLs (?v=). Changes every server
+    # start — i.e. every deploy that restarts — so browsers can't serve a stale
+    # driver.js/css after an update. Static files carry no Cache-Control header,
+    # so without this a heuristic cache could keep old JS around.
+    aiohttp_jinja2.get_env(app).globals["asset_ver"] = str(int(time.time()))
 
     if local_room:
         async def local_index(req):

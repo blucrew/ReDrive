@@ -21,7 +21,7 @@ const EZ_DRIVE = {% if ez_drive %}true{% else %}false{% endif %};
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/public/css/driver.css">
+<link rel="stylesheet" href="/public/css/driver.css?v={{ asset_ver }}">
 </head>
 <body{% if ez_drive %} class="ez-drive"{% endif %}>
 <div class="graticule"></div>
@@ -574,7 +574,7 @@ const EZ_DRIVE = {% if ez_drive %}true{% else %}false{% endif %};
 
 <footer id="drv-footer">&#9670;&ensp;ReDrive &middot; EstimStation</footer>
 
-<script src="/public/js/driver.js"></script>
+<script src="/public/js/driver.js?v={{ asset_ver }}"></script>
 <script src='https://storage.ko-fi.com/cdn/scripts/overlay-widget.js'></script>
 <script>
   // Floating widget on desktop only — keeps it off the dense mobile control UI.
