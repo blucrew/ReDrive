@@ -196,6 +196,7 @@ function onIntensity(v) {
   _syncVolumeUI(Math.round(v));
   sendCmd({ intensity: state.intensity });
   document.getElementById("ramp-progress-wrap").style.display = "none";
+  _fsUpdateWarn();   // master volume just changed — refresh the script-tab warning
 }
 
 // Script-tab master volume. Bypasses the source gate/priority filter so it
@@ -206,6 +207,7 @@ function onScriptVolume(v) {
   _syncVolumeUI(Math.round(v));
   _sendRaw({ intensity: state.intensity });
   document.getElementById("ramp-progress-wrap").style.display = "none";
+  _fsUpdateWarn();   // master volume just changed — refresh the script-tab warning
 }
 
 function onHz(v) {
