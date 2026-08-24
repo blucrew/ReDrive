@@ -652,3 +652,6 @@
     cursor:pointer; transition:all .15s;
   }
   .path-btn.active { background:rgba(95,163,255,0.18); border-color:var(--accent); color:var(--accent); }
+
+/* Touch Loop/Target toggle — active (Target) state */
+#tc-mode-toggle.target { background:var(--accent); color:#04060c; border-color:var(--accent); }

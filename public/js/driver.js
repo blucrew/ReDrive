@@ -189,6 +189,13 @@ function _syncVolumeUI(pct) {
   const sl = document.getElementById("fs-vol-val");
   if (ss) ss.value = pct;
   if (sl) sl.textContent = pct + "%";
+  // Touch-tab volume slider is the same master level
+  const ts = document.getElementById("tc-power-slider");
+  const tl = document.getElementById("tc-vol-val");
+  if (ts) ts.value = pct;
+  if (tl) tl.textContent = pct + "%";
+  const tt = document.getElementById("tc-power-thumb");
+  if (tt) tt.style.left = pct + "%";
 }
 
 function onIntensity(v) {
@@ -902,6 +909,40 @@ let tcCurrentAnat = localStorage.getItem('anatId') || 'default';
 let tcCustomImg   = null;
 let tcServerInt   = 0.5;
 let _tcGesturePath= [], _tcLooping=false, _tcLoopStart=0, _tcLoopDur=0, _tcGestureStart=0;
+let _tcTargetMode = localStorage.getItem('reDriveTouchTarget') === 'true'; // false = Loop, true = Target (hold last touch)
+
+// Touch-tab volume slider = the master level (V0). Wired straight to ReStim's
+// overall volume; independent of where/how-focused you touch.
+function onTouchVolume(v) {
+  state.intensity = Math.max(0, Math.min(100, parseFloat(v))) / 100;
+  _syncVolumeUI(Math.round(state.intensity * 100));
+  _sendRaw({ intensity: state.intensity });
+  document.getElementById("ramp-progress-wrap").style.display = "none";
+  tcDraw();
+}
+
+function toggleTouchMode() {
+  _tcTargetMode = !_tcTargetMode;
+  localStorage.setItem('reDriveTouchTarget', _tcTargetMode ? 'true' : 'false');
+  // Leaving Loop for Target: stop any running loop and hold the last spot.
+  if (_tcTargetMode && _tcLooping) { sendCmd({gesture_stop: true}); tcSetLooping(false); }
+  _applyTouchModeUI();
+}
+
+function _applyTouchModeUI() {
+  const btn = document.getElementById('tc-mode-toggle');
+  if (btn) {
+    btn.textContent = _tcTargetMode ? '◎ Target' : '↻ Loop';
+    btn.title = _tcTargetMode
+      ? 'Target: lifting your finger holds the last spot (no loop). Tap to switch to Loop.'
+      : 'Loop: lifting your finger replays your last stroke. Tap to switch to Target.';
+    btn.classList.toggle('target', _tcTargetMode);
+  }
+  const st = document.getElementById('tc-status');
+  if (st) st.textContent = _tcTargetMode
+    ? 'Target · Y = point · X = reach · lift = hold'
+    : 'Loop · Y = point · X = reach · lift = replay';
+}
 let _tcPowerSlider = 0.5; // 0=min 1=max, default middle
 let _tcParticipants = []; // latest participants list from WS
 let _tcRiderImageSource = null;   // idx of rider whose avatar is on the touch canvas
@@ -1033,6 +1074,21 @@ function tcPositionFromY(y) {
 // Backward compat wrapper for anything that only needs beta
 function tcBetaFromY(y) { return tcPositionFromY(y).beta; }
 
+// New touch model: Y drives the ANGLE (which electrode/anatomy point), X drives
+// the REACH / "power" (radius): 0 = centre = balanced across all electrodes,
+// 1 = rim = fully localised on the target. Volume (V0) is the separate master.
+function tcPositionFromXY(x, y) {
+  const theta = (2 * Math.PI / 3) * (1 - 2 * Math.max(0, Math.min(1, y)));
+  const r = Math.max(0, Math.min(1, x));
+  const alphaNorm = r * Math.cos(theta);
+  const betaNorm  = r * Math.sin(theta);
+  return {
+    beta:  Math.round(Math.max(0, Math.min(9999, (betaNorm + 1) / 2 * 9999))),
+    alpha: Math.max(0, Math.min(1, (alphaNorm + 1) / 2)),
+    reach: r
+  };
+}
+
 function tcIntFromX(x) {
   // Slider IS the floor; X adds up to 0.25 above it, capped at 1.0
   const floor = _tcPowerSlider;
@@ -1062,7 +1118,7 @@ function _tcPowerColor(power, alpha) {
 
 function _tcUpdatePowerThumb() {
   const thumb = document.getElementById('tc-power-thumb');
-  if (thumb) thumb.style.left = (_tcPowerSlider * 100) + '%';
+  if (thumb) thumb.style.left = (state.intensity * 100) + '%';
 }
 
 function tcDraw() {
@@ -1085,11 +1141,11 @@ function tcDraw() {
   if (_tcOverlayOn && tcOverlayImg) {
     ctx.drawImage(tcOverlayImg, 0, 0, W, H);
   }
-  // Power window tint — subtle gradient showing current lo→hi range
-  const _lo=_tcPowerSlider, _hi=Math.min(1.0,_lo+0.25);
+  // Reach tint — subtle left→right gradient hinting X = reach
+  // (left = centre/balanced, right = rim/localised).
   const _tint=ctx.createLinearGradient(0,0,W,0);
-  _tint.addColorStop(0,_tcPowerColor(_lo,0.06));
-  _tint.addColorStop(1,_tcPowerColor(_hi,0.06));
+  _tint.addColorStop(0,_tcPowerColor(0,0.05));
+  _tint.addColorStop(1,_tcPowerColor(1,0.05));
   ctx.fillStyle=_tint; ctx.fillRect(0,0,W,H);
   // Trail — power-colored fading dots
   const now=Date.now(), FADE=1800;
@@ -1098,17 +1154,17 @@ function tcDraw() {
     if (age>FADE) continue;
     const f=1-age/FADE, r=3+f*7;
     ctx.beginPath(); ctx.arc(p.x*W,p.y*H,r,0,Math.PI*2);
-    ctx.fillStyle=_tcPowerColor(p.p!=null?p.p:tcIntFromX(p.x), f*f*0.55); ctx.fill();
+    ctx.fillStyle=_tcPowerColor(p.p!=null?p.p:p.x, f*f*0.55); ctx.fill();
   }
   if (tcTrail.length>0) {
     const head=tcTrail[tcTrail.length-1];
-    const hp=head.p!=null?head.p:tcIntFromX(head.x);
+    const hp=head.p!=null?head.p:head.x;
     ctx.beginPath(); ctx.arc(head.x*W,head.y*H,5,0,Math.PI*2);
     ctx.fillStyle=_tcPowerColor(hp,0.90); ctx.fill();
   }
-  // Cursor — power-aware size, color, softness
+  // Cursor — reach-aware size, color, softness (X = reach)
   if (tcPointerDown || _tcLooping) {
-    const power=tcIntFromX(tcLastX);
+    const power=tcLastX;
     const curX=tcLastX*W, curY=tcLastY*H;
     const S=Math.min(W,H);
     // Size: scales from ~6% to ~16% of shortest canvas dimension
@@ -1188,11 +1244,12 @@ function tcOnDown(e) {
   const canvas=document.getElementById('touch-canvas');
   const pos=tcGetPos(e,canvas);
   tcLastX=pos.x; tcLastY=pos.y;
-  tcTrail=[{x:pos.x,y:pos.y,p:tcIntFromX(pos.x),t:Date.now()}];
+  tcTrail=[{x:pos.x,y:pos.y,p:pos.x,t:Date.now()}];
   _tcGesturePath.push({t:0, x:pos.x, y:pos.y});
   _touchActive = true;
-  const p0 = tcPositionFromY(pos.y);
-  sendCmd({beta_mode:'hold',beta:p0.beta,alpha_pos:p0.alpha,intensity:tcIntFromX(pos.x)}, 'touch');
+  const p0 = tcPositionFromXY(pos.x, pos.y);
+  // Position only — volume (V0) is the master slider, not the touch.
+  sendCmd({beta_mode:'hold', beta:p0.beta, alpha_pos:p0.alpha}, 'touch');
   tcDraw();
 }
 function tcOnMove(e) {
@@ -1200,26 +1257,27 @@ function tcOnMove(e) {
   const canvas=document.getElementById('touch-canvas');
   const pos=tcGetPos(e,canvas);
   tcLastX=pos.x; tcLastY=pos.y;
-  tcTrail.push({x:pos.x,y:pos.y,p:tcIntFromX(pos.x),t:Date.now()});
+  tcTrail.push({x:pos.x,y:pos.y,p:pos.x,t:Date.now()});
   if (tcTrail.length>60) tcTrail.shift();
   _tcGesturePath.push({t:performance.now()-_tcGestureStart, x:pos.x, y:pos.y});
-  const pm = tcPositionFromY(pos.y);
-  sendCmd({beta:pm.beta,alpha_pos:pm.alpha,intensity:tcIntFromX(pos.x)}, 'touch');
+  const pm = tcPositionFromXY(pos.x, pos.y);
+  sendCmd({beta:pm.beta, alpha_pos:pm.alpha}, 'touch');
   tcDraw();
 }
 function tcOnUp() {
   if (!tcPointerDown) return;
   tcPointerDown=false;
   _touchActive = false;
+  // Target mode: hold the last spot (already sent live). No loop.
+  if (_tcTargetMode) { _updateResumeBtn(); tcDraw(); return; }
   const dur=(performance.now()-_tcGestureStart)/1000;
   if (dur>=0.5 && _tcGesturePath.length>=6) {
     _tcLoopStart=performance.now(); _tcLoopDur=dur*1000;
     tcSetLooping(true);
-    // Send gesture to engine for server-side looping
+    // Send gesture PATH to engine for server-side looping (volume = master)
     const pts = _tcGesturePath.map(p => {
-      const gp = tcPositionFromY(p.y);
-      return { t: p.t / 1000, beta: gp.beta, alpha: gp.alpha,
-               intensity: tcIntFromX(p.x) };
+      const gp = tcPositionFromXY(p.x, p.y);
+      return { t: p.t / 1000, beta: gp.beta, alpha: gp.alpha, intensity: 1.0 };
     });
     sendCmd({gesture_record: pts}, 'touch');
     sendCmd({beta_mode: 'touch'}, 'touch');
@@ -1247,9 +1305,8 @@ function resumeTouchGesture() {
   if (_tcGesturePath.length < 2) return;
   // Re-send gesture to engine and switch to touch mode
   const pts = _tcGesturePath.map(p => {
-    const rp = tcPositionFromY(p.y);
-    return { t: p.t / 1000, beta: rp.beta, alpha: rp.alpha,
-             intensity: tcIntFromX(p.x) };
+    const rp = tcPositionFromXY(p.x, p.y);
+    return { t: p.t / 1000, beta: rp.beta, alpha: rp.alpha, intensity: 1.0 };
   });
   sendCmd({gesture_record: pts}, 'touch');
   sendCmd({beta_mode: 'touch'}, 'touch');
@@ -1446,6 +1503,7 @@ async function tcDriverUploadAnatomy(file) {
 function initTouchPanel() {
   if (tcPanelInited) { return; }
   tcPanelInited = true;
+  _applyTouchModeUI();   // reflect saved Loop/Target mode on the toggle + status
   const canvas=document.getElementById('touch-canvas');
   const wrap=document.getElementById('tc-main');
   canvas.addEventListener('mousedown',  tcOnDown, {passive:false});

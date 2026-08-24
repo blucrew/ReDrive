@@ -767,16 +767,18 @@ class DriveEngine:
                 dt  = now - last
                 last = now
 
-                # ── Gesture loop (takes over entire output when active) ────────────
+                # ── Gesture loop (replays the recorded PATH; volume is the master) ──
+                # Volume comes from the master (the touch-tab volume slider), not
+                # the recorded gesture — so a loop holds steady power with no dip
+                # at the seam, and the driver can ride volume live during a loop.
                 if self._gesture_active and self._gesture_seq:
-                    g_beta, g_alpha, g_int = self._gesture_advance(dt)
-                    g_int = max(0.0, min(1.0, g_int))
+                    g_beta, g_alpha, _g_int = self._gesture_advance(dt)
                     g_alpha = max(0.0, min(1.0, g_alpha))
-                    self._pattern.intensity = g_int
-                    self._shared["__live__l0"] = g_int
+                    vol = max(0.0, min(1.0, self._pattern.intensity))
+                    self._shared["__live__l0"] = vol
                     self._shared["__live__l1"] = g_beta / 9999.0
-                    self._shared["__live__l2"] = g_int  # alpha active during gesture
-                    tv = _tv_floor(g_int, cfg.tcode_floor)
+                    self._shared["__live__l2"] = vol
+                    tv = _tv_floor(vol, cfg.tcode_floor)
                     await self._send(
                         f"{cfg.axis_volume}{tv}I{cfg.send_interval_ms} "
                         f"{cfg.axis_beta}{g_beta:04d}I{cfg.send_interval_ms} "

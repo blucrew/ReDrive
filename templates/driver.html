@@ -365,22 +365,28 @@ const EZ_DRIVE = {% if ez_drive %}true{% else %}false{% endif %};
       </div>
 
       <!-- Base Power gradient slider -->
-      <div style="flex-shrink:0;padding:2px 0 0">
-        <div style="font-size:10px;color:var(--fg2);margin-bottom:4px;text-align:center;letter-spacing:.05em">BASE POWER</div>
-        <div style="position:relative;height:34px;border-radius:6px;overflow:hidden;touch-action:none">
+      <!-- Master VOLUME (V0) — the overall power. Always visible. -->
+      <div id="tc-vol-box" style="flex-shrink:0;padding:4px 0 0">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+          <span style="font-size:11px;font-weight:700;color:var(--fg);letter-spacing:.1em">VOLUME</span>
+          <span id="tc-vol-val" style="font-size:14px;font-weight:700;color:var(--accent);font-family:var(--mono)">0%</span>
+        </div>
+        <div style="position:relative;height:40px;overflow:hidden;touch-action:none;border:1px solid var(--border)">
           <div style="position:absolute;inset:0;background:linear-gradient(to right,#44cc70,#ffcc14,#ff8800,#ff4444)"></div>
-          <input type="range" id="tc-power-slider" min="0" max="100" value="50"
-                 oninput="_tcPowerSlider=this.value/100;_tcUpdatePowerThumb();tcDraw()"
+          <input type="range" id="tc-power-slider" min="0" max="100" value="0"
+                 oninput="onTouchVolume(this.value)"
                  style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;padding:0;-webkit-appearance:none;appearance:none;touch-action:none">
-          <div id="tc-power-thumb" style="position:absolute;top:4px;bottom:4px;width:5px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.95);border-radius:3px;pointer-events:none;box-shadow:0 0 5px rgba(0,0,0,0.8)"></div>
+          <div id="tc-power-thumb" style="position:absolute;top:3px;bottom:3px;width:6px;left:0%;transform:translateX(-50%);background:#fff;pointer-events:none;box-shadow:0 0 7px rgba(0,0,0,0.95)"></div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;padding-top:2px">
+        <button id="tc-mode-toggle" onclick="toggleTouchMode()"
+                style="font-size:11px;font-weight:700;padding:5px 12px;background:var(--bg3);color:var(--fg);border:1px solid var(--border);cursor:pointer">&#8635; Loop</button>
         <label style="font-size:11px;color:var(--fg2);display:flex;align-items:center;gap:4px;cursor:pointer">
           <input type="checkbox" id="overlay-check" checked onchange="setOverlay(this.checked)"> Show overlay
         </label>
         <button id="tc-resume-btn" onclick="resumeTouchGesture()" style="display:none;font-size:10px;padding:3px 10px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer">Resume</button>
-        <span id="tc-status" style="color:var(--fg2);font-size:11px;font-family:monospace;flex:1">Tap or drag &middot; Y = position &middot; X = intensity</span>
+        <span id="tc-status" style="color:var(--fg2);font-size:11px;font-family:monospace;flex:1;min-width:130px">Loop &middot; Y = point &middot; X = reach &middot; lift = replay</span>
       </div>
     </div><!-- end #touch-panel -->
 
