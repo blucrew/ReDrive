@@ -181,7 +181,7 @@
     </ol>
     <h3>As a rider</h3>
     <ol class="steps">
-      <li>Run <b>ReStim</b> with its WebSocket server on (default port <code>12346</code>) and pick your device.</li>
+      <li>Run <b>ReStim</b> and pick your device &mdash; its WebSocket server (port <code>12346</code>) starts on its own.</li>
       <li>Open the join link your driver sent &mdash; it bridges automatically to your local ReStim. Nothing to install.</li>
       <li>Keep a hand on your ReStim power dial. <b>You own your maximum.</b></li>
     </ol>
@@ -190,8 +190,8 @@
 
   <section id="rider">
     <h2><span class="n">03</span> Rider setup (ReStim)</h2>
-    <h3>Enable the bridge</h3>
-    <p>In ReStim, turn on the T-code <b>WebSocket server</b> (defaults to port <code>12346</code>). ReDrive&rsquo;s rider page connects to <code>ws://localhost:12346/tcode</code> automatically.</p>
+    <h3>The bridge</h3>
+    <p>ReStim starts its <b>WebSocket server automatically</b> on startup (port <code>12346</code>) &mdash; there&rsquo;s nothing to switch on. ReDrive&rsquo;s rider page connects to <code>ws://localhost:12346/tcode</code> for you. If you&rsquo;ve changed the port, set the address in the rider page&rsquo;s bridge panel (<b>ReStim address</b>).</p>
     <h3>Pick your device</h3>
     <p><b>Setup &rarr; Device Selection.</b> For an audio / StereoStim box choose <b>Audio-based three-phase</b> &rarr; pick Pulse-based, Continuous, or the experimental A/B &rarr; set your frequency min&ndash;max &rarr; Finish. FOC-Stim and NeoStim are selected the same way.</p>
     <h3>T-code axes &mdash; use ReStim&rsquo;s defaults</h3>
