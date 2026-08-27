@@ -45,7 +45,7 @@ const EZ_DRIVE = {% if ez_drive %}true{% else %}false{% endif %};
                oninput="setDriverName(this.value)">
         <button onclick="copyRiderLink(this)"
           style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap">&#128279; Rider Link</button>
-        <a href="/public/driver-manual.html" target="_blank"
+        <a href="/manual" target="_blank"
           style="padding:5px 10px;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);border-radius:5px;font-size:12px;cursor:pointer;white-space:nowrap;text-decoration:none">&#63; Manual</a>
       </div>
     </div>
@@ -364,7 +364,7 @@ const EZ_DRIVE = {% if ez_drive %}true{% else %}false{% endif %};
         </label>
       </div>
 
-      <!-- Base Power gradient slider -->
+      <!-- Master VOLUME slider (V0) -->
       <!-- Master VOLUME (V0) — the overall power. Always visible. -->
       <div id="tc-vol-box" style="flex-shrink:0;padding:4px 0 0">
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
