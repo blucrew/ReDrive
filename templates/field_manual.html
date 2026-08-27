@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReDrive &middot; Field Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07080c; --bg-2:#0c0e14; --bg-3:#11141d;
+    --line:#1c2130; --line-2:#2a3146;
+    --fg:#e8edf7; --fg-2:#7d889e; --fg-3:#4a5266;
+    --blue:#5fb0ff; --violet:#b07cff; --cyan:#57e6d8; --amber:#ffb74d;
+    --ok:#58d97a; --err:#ff5f6d; --red:#ff5f6d;
+    --glow-b:rgba(95,176,255,.5);
+    --mono:'Space Mono',ui-monospace,monospace;
+    --disp:'Chakra Petch',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg); color:var(--fg);
+    font:400 15px/1.7 var(--disp);
+    -webkit-font-smoothing:antialiased;
+    position:relative; overflow-x:hidden;
+  }
+  .graticule{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:46px 46px;
+    -webkit-mask-image:radial-gradient(ellipse 95% 45% at 50% 0%,#000 0%,transparent 75%);
+            mask-image:radial-gradient(ellipse 95% 45% at 50% 0%,#000 0%,transparent 75%);
+    opacity:.4;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:1.4rem 1.1rem 5rem; position:relative; z-index:2;}
+  ::selection{background:var(--blue); color:#04060a;}
+
+  /* Header */
+  .top{display:flex; align-items:center; justify-content:space-between; gap:1rem;
+       padding-bottom:1rem; margin-bottom:1.6rem; border-bottom:1px solid var(--line);}
+  .home{font-family:var(--mono); font-size:.72rem; letter-spacing:.14em; color:var(--fg-2); text-decoration:none;}
+  .home:hover{color:var(--blue);}
+  .home b{color:var(--fg);}
+  .stamp{font-family:var(--mono); font-size:.62rem; letter-spacing:.2em; color:var(--fg-3);}
+
+  .title{margin-bottom:.4rem;}
+  .kicker{font-family:var(--mono); font-size:.7rem; letter-spacing:.22em; color:var(--blue); margin-bottom:.6rem;}
+  h1{font-family:var(--disp); font-weight:700; font-size:clamp(2.2rem,8vw,3.4rem); line-height:.95;
+     letter-spacing:.01em;
+     background:linear-gradient(150deg,#fff,var(--blue) 48%,var(--violet));
+     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+     filter:drop-shadow(0 3px 20px var(--glow-b)); margin-bottom:.5rem;}
+  .lede{color:var(--fg-2); font-size:1rem; max-width:64ch; margin-bottom:2rem;}
+  .lede b{color:var(--fg);}
+
+  /* Table of contents */
+  .toc{background:var(--bg-2); border:1px solid var(--line-2); padding:1rem 1.2rem; margin-bottom:2.4rem; position:relative;}
+  .toc::before,.toc::after{content:""; position:absolute; width:15px; height:15px; border:0 solid var(--blue); opacity:.6;}
+  .toc::before{top:0; left:0; border-top-width:2px; border-left-width:2px;}
+  .toc::after{bottom:0; right:0; border-bottom-width:2px; border-right-width:2px;}
+  .toc-h{font-family:var(--mono); font-size:.64rem; letter-spacing:.2em; color:var(--fg-2); margin-bottom:.7rem;}
+  .toc ol{list-style:none; columns:2; column-gap:1.4rem;}
+  @media(max-width:560px){.toc ol{columns:1;}}
+  .toc li{font-family:var(--mono); font-size:.82rem; padding:.18rem 0; break-inside:avoid;}
+  .toc a{color:var(--fg-2); text-decoration:none;}
+  .toc a:hover{color:var(--blue);}
+  .toc .n{color:var(--blue); margin-right:.5em;}
+
+  /* Sections */
+  section{margin-bottom:2.6rem; scroll-margin-top:1rem;}
+  h2{font-family:var(--disp); font-weight:700; font-size:1.5rem; color:var(--fg);
+     display:flex; align-items:baseline; gap:.6rem; margin-bottom:.9rem;
+     padding-bottom:.5rem; border-bottom:1px solid var(--line);}
+  h2 .n{font-family:var(--mono); font-size:.9rem; color:var(--blue);}
+  h3{font-family:var(--disp); font-weight:600; font-size:1.08rem; color:var(--blue); margin:1.5rem 0 .5rem;}
+  p{color:var(--fg-2); margin-bottom:.85rem; max-width:72ch;}
+  p b,li b{color:var(--fg); font-weight:600;}
+  a{color:var(--blue); text-decoration:none; border-bottom:1px solid transparent;}
+  a:hover{border-bottom-color:var(--blue);}
+  ul,ol.steps{margin:0 0 .9rem 1.2rem; color:var(--fg-2);}
+  li{margin-bottom:.4rem; max-width:70ch;}
+  code{font-family:var(--mono); font-size:.85em; color:var(--cyan); background:#04060b; border:1px solid var(--line); padding:.08em .4em;}
+  kbd{font-family:var(--mono); font-size:.8em; color:var(--fg); background:var(--bg-3); border:1px solid var(--line-2); padding:.1em .45em;}
+
+  /* Flow chain */
+  .chain{display:flex; align-items:stretch; gap:.5rem; margin:1rem 0 1.4rem; flex-wrap:wrap;}
+  .stage{flex:1 1 0; min-width:140px; background:var(--bg-2); border:1px solid var(--line-2); padding:.8rem .9rem; position:relative;}
+  .stage .b{font-family:var(--mono); font-size:.58rem; letter-spacing:.14em; color:var(--blue); margin-bottom:.35rem;}
+  .stage.v .b{color:var(--violet);}
+  .stage .t{font-family:var(--disp); font-weight:700; font-size:1rem; color:var(--fg); margin-bottom:.25rem;}
+  .stage .s{font-size:.78rem; line-height:1.45;}
+  .arrow{align-self:center; color:var(--blue); font-family:var(--mono); opacity:.6;}
+  @media(max-width:560px){.chain{flex-direction:column;} .arrow{transform:rotate(90deg);}}
+
+  /* Data table */
+  table{width:100%; border-collapse:collapse; font-size:.88rem; margin:.6rem 0 1.2rem;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--line); vertical-align:top;}
+  th{font-family:var(--mono); font-size:.64rem; letter-spacing:.1em; text-transform:uppercase; color:var(--fg-3); border-bottom:1px solid var(--line-2);}
+  td{color:var(--fg-2);}
+  td:first-child{color:var(--fg); font-weight:600; white-space:nowrap;}
+  td code{white-space:nowrap;}
+  .dot{display:inline-block; width:.7em; height:.7em; border-radius:50%; vertical-align:middle; margin-right:.15em; box-shadow:0 0 6px currentColor;}
+
+  /* Callouts */
+  .note{border-left:2px solid var(--blue); background:linear-gradient(90deg,rgba(95,176,255,.05),transparent); padding:.7rem 1rem; margin:1rem 0; font-size:.9rem;}
+  .warn{border-left:2px solid var(--amber); background:linear-gradient(90deg,rgba(255,183,77,.06),transparent); padding:.7rem 1rem; margin:1rem 0; font-size:.9rem;}
+  .warn b,.warn strong{color:var(--amber);}
+  .note b{color:var(--blue);}
+  .k{font-family:var(--mono); font-size:.62rem; letter-spacing:.14em; color:var(--fg-3);}
+
+  /* Circle diagram */
+  .diagram{display:flex; gap:1.4rem; align-items:center; flex-wrap:wrap; margin:1rem 0 1.4rem;}
+  .diagram svg{flex-shrink:0;}
+  .diagram .legend{font-size:.85rem; color:var(--fg-2); flex:1; min-width:200px;}
+
+  .foot{margin-top:3rem; padding-top:1.2rem; border-top:1px solid var(--line);
+        font-family:var(--mono); font-size:.7rem; letter-spacing:.04em; color:var(--fg-3); text-align:center;}
+  .foot a{color:var(--fg-2);}
+  .totop{display:inline-block; margin-top:.4rem;}
+</style>
+</head>
+<body>
+<div class="graticule"></div>
+<div class="wrap">
+
+  <div class="top">
+    <a class="home" href="/">&larr; <b>ReDrive</b> launch</a>
+    <span class="stamp">FIELD&nbsp;MANUAL &middot; v1</span>
+  </div>
+
+  <div class="title">
+    <div class="kicker">// OPERATIONS &amp; SETUP</div>
+    <h1>Field Manual</h1>
+  </div>
+  <p class="lede">Everything you need to run a session &mdash; from wiring your electrodes to driving the signal. <b>ReDrive</b> shapes the signal in the browser; <b>ReStim</b> plays it out to your hardware. This manual covers both ends.</p>
+
+  <nav class="toc">
+    <div class="toc-h">// CONTENTS</div>
+    <ol>
+      <li><a href="#how"><span class="n">01</span>How it works</a></li>
+      <li><a href="#quick"><span class="n">02</span>Quick start</a></li>
+      <li><a href="#rider"><span class="n">03</span>Rider setup (ReStim)</a></li>
+      <li><a href="#wiring"><span class="n">04</span>Electrode wiring</a></li>
+      <li><a href="#circle"><span class="n">05</span>The three-phase circle</a></li>
+      <li><a href="#console"><span class="n">06</span>The driver console</a></li>
+      <li><a href="#patterns"><span class="n">07</span>Patterns</a></li>
+      <li><a href="#position"><span class="n">08</span>Position &amp; movement</a></li>
+      <li><a href="#fourphase"><span class="n">09</span>4-phase electrodes</a></li>
+      <li><a href="#touch"><span class="n">10</span>The touch pad</a></li>
+      <li><a href="#script"><span class="n">11</span>The script player</a></li>
+      <li><a href="#poppers"><span class="n">12</span>Poppers</a></li>
+      <li><a href="#ez"><span class="n">13</span>EZ-DRIVE</a></li>
+      <li><a href="#bridge"><span class="n">14</span>Headless bridge</a></li>
+      <li><a href="#safety"><span class="n">15</span>Safety</a></li>
+    </ol>
+  </nav>
+
+  <section id="how">
+    <h2><span class="n">01</span> How it works</h2>
+    <p>ReDrive never touches hardware. It generates a live <b>T-code</b> signal in the browser and relays it, over the internet, to a rider&rsquo;s local <b>ReStim</b> install &mdash; which plays it out to whatever box they run.</p>
+    <div class="chain">
+      <div class="stage"><div class="b">01 / DRIVE</div><div class="t">ReDrive</div><div class="s">Any browser. The driver shapes the signal &mdash; patterns, position, intensity, scripts, touch.</div></div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage"><div class="b">02 / BRIDGE</div><div class="t">ReStim</div><div class="s">The rider&rsquo;s own ReStim is the client. The join link bridges the signal into it over <code>ws://localhost:12346</code>.</div></div>
+      <div class="arrow">&rarr;</div>
+      <div class="stage v"><div class="b">03 / FEEL</div><div class="t">Your box</div><div class="s">ReStim sends it out: Audio / StereoStim, FOC-Stim, or NeoStim.</div></div>
+    </div>
+    <p>A <b>driver</b> holds a room; one or more <b>riders</b> connect with the room code and bridge in. Everything is live &mdash; there is no recording in the middle.</p>
+    <div class="note"><b>Rooms are in-memory.</b> A room lives only while it&rsquo;s active; if the server restarts, live sessions drop and reconnect. Rooms also expire after a period of inactivity.</div>
+  </section>
+
+  <section id="quick">
+    <h2><span class="n">02</span> Quick start</h2>
+    <h3>As a driver</h3>
+    <ol class="steps">
+      <li>On the launch page, choose <b>Drive a Session</b> &rarr; you get a room with a private driver key in the URL.</li>
+      <li>Copy the <b>Rider Link</b> and send it to your rider(s).</li>
+      <li>Drive from the <b>Controls</b>, <b>Touch</b>, or <b>Script</b> tab.</li>
+    </ol>
+    <h3>As a rider</h3>
+    <ol class="steps">
+      <li>Run <b>ReStim</b> with its WebSocket server on (default port <code>12346</code>) and pick your device.</li>
+      <li>Open the join link your driver sent &mdash; it bridges automatically to your local ReStim. Nothing to install.</li>
+      <li>Keep a hand on your ReStim power dial. <b>You own your maximum.</b></li>
+    </ol>
+    <div class="note"><b>No driver yet?</b> A rider can open a <b>Waiting Room</b> and send the claim link to a driver, who takes over when they claim it.</div>
+  </section>
+
+  <section id="rider">
+    <h2><span class="n">03</span> Rider setup (ReStim)</h2>
+    <h3>Enable the bridge</h3>
+    <p>In ReStim, turn on the T-code <b>WebSocket server</b> (defaults to port <code>12346</code>). ReDrive&rsquo;s rider page connects to <code>ws://localhost:12346/tcode</code> automatically.</p>
+    <h3>Pick your device</h3>
+    <p><b>Setup &rarr; Device Selection.</b> For an audio / StereoStim box choose <b>Audio-based three-phase</b> &rarr; pick Pulse-based, Continuous, or the experimental A/B &rarr; set your frequency min&ndash;max &rarr; Finish. FOC-Stim and NeoStim are selected the same way.</p>
+    <h3>T-code axes &mdash; use ReStim&rsquo;s defaults</h3>
+    <p>ReDrive outputs on ReStim&rsquo;s <b>default</b> Funscript/T-Code axes. If you&rsquo;ve customised yours, set them back to these or the signal lands on the wrong axis:</p>
+    <table>
+      <thead><tr><th>Parameter</th><th>T-code axis</th><th>Range</th></tr></thead>
+      <tbody>
+        <tr><td>volume</td><td><code>V0</code></td><td>0 &hellip; 1</td></tr>
+        <tr><td>beta (position)</td><td><code>L1</code></td><td>&minus;1 &hellip; 1</td></tr>
+        <tr><td>alpha (position)</td><td><code>L0</code></td><td>&minus;1 &hellip; 1</td></tr>
+        <tr><td>gamma</td><td><em>unassigned</em></td><td>&mdash;</td></tr>
+      </tbody>
+    </table>
+    <div class="warn"><b>Common trap:</b> if ReStim reads <code>L0</code> as <em>volume</em> (a custom map), it will hear ReDrive&rsquo;s alpha as your volume and cap it around 50%. Restore the defaults above.</div>
+  </section>
+
+  <section id="wiring">
+    <h2><span class="n">04</span> Electrode wiring</h2>
+    <p>Placement decides whether what the driver touches matches what you feel. On a standard three-phase FOC box, wire the three channels like this:</p>
+    <table>
+      <thead><tr><th>Channel</th><th>Wire</th><th>Placement</th></tr></thead>
+      <tbody>
+        <tr><td><span class="dot" style="color:#5fb0ff"></span>B &middot; left</td><td>Blue</td><td>cock head</td></tr>
+        <tr><td><span class="dot" style="color:#ff5f6d"></span>A &middot; neutral</td><td>Red</td><td>base</td></tr>
+        <tr><td><span class="dot" style="color:#ffd54a"></span>C &middot; right</td><td>Yellow</td><td>anal</td></tr>
+      </tbody>
+    </table>
+    <p>Wired this way, the anatomy overlay reads true &mdash; the spot the driver drives is the spot you feel. For best alignment, build your body image with the <a href="/anatomy-maker" target="_blank">overlay maker</a>.</p>
+  </section>
+
+  <section id="circle">
+    <h2><span class="n">05</span> The three-phase circle</h2>
+    <p>Three-phase stim places the sensation at a point inside a circle. <b>Alpha</b> is the up/down axis, <b>beta</b> is the left/right axis. The three electrodes are the poles:</p>
+    <div class="diagram">
+      <svg width="180" height="180" viewBox="0 0 180 180">
+        <circle cx="90" cy="90" r="72" fill="none" stroke="#2a3146" stroke-width="1.5"/>
+        <circle cx="90" cy="90" r="46" fill="none" stroke="#1c2130" stroke-width="1" stroke-dasharray="3 4"/>
+        <line x1="90" y1="90" x2="90" y2="18" stroke="#1c2130"/><line x1="90" y1="90" x2="152" y2="126" stroke="#1c2130"/><line x1="90" y1="90" x2="28" y2="126" stroke="#1c2130"/>
+        <circle cx="90" cy="90" r="4" fill="#7d889e"/>
+        <text x="90" y="108" fill="#7d889e" font-family="monospace" font-size="8" text-anchor="middle">balanced</text>
+        <circle cx="90" cy="18" r="7" fill="#ff5f6d"/><text x="90" y="12" fill="#ff5f6d" font-family="monospace" font-size="9" text-anchor="middle">A · base</text>
+        <circle cx="28" cy="126" r="7" fill="#5fb0ff"/><text x="24" y="146" fill="#5fb0ff" font-family="monospace" font-size="9" text-anchor="middle">B · cock</text>
+        <circle cx="152" cy="126" r="7" fill="#ffd54a"/><text x="156" y="146" fill="#ffd54a" font-family="monospace" font-size="9" text-anchor="middle">C · anal</text>
+      </svg>
+      <div class="legend">
+        <p style="margin-bottom:.5rem"><b>Center</b> = all three electrodes equal (broad, balanced).</p>
+        <p style="margin-bottom:.5rem"><b>Toward a pole</b> = that electrode is favored. <b>Distance from center = how strongly.</b></p>
+        <p style="margin:0">Neutral/base sits <b>straight up</b>; cock and anal are the two <b>bottom corners</b>. To favor a bottom corner you move <b>down and to a side</b> &mdash; alpha alone only reaches the top pole.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="console">
+    <h2><span class="n">06</span> The driver console</h2>
+    <p>Three tabs, each an independent <b>source</b> of signal:</p>
+    <ul>
+      <li><b>Controls</b> &mdash; patterns, intensity, position modes, ramps.</li>
+      <li><b>Touch</b> &mdash; a live anatomy pad you drag on.</li>
+      <li><b>Script</b> &mdash; a funscript player with optional watch-along video.</li>
+    </ul>
+    <p>The <b>SOURCES</b> row lets you enable/disable each. Priority is <b>Script &gt; Controls &gt; Touch</b> per axis &mdash; and a playing script takes over completely (see <a href="#script">&sect;11</a>). Master <b>volume/intensity</b> is shared across all three tabs; the big <b>STOP</b> (octagon) halts everything at once.</p>
+  </section>
+
+  <section id="patterns">
+    <h2><span class="n">07</span> Patterns</h2>
+    <p>On the Controls tab, the pattern shapes how <b>volume</b> moves over time. Each button draws its own waveform behind the label.</p>
+    <table>
+      <thead><tr><th>Pattern</th><th>Feel</th></tr></thead>
+      <tbody>
+        <tr><td>Hold</td><td>Steady at the set intensity.</td></tr>
+        <tr><td>Sine</td><td>Smooth swell up and down.</td></tr>
+        <tr><td>Ramp &uarr; / &darr;</td><td>Rise then reset / fall then reset.</td></tr>
+        <tr><td>Pulse</td><td>Triangle throb.</td></tr>
+        <tr><td>Burst</td><td>Square on/off.</td></tr>
+        <tr><td>Random</td><td>Smooth wandering noise.</td></tr>
+        <tr><td>Edge</td><td>Slow build &rarr; hold &rarr; quick drop &rarr; rest.</td></tr>
+      </tbody>
+    </table>
+    <p><b>Speed (Hz)</b> sets how fast the pattern cycles; <b>Depth</b> sets how far it dips (0 = flat = same as Hold, 1 = full swing to zero). <b>Presets</b> save and recall a whole configuration.</p>
+  </section>
+
+  <section id="position">
+    <h2><span class="n">08</span> Position &amp; movement (beta modes)</h2>
+    <p>Where the sensation sits and how it moves along the electrodes:</p>
+    <table>
+      <thead><tr><th>Mode</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>Sweep</td><td>Continuously slides position between center &plusmn; width. Adjustable Hz, width, and skew (dwell bias).</td></tr>
+        <tr><td>Spiral</td><td>Beta and alpha in quadrature &mdash; traces a circle; optional tighten.</td></tr>
+        <tr><td>Path</td><td>2D trajectory shapes: Circle, Figure-8, Rose, Tremor, Panning, Vertical &mdash; with a speed control.</td></tr>
+        <tr><td>Hold</td><td>Parks position; set it with the quick-jump buttons.</td></tr>
+        <tr><td>Touch</td><td>Driven by the Touch tab / a recorded gesture loop.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="fourphase">
+    <h2><span class="n">09</span> 4-phase electrodes</h2>
+    <p>Toggle <b>4-Phase</b> for four-electrode rigs (e1 cock, e2 balls, e3 perineum, e4 anal). Beyond the manual spread, named <b>electrode patterns</b> drive the four weights directly:</p>
+    <ul>
+      <li><b>Cycle / Cross</b> &mdash; sequential focus looping through the electrodes.</li>
+      <li><b>e1&harr;e2, e3&harr;e4, e1&harr;e4</b> &mdash; rock between a pair.</li>
+      <li><b>Throb e1 / Throb all</b> &mdash; pulse one or all together.</li>
+      <li><b>Diagonals</b> &mdash; e1+e4 &rlarr; e2+e3.</li>
+    </ul>
+    <p>Each pattern has its own speed. A four-channel funscript still overrides these directly.</p>
+  </section>
+
+  <section id="touch">
+    <h2><span class="n">10</span> The touch pad</h2>
+    <p>A live anatomy pad. Drag to place the sensation; the overlay shows the body.</p>
+    <table>
+      <thead><tr><th>Control</th><th>Drives</th></tr></thead>
+      <tbody>
+        <tr><td>Touch <b>Y</b> (up/down)</td><td>The <b>point</b> &mdash; which electrode: tip&rarr;cock, middle&rarr;base, bottom&rarr;anal.</td></tr>
+        <tr><td>Touch <b>X</b> (left/right)</td><td>The <b>reach</b> &mdash; left = centered/balanced across all electrodes, right = pinpoint on that point.</td></tr>
+        <tr><td><b>VOLUME</b> slider</td><td>The master overall level (ReStim volume). Independent of where you touch.</td></tr>
+      </tbody>
+    </table>
+    <div class="warn"><b>Raise VOLUME first.</b> It&rsquo;s the master and defaults to 0 &mdash; nothing is felt until you bring it up.</div>
+    <h3>Loop vs Target</h3>
+    <ul>
+      <li><b>Loop</b> &mdash; lifting your finger replays your last stroke on repeat, at the live master volume (no dip at the seam &mdash; ride the volume slider during a loop).</li>
+      <li><b>Target</b> &mdash; lifting holds the <b>exact last spot</b>. Drive live and let go to park it.</li>
+    </ul>
+  </section>
+
+  <section id="script">
+    <h2><span class="n">11</span> The script player</h2>
+    <p>Load <b>funscripts</b> into per-axis slots (intensity, beta/position, alpha, or four-channel e1&ndash;e4). Filenames auto-detect the axis (e.g. <code>scene.beta.funscript</code>). Press play; scrub, loop, and offset as needed.</p>
+    <h3>Volume</h3>
+    <p>A position-only script needs a level: the <b>Script volume</b> slider is the master. If the script itself carries a <code>.volume</code>/<code>.intensity</code> axis, that drives volume instead.</p>
+    <h3>Script owns the signal</h3>
+    <p>While a script plays it is the <b>sole source of truth</b>: volume passes through un-patterned, position comes straight from the script, and Controls / Touch are muted &mdash; so it runs exactly as authored, no mixing. Pause or Stop returns control.</p>
+    <h3>Watch-along video</h3>
+    <p>When the driver has a video loaded in the player, riders get a <b>Watch-along</b> card: one-click the driver&rsquo;s shared URL, or load their own local copy of the file. Either way the rider&rsquo;s video follows the driver&rsquo;s play / pause / seek, kept in sync automatically.</p>
+  </section>
+
+  <section id="poppers">
+    <h2><span class="n">12</span> Poppers</h2>
+    <p>Tap the bottle to fire a full-screen <b>poppers cue</b> on the rider&rsquo;s screen with a countdown. The timing radios (Normal / Deep Huff / Double Hit) set the duration. It&rsquo;s a visual cue only &mdash; it doesn&rsquo;t change the stim.</p>
+  </section>
+
+  <section id="ez">
+    <h2><span class="n">13</span> EZ-DRIVE</h2>
+    <p>For a first-time driver. <b>You</b> (the rider) set everything up, then hand off a link that opens a single <b>touch pad</b> &mdash; no dials, no menus. They just drag on the body to drive you.</p>
+    <ul>
+      <li>On the launch page, open an <b>EZ-DRIVE</b> room and send the claim link.</li>
+      <li>Optionally set the <b>body image</b> right on the waiting page &mdash; your driver sees it preloaded.</li>
+      <li>You connect your ReStim as usual; the newbie only sees the pad, STOP, and poppers.</li>
+    </ul>
+  </section>
+
+  <section id="bridge">
+    <h2><span class="n">14</span> Headless bridge</h2>
+    <p>Prefer no browser tab? A small cross-platform Python bridge forwards a room&rsquo;s signal straight to your local ReStim from the command line &mdash; handy on Linux/Mac or if your browser blocks <code>ws://localhost</code>.</p>
+    <ul>
+      <li>Download <a href="/public/redrive_bridge.py" download="redrive_bridge.py"><code>redrive_bridge.py</code></a>.</li>
+      <li><code>pip install websockets</code></li>
+      <li><code>python redrive_bridge.py YOURCODE</code></li>
+    </ul>
+    <p>It&rsquo;s a pure signal bridge &mdash; you lose the rider UI (feel orb, watch-along), but the stim is identical.</p>
+  </section>
+
+  <section id="safety">
+    <h2><span class="n">15</span> Safety</h2>
+    <div class="warn"><b>Early alpha &mdash; experimental.</b> Expect rough edges and dropouts. Keep a hand on your <b>ReStim power dial at all times</b>: the driver shapes the pattern, but <em>you</em> own your maximum intensity. Never place electrodes across the chest or above the waist. Stop if anything feels wrong.</div>
+    <p>If a session drops, it&rsquo;s almost always a server restart (rooms are in-memory) or a network hiccup &mdash; reconnect with the same link. If you feel a signal that isn&rsquo;t from ReDrive, check ReStim&rsquo;s media source is set to <b>Internal</b>.</p>
+  </section>
+
+  <div class="foot">
+    <div>ReDrive Field Manual &middot; <a href="https://www.estimstation.com">estimstation.com</a></div>
+    <a class="totop" href="#">&uarr; top</a>
+  </div>
+
+</div>
+</body>
+</html>

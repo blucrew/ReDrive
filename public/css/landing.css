@@ -215,6 +215,19 @@ body {
 }
 .page-sub b { color: var(--fg); font-weight: 600; }
 
+/* ── Field-manual link (between wordmark and scope) ─────────────────── */
+.manual-link{
+  --bx:8px;
+  display:inline-flex; align-items:center; margin-bottom:1.5rem;
+  padding:.5rem 1.15rem;
+  font-family:var(--mono); font-size:.7rem; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--blue); text-decoration:none;
+  background:var(--bg-2); border:1px solid var(--line-2);
+  clip-path:polygon(var(--bx) 0,100% 0,100% calc(100% - var(--bx)),calc(100% - var(--bx)) 100%,0 100%,0 var(--bx));
+  transition:color .18s, box-shadow .18s, background .18s;
+}
+.manual-link:hover{ color:#fff; background:var(--bg-3); box-shadow:0 0 20px -4px var(--glow-b), inset 0 0 0 1px var(--blue); }
+
 /* ── How it works ───────────────────────────────────────────────────── */
 .how { margin-bottom: 2rem; }
 .how-flow { display: flex; align-items: stretch; gap: .55rem; margin-top: .9rem; }

@@ -935,6 +935,10 @@ async def handle_anatomy_maker(req):
     return aiohttp_jinja2.render_template("anatomy_maker.html", req, {})
 
 
+async def handle_field_manual(req):
+    return aiohttp_jinja2.render_template("field_manual.html", req, {})
+
+
 # -- Public session list + privacy
 
 async def handle_api_rooms(req):
@@ -1158,6 +1162,7 @@ def build_app(local_room: Optional["Room"] = None) -> web.Application:
         app.router.add_get("/", handle_index)
 
     app.router.add_get("/anatomy-maker",                       handle_anatomy_maker)
+    app.router.add_get("/manual",                              handle_field_manual)
     app.router.add_post("/create",                             handle_create)
     # Waiting room routes
     app.router.add_post("/waiting",                            handle_create_waiting)
